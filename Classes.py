@@ -9,7 +9,7 @@ from scipy.signal import savgol_filter
 rcParams['mathtext.default'] = 'regular'
 
 
-#tools to import new spectra v
+#tools to import new spectra
 class Importer:
     #first: make a list of day folders in the archive directory
     def __init__(self):
@@ -52,10 +52,11 @@ class Importer:
             return True
         else:
             return False
-            
 #tools to maintain the library
+
 class Day_meta:
     pass
+
 class Library_Manager:
     #controll and maintain the library management file
     def __init__(self):
@@ -174,6 +175,7 @@ class SFG_Spectrum:
     def smooth(self,points=9,order=5):
         y = savgol_filter(self.normalized_intensity,points,order)
         self.normalized_intensity = y
+
 class Systematic_Name:
 
     def __init__(self,namestring):
@@ -435,7 +437,6 @@ class Finder:
             matches = [i for i in subset if i.name.surfactant == "unknown"]
             return matches
 
-   
 class Interpreter:
 
     """Class providing the functionality for the command line of the plotting routine"""
@@ -559,7 +560,6 @@ class Interpreter:
                     subsets.append(j)
             self.answerset = subsets
 
- 
 #tools for plotting
 class Plotter:
 
