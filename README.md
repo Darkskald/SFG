@@ -24,6 +24,6 @@ Tool to plot experimental UV/Vis spectra
 A section where functions for more detailed analysis of the spectra (peak picking, integration...)
 are established and tested before final implementation.
 
-###functions
+### functions
 This file is a container for useful code snippets which simplify chemistry-related and data analysis
 related calculations
