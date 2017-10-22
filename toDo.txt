@@ -1,6 +1,8 @@
 [urgent fixes]
 
-
+- copy class description to github readme
+- copy ipy_interpreter instructions to github readme
+- add todo data to this file
 
 
 [important features]
@@ -9,4 +11,3 @@
 
 [nice-to-have-features]
 
-blablablabla
