@@ -12,9 +12,11 @@ class Ipy_Interpreter:
         
     def show(self):
         for i in range(len(self.subset)):
-            print (str(i)+" : "+self.subset[i].name.full_name)         
+            print (str(i)+" : "+self.subset[i].name.full_name)
+
     def clear(self):
         self.subset = []
+
     def get(self,flagstring):
         
         if flagstring =="bo":
@@ -22,15 +24,15 @@ class Ipy_Interpreter:
 
         elif flagstring == "p":
             self.subset = self.database.photo_based()
-        
-            
+
         else:
+
             f = self.flagstring_split(flagstring)
             flag = f[0]
             options = f[1].split(",")
-            
-            
+
             if flag == "su":
+
                 for i in options:
                     option = self.retranslate_name(i)
                     print(option)            
@@ -45,18 +47,20 @@ class Ipy_Interpreter:
                     collector = self.database.sensitizer_based(option)
                     for i in collector:
                         self.subset.append(i)
-            
-            
+
             elif flag =="s":
+
                 for i in options:
                     collector = self.database.sample_based(i)
                     for i in collector:
                         self.subset.append(i)
             
             elif flag =="d":
+
                 self.subset = self.database.date_based(options[0])
             
             elif flag =="suv":
+
                 for i in options:
                  collector = self.database.sur_volume_based(i)
                  for i in collector:
@@ -67,6 +71,17 @@ class Ipy_Interpreter:
                     collector = self.database.measurement_based(i)
                     for i in collector:
                         self.subset.append(i)
+
+            elif flag == "ml":
+                months = options.split(",")
+                begin = int(months[0])
+                end = int(months[1])
+                self.subset = self.database.by_monthrange(begin, end)
+
+            elif flag == "y":
+                years = options.split(",")
+                self.subset = self.database.by_year(years)
+
         
             
     def flagstring_split(self,flagstring):
@@ -76,7 +91,7 @@ class Ipy_Interpreter:
         flag = f[0]
         options = f[1]
         
-        allowed = ["su","se","p","c","d","s","suv","m"]
+        allowed = ["su","se","p","c","d","s","suv","m","ml","y"]
         
         if flag not in allowed:
             print("Unknown flag")
@@ -97,6 +112,7 @@ class Ipy_Interpreter:
         recover = [i for i in self.subset if i not in new_list]
         self.recover = recover
         self.subset = new_list
+
     def plot(self,flag=False):
         p = Plotter(self.subset)
         if flag == False:
@@ -138,7 +154,17 @@ class Ipy_Interpreter:
             self.subset = self.database.sur_volume_based(options,self.subset)
             
         elif flag == "m":
-            self.subset = self.database.measurement_based(options,self.subset)        
+            self.subset = self.database.measurement_based(options, self.subset)
+
+        elif flag == "ml":
+            months = options.split(",")
+            begin = int(months[0])
+            end = int(months[1])
+            self.subset = self.database.by_monthrange(begin, end, self.subset)
+
+        elif flag == "y":
+            years = options.split(",")
+            self.subset = self.database.by_year(years, self.subset)
             
     def update(self):
         Importer()
@@ -170,6 +196,7 @@ class Ipy_Interpreter:
         for i in self.recover:
             self.subset.append(i)
     def analyze_peaks(self,number=4):
+
         a = Analyzer(self.subset)
         a.list_peaks(number)
             

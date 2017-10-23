@@ -1,3 +1,4 @@
+import functions as fun
 import os
 import shutil
 import csv
@@ -7,6 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from scipy.signal import savgol_filter
 rcParams['mathtext.default'] = 'regular'
+
+
 
 
 #tools to import new spectra
@@ -289,9 +292,10 @@ class Systematic_Name:
             self.sample_number = self.processing_list[1]
             self.surfactant="Nat. surface sample"
     def date_split(self):
-        year = self.date[:3]
-        month = self.date[4:5]
-        day = self.date[6:7]
+
+        year = int(self.date[:3])
+        month = int(self.date[4:5])
+        day = int(self.date[6:7])
         return(year,month,day)
         
 class FileFetcher:
@@ -412,12 +416,14 @@ class Finder:
                 if spectrum.name.photolysis == "none":
                     matches.append(spectrum)            
         return matches
+
     def measurement_based(self,measurementflag,subset="default"):
         if subset == "default":
             subset = self.database
         measures = measurementflag.split(",")
         matches = [ i for i in subset if i.name.measurement in measures]
         return matches
+
     def comment_based(self,option="BoknisEckSample",subset="default"):
         if subset == "default":
             subset = self.database
@@ -426,6 +432,7 @@ class Finder:
             if spectrum.name.comment == option:
                 matches.append(spectrum)
         return matches
+
     def sur_volume_based(self,amount, subset= "default"):
         if subset == "default":
             subset = self.database
@@ -436,6 +443,25 @@ class Finder:
             subset = self.database
             matches = [i for i in subset if i.name.surfactant == "unknown"]
             return matches
+
+    def by_year(self, yearlist, subset="default"):
+
+        if subset == "default":
+            subset = self.database
+        matches = [i for i in subset if i.name.date_split()[0] in yearlist]
+        return matches
+
+    def by_month(self,month, subset="default"):
+        if subset == "default":
+            subset = self.database
+        matches = [i for i in subset if i.name.date_split()[1] == month]
+        return matches
+
+    def by_monthrange(self, begin, end, subset="default"):
+        if subset == "default":
+            subset = self.database
+        matches = [i for i in subset if (begin <= i.name.date_split()[1] <= end)]
+        return matches
 
 class Interpreter:
 

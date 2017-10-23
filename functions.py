@@ -58,17 +58,6 @@ def simple_analysis():
         i.clear()
 
 
-def date_split(datenumber):
-    process_string = str(datenumber)
-    year = process_string[0:4]
-    month = process_string[4:6]
-    day = process_string[6:]
-
-    return (year, month, day)
-
-
-
-
 
 #Test code section
 
