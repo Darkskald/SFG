@@ -27,3 +27,4 @@
 [nice-to-have-features]
 - call results from elementary analysis from Interpreter
 - add user interaction in peak picking and integration (shift peak borders, manually delete/add maxima)
+- add integration and peak picking etc to UV, IR, Raman

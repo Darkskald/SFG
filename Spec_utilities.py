@@ -149,5 +149,3 @@ class SpecDatabase:
 
 
 #test code section
-s = SpecDatabase("Raman")
-s.uv_plot()

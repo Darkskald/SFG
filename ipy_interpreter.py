@@ -1,4 +1,5 @@
 from Classes import *
+import Spec_utilities as spc
 
 
 class Ipy_Interpreter:
@@ -10,6 +11,9 @@ class Ipy_Interpreter:
         self.database = Finder()
         self.subset = []
         self.recover = []
+        self.uvdata = spc.SpecDatabase("UV")
+        self.irdata = spc.SpecDatabase("IR")
+        self.ramandata = spc.SpecDatabase("Raman")
 
     def show(self):
         for i in range(len(self.subset)):
@@ -200,4 +204,10 @@ class Ipy_Interpreter:
 
         a = Analyzer(self.subset)
         a.list_peaks(number)
+
+
+#testcode section
+I = Ipy_Interpreter()
+
+
 
