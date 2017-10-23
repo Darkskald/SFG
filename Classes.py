@@ -657,6 +657,7 @@ class Analyzer:
     def __init__(self,speclist):
         
         self.speclist = speclist
+
     def list_peaks(self,number):
         intensities = []
         wavenumbers = []
@@ -669,37 +670,4 @@ class Analyzer:
         #plt.scatter(wavenumbers,intensities)
         plt.hist(wavenumbers,rwidth=0.02,normed=True)
         plt.show()
-#test code section
-"""dc = Data_Collector("20170811_DPPC_9.81.sfg")
-dc2 = Data_Collector("20170811_SA_10_x1_#1.sfg")
 
-sg1 = dc.yield_SFG_Spectrum()
-sg2= dc2.yield_SFG_Spectrum()
-
-
-p = Plotter([sg1,sg2])
-p.simple_plot()
-def testfunc():
-    d = os.getcwd()
-    print(d)
-    a = FileFetcher("20170811_DPPC_9.81.sfg")
-    s=a.sfg
-    d = os.getcwd()
-    p=Plotter([s])
-    p.simple_plot()
-    print(s.yield_increment())
-    print(d)
-I = Importer()
-L = Library_Manager()
-L.update()
-
-f = Finder()
-f1=f.date_based("20170811")
-f2=f.surfactant_based("Stearic Acid",f1)
-
-f3=f.sample_based(1,f2)
-
-p = Plotter(f3)
-p.simple_plot()"""
-
-#testfunc()
