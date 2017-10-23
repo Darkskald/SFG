@@ -157,13 +157,14 @@ class Ipy_Interpreter:
             self.subset = self.database.measurement_based(options, self.subset)
 
         elif flag == "ml":
-            months = options
+            months = options.split(",")
+            print("options: ", options, type(options))
             begin = int(months[0])
             end = int(months[1])
             self.subset = self.database.by_monthrange(begin, end, self.subset)
 
         elif flag == "y":
-            years = options
+            years = options.split(",")
             self.subset = self.database.by_year(years, self.subset)
 
     def update(self):
@@ -201,3 +202,8 @@ class Ipy_Interpreter:
         a.list_peaks(number)
 
 
+
+i = Ipy_Interpreter()
+i.get("y 2016")
+i.refine("ml 5,8")
+i.show()

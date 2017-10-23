@@ -1,4 +1,4 @@
-import functions as fun
+#import functions as fun
 import os
 import shutil
 import csv
@@ -293,9 +293,10 @@ class Systematic_Name:
             self.surfactant="Nat. surface sample"
     def date_split(self):
 
-        year = int(self.date[:3])
-        month = int(self.date[4:5])
-        day = int(self.date[6:7])
+        year = int(self.date[0:4])
+        month = int(self.date[4:6])
+        day = int(self.date[6:])
+
         return(year,month,day)
         
 class FileFetcher:
@@ -446,12 +447,15 @@ class Finder:
 
     def by_year(self, yearlist, subset="default"):
 
+        print("by year calling: ")
+        print("yearlist: ", yearlist)
         if subset == "default":
             subset = self.database
-        matches = [i for i in subset if i.name.date_split()[0] in yearlist]
+
+        matches = [i for i in subset if str(i.name.date_split()[0]) in yearlist]
         return matches
 
-    def by_month(self,month, subset="default"):
+    def by_month(self, month, subset="default"):
         if subset == "default":
             subset = self.database
         matches = [i for i in subset if i.name.date_split()[1] == month]
@@ -697,3 +701,4 @@ class Analyzer:
         plt.hist(wavenumbers,rwidth=0.02,normed=True)
         plt.show()
 
+#
