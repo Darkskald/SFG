@@ -201,9 +201,3 @@ class Ipy_Interpreter:
         a = Analyzer(self.subset)
         a.list_peaks(number)
 
-
-
-i = Ipy_Interpreter()
-i.get("y 2016")
-i.refine("ml 5,8")
-i.show()

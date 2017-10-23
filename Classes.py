@@ -9,10 +9,8 @@ from matplotlib import rcParams
 from scipy.signal import savgol_filter
 rcParams['mathtext.default'] = 'regular'
 
-
-
-
 #tools to import new spectra
+
 class Importer:
     #first: make a list of day folders in the archive directory
     def __init__(self):
@@ -55,6 +53,7 @@ class Importer:
             return True
         else:
             return False
+
 #tools to maintain the library
 
 class Day_meta:
@@ -96,6 +95,7 @@ class Library_Manager:
                 outfile.write(str(counter)+";"+file+";"+str(specrange[0])+";"+str(specrange[1])+";"+str(specrange[2])+"\n")
  
 #tools for direct spectra management
+
 class SFG_Spectrum:
 
     def __init__(self,wavenumbers,intensity,ir_intensity,vis_intensity,systematic_name):
@@ -447,8 +447,6 @@ class Finder:
 
     def by_year(self, yearlist, subset="default"):
 
-        print("by year calling: ")
-        print("yearlist: ", yearlist)
         if subset == "default":
             subset = self.database
 
