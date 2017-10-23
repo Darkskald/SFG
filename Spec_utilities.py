@@ -6,12 +6,17 @@ rcParams['mathtext.default'] = 'regular'
 
 
 class Spectrum:
+
+    """Abstract class to manage the very basic properties of a spectra (wavelength/number, intensity and name
+    in a convenient way. Covers IR, Raman and UV spectra at once"""
     def __init__(self, name, wavelengths, intensities):
         self.name = name
         self.wavelengths = wavelengths
         self.intensities = intensities
 
 class UV_DataCollector:
+
+    """Class to fetch UV spectral data from file. Handles the change to the UV directory internally"""
 
     def __init__(self,name):
 
@@ -44,6 +49,8 @@ class UV_DataCollector:
         return uv
 
 class IR_DataCollector:
+    """Class to fetch IR and Raman spectral data from file. Handles the change to the IR/Raman
+    directory internally"""
 
     def __init__(self,name,type):
 
@@ -88,7 +95,8 @@ class IR_DataCollector:
 class SpecDatabase:
 
     """A simple class for dealing with a certain set of experimental UV/Vis, IR and Raman spectra. Gives access
-    to plotting, comparison and other usefull functions"""
+    to plotting, comparison and other useful functions. The type argument in the constructor determines
+    the concrete procedure"""
 
     def __init__(self, type):
 
@@ -111,8 +119,10 @@ class SpecDatabase:
                     collect = IR_DataCollector(file, type="Raman").yield_spec()
                     self.database.append(collect)
 
-
     def uv_plot(self):
+        if self.type != "UV":
+            raise TypeError("UV plot function not defined for type " + self.type)
+
         fig = plt.figure()
         ax = plt.subplot(111)
         for spectrum in self.database:
@@ -124,6 +134,8 @@ class SpecDatabase:
         plt.show()
 
     def ir_plot(self):
+        if self.type != "IR" and self.type != "Raman":
+            raise TypeError("IR plot function not defined for type " + self.type)
         fig = plt.figure()
         ax = plt.subplot(111)
         for spectrum in self.database:
@@ -138,4 +150,4 @@ class SpecDatabase:
 
 #test code section
 s = SpecDatabase("Raman")
-s.ir_plot()
+s.uv_plot()
