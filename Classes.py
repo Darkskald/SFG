@@ -9,8 +9,6 @@ from matplotlib import rcParams
 from scipy.signal import savgol_filter
 rcParams['mathtext.default'] = 'regular'
 
-#tools to import new spectra
-
 class Importer:
     #first: make a list of day folders in the archive directory
     def __init__(self):
@@ -54,11 +52,6 @@ class Importer:
         else:
             return False
 
-#tools to maintain the library
-
-class Day_meta:
-    pass
-
 class Library_Manager:
     #controll and maintain the library management file
     def __init__(self):
@@ -93,8 +86,6 @@ class Library_Manager:
                 sfg = FileFetcher(file).sfg
                 specrange = sfg.yield_spectral_range()
                 outfile.write(str(counter)+";"+file+";"+str(specrange[0])+";"+str(specrange[1])+";"+str(specrange[2])+"\n")
- 
-#tools for direct spectra management
 
 class SFG_Spectrum:
 
@@ -313,7 +304,6 @@ class FileFetcher:
         self.sfg = self.collector.yield_SFG_Spectrum()
         os.chdir(initial_wd)
 
-#extract spectral data from .sfg file
 class Data_Collector:
     def __init__(self,filename):
         #the filename is ONLY the filename, not containing any directory information. 
@@ -465,130 +455,6 @@ class Finder:
         matches = [i for i in subset if (begin <= i.name.date_split()[1] <= end)]
         return matches
 
-class Interpreter:
-
-    """Class providing the functionality for the command line of the plotting routine"""
-
-    def __init__(self,command):
-       
-       commandlist = command.split(" ")
-       if len(commandlist) == 1:
-           if commandlist[0] == "ud":
-               self.update()
-           elif commandlist[0] == "x":
-               sys.exit()
-
-       elif len(command) < 3:
-           print("Wrong number of parameters! Try again")
-       else:
-           self.type = commandlist[0]
-           self.flags = commandlist [1]
-           self.options = commandlist[2]
-
-           if self.type == "plot" and self.flags == "f":
-                files = self.options.split(",")
-                self.plothandler(files)
-
-           elif self.type == "plot" and self.flags =="d,su,sa":
-               self.sample_surfactant_date(self.options)
-
-           elif self.type == "plot" and self.flags ==  "bo":
-               self.plot_boknis()
-
-           elif self.type =="list":
-               self.list_()
-           
-
-    def plothandler(self,filelist):
-
-        sfg_objects = []
-        for file in filelist:
-            sfg = FileFetcher(file).sfg
-            sfg_objects.append(sfg)
-        P = Plotter(sfg_objects)
-        P.simple_plot()
-
-    def sample_surfactant_date(self,options):
-        options = options.split(",")
-        if len(options) != 3:
-            print("sa_su_da calling. Invalid number of flags!")
-        else:
-            dateflag = options[0]
-            surflag = self.retranslate_name(options[1])
-            sampleflag = int(options[2])
-
-            f = Finder()
-            f1 = f.date_based(dateflag)
-            f2 = f.surfactant_based(surflag,f1)
-            f3 = f.sample_based(sampleflag,f2)
-
-            Plotter(f3).simple_plot()
-
-    def plot_boknis(self):
-        if self.options == "none":
-            f = Finder()
-            sfg = f.comment_based()
-            Plotter(sfg).simple_plot()
-
-        elif "s" in self.options:
-            number = int(self.options[1])
-            f = Finder()
-            sfg = f.comment_based()
-            sfg = f.sample_based(number,sfg)
-            Plotter(sfg).simple_plot()
-
-        else:
-            print("Not yet implemented")
-            print(self.options, len(self.options))
-
-    def update(self):
-        Importer()
-
-    def retranslate_name(self,stri):
-        #load the allowed surfactans and sensitizers from files
-        self.Surfactants = {}
-        self.Sensitizers = {}
-
-        with open ("name_info/Surfactants.txt","r") as infile:
-            for line in infile:
-                collect = line.split(":")
-                self.Surfactants[collect[0]] = collect[1].strip()
-
-        with open ("name_info/Sensitizers.txt","r") as infile:
-            for line in infile:
-                collect = line.split(":")
-                self.Sensitizers[collect[0]] = collect[1].strip()
-        if stri in self.Surfactants:
-            return self.Surfactants[stri]
-        elif stri in self.Sensitizers:
-            return self.Sensitizers[stri]
-        else:
-            print("Retranslation failed. Unknown expression.")
-
-    def list_(self):
-        f = Finder()
-
-        if self.flags == "su":
-            surfoptions = self.options.split(",") #if comma-separated multiplit sensitizers are given
-            subsets = []
-            for  i in surfoptions:
-                i= self.retranslate_name(i)
-                f1 = f.surfactant_based(i)
-                for j in f1:
-                    subsets.append(j)
-            self.answerset = subsets
-        
-        elif self.flags =="d":
-
-            subsets = []
-            dateoptions = self.options.split(",")
-            for i in dateoptions:
-                subset = f.date_based(self.options)
-                for j in subset:
-                    subsets.append(j)
-            self.answerset = subsets
-
-#tools for plotting
 class Plotter:
 
     def __init__(self,speclist,raw=False,title="Default"):

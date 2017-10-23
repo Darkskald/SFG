@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 rcParams['mathtext.default'] = 'regular'
 
-
 class Spectrum:
 
     """Abstract class to manage the very basic properties of a spectra (wavelength/number, intensity and name
@@ -49,6 +48,7 @@ class UV_DataCollector:
         return uv
 
 class IR_DataCollector:
+
     """Class to fetch IR and Raman spectral data from file. Handles the change to the IR/Raman
     directory internally"""
 
@@ -90,7 +90,6 @@ class IR_DataCollector:
             name = self.filename
         spec = Spectrum(name, self.data[0], self.data[1])
         return spec
-
 
 class SpecDatabase:
 
