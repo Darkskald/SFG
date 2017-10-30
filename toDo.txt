@@ -4,11 +4,12 @@
 - copy ipy_interpreter instructions to github readme
 - add todo data to this file
 - implement UV/Vis and IR/Raman support to IPy interpreter:
-- unify UV and IR/Raman to a new file "SpecUtilities"
 - transfer the file fetcher/datacollector idea to the uv/vis system
 - test the result of the integration routine with the numerical functions from scipy for accuracy:
 	-if scipy better, replace
 - recycle the plot boknis special function from the old Interpreter
+- implement notebook/task manager functionality
+- 
 
 
 [important features]
