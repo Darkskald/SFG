@@ -205,6 +205,26 @@ class Ipy_Interpreter:
         a = Analyzer(self.subset)
         a.list_peaks(number)
 
+    def show_uv(self):
+        counter = 1
+        for spectrum in self.uvdata:
+            print(str(counter)+" : "+spectrum.name)
+            counter += 1
+
+    def show_ir(self):
+        counter = 1
+        for spectrum in self.irdata:
+            print(str(counter) + " : " + spectrum.name)
+            counter += 1
+
+    def show_raman(self):
+        counter = 1
+        for spectrum in self.ramandata:
+            print(str(counter) + " : " + spectrum.name)
+            counter += 1
+
+
+
 
 
 

@@ -1,7 +1,7 @@
 [urgent fixes]
 
 - copy class description to github readme
-- copy ipy_interpreter instructions to github readme
+- copy ipy_interpreter instructions to github readme (and translate them to English..)
 - add todo data to this file
 - implement UV/Vis and IR/Raman support to IPy interpreter:
 - transfer the file fetcher/datacollector idea to the uv/vis system
@@ -9,7 +9,16 @@
 	-if scipy better, replace
 - recycle the plot boknis special function from the old Interpreter
 - implement notebook/task manager functionality
-- 
+- make notebook functionality callable from interpreter
+- shift Planer to the Classes file
+- expand the Spec_utilities SpecDatabase functionality drastically:
+        - keeping, refining etc to separate it from the interpreter code
+        - direct and simple access via the interpreter
+        - refine the addition operator for two SpecDatabase objects to join their spectra and
+          give access to IR and Raman plotting in one plot
+        - reunite the show_ir, show_raman...etc from interpreter to a single show function taking
+          a flag instead of having three parallel functions
+- set a time frame whitch features have to be implemented before the next group seminar
 
 
 [important features]
@@ -17,7 +26,7 @@
 - add Kristians Data to the library:
 - check names of files
 - check names and format of DPPC reference
-- semi-autmatic analysis (in text form):
+- semi-automatic analysis (in text form):
 	- scan all data
 	- count: amount of spectra of each surfactant
 	- for each surfactant: write analysis file:
@@ -29,3 +38,4 @@
 - call results from elementary analysis from Interpreter
 - add user interaction in peak picking and integration (shift peak borders, manually delete/add maxima)
 - add integration and peak picking etc to UV, IR, Raman
+- add a mechanism to call the toDo things from the file to the interpreter
