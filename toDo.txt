@@ -8,9 +8,6 @@
 - test the result of the integration routine with the numerical functions from scipy for accuracy:
 	-if scipy better, replace
 - recycle the plot boknis special function from the old Interpreter
-- implement notebook/task manager functionality
-- make notebook functionality callable from interpreter
-- shift Planer to the Classes file
 - expand the Spec_utilities SpecDatabase functionality drastically:
         - keeping, refining etc to separate it from the interpreter code
         - direct and simple access via the interpreter
