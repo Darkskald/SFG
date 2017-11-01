@@ -14,7 +14,9 @@ class Ipy_Interpreter:
         self.uvdata = spc.SpecDatabase("UV")
         self.irdata = spc.SpecDatabase("IR")
         self.ramandata = spc.SpecDatabase("Raman")
+        self.planer = Planer()
 
+    #SFG Management
     def show(self):
         for i in range(len(self.subset)):
             print(str(i) + " : " + self.subset[i].name.full_name)
@@ -205,6 +207,8 @@ class Ipy_Interpreter:
         a = Analyzer(self.subset)
         a.list_peaks(number)
 
+    #further analytics
+
     def show_uv(self):
         counter = 1
         for spectrum in self.uvdata:
@@ -223,6 +227,20 @@ class Ipy_Interpreter:
             print(str(counter) + " : " + spectrum.name)
             counter += 1
 
+    #section for planer
+    def dn(self, number):
+        """dn is abbreviation vor done"""
+        self.planer.done(number)
+
+    def ata(self, string):
+        """ata is abbreviation for add_task"""
+        self.planer.add_task(string)
+
+    def st(self):
+        """st is abbreviation for show tasks"""
+        self.planer.show_tasks()
+
+
 
 
 
@@ -230,6 +248,7 @@ class Ipy_Interpreter:
 
 #testcode section
 I = Ipy_Interpreter()
+i.get("su DPPC")
 
 
 
