@@ -35,5 +35,5 @@ for sensitizer in sens:
                 I.recovery()
 
             I.subset = backup
-
+        I.clear()
 
