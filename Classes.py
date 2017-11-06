@@ -106,16 +106,16 @@ class SFG_Spectrum:
 
     def yield_peaklist(self,intensity="default",num=6,threshold=25):
         """yield a defined list of peaks separated from each other by minimum the threshold value in wavenumber"""
-         pair_get=[]
-         out=[]
-         num=num
-         if intensity == "default":
-             intensity = self.normalized_intensity
+        pair_get=[]
+        out=[]
+        num=num
+        if intensity == "default":
+            intensity = self.normalized_intensity
 
-         for i in range(len(self.wavenumbers)):
+        for i in range(len(self.wavenumbers)):
             pair_get.append([intensity[i],self.wavenumbers[i]])
         
-         while len(out) < (num):
+        while len(out) < (num):
         
         
               if len(out) != 0:
@@ -136,7 +136,7 @@ class SFG_Spectrum:
                    out.append(k)
             
            
-         return out
+        return out
 
     def yield_spectral_range(self):
         """returns a list containing maximum and minimum wavenumer and the number of data points"""
@@ -221,7 +221,6 @@ class SFG_Spectrum:
         return data_out
 
     def integrate_peak(self, x_array, y_array):
-
         area = 0
         for i in range(len(x_array) - 1):
             dx = abs(x_array[i + 1] - x_array[i])
@@ -230,7 +229,6 @@ class SFG_Spectrum:
             total = square + triangle
             area += total
         return area
-
 
 class Systematic_Name:
 
