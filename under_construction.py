@@ -244,3 +244,18 @@ class Interpreter:
                 for j in subset:
                     subsets.append(j)
             self.answerset = subsets
+
+
+#stolen from the Analyzer Class
+"""def list_peaks(self, number):
+    intensities = []
+    wavenumbers = []
+
+    for i in self.speclist:
+        j = i.yield_peaklist(num=number)
+        for k in j:
+            intensities.append(k[0])
+            wavenumbers.append(k[1])
+    # plt.scatter(wavenumbers,intensities)
+    plt.hist(wavenumbers, rwidth=0.02, normed=True)
+    plt.show()"""

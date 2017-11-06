@@ -20,14 +20,11 @@ def detailed_analysis(x_array,y_array):
     slopes = [(y_array[i+1]-y_array[i])/(x_array[i+1]-x_array[i]) for i in range((len(x_array)-1))]
     possible_peaks = []
     peak_tuples = []
-    
-    
+
     for i in range(1,len(y_array)-1):
         if slopes[i-1] > 0 and slopes[i] < 0:
             possible_peaks.append(i)
-            
-           
-            
+
     average_intensity = np.average(y_array)
     
     confirmed_peaks = [i for i in possible_peaks if (y_array[i] > average_intensity*5)]

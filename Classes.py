@@ -96,17 +96,16 @@ class SFG_Spectrum:
         self.ir_intensity = ir_intensity
         self.name = systematic_name
         self.normalized_intensity = self.raw_intensity/(self.vis_intensity*self.ir_intensity)
-     
 
-    #normalize an given array to its maximum, typically the normalized or raw intensity
     def normalize_to_highest(self,intensity="default"):
+        """normalize an given array to its maximum, typically the normalized or raw intensity"""
         if intensity == "default":
             intensity = self.normalized_intensity
         norm_factor = np.max(intensity)
         return (intensity/norm_factor)
 
-    #yield a defined list of peaks separated from each other by minimum the threshold value in wavenumber
     def yield_peaklist(self,intensity="default",num=6,threshold=25):
+        """yield a defined list of peaks separated from each other by minimum the threshold value in wavenumber"""
          pair_get=[]
          out=[]
          num=num
@@ -139,8 +138,8 @@ class SFG_Spectrum:
            
          return out
 
-    #returns a list containing maximum and minimum wavenumer and the number of data points
     def yield_spectral_range(self):
+        """returns a list containing maximum and minimum wavenumer and the number of data points"""
         return [min(self.wavenumbers),max(self.wavenumbers),len(self.wavenumbers)]
 
     def yield_increment(self):
@@ -164,11 +163,74 @@ class SFG_Spectrum:
         stepsize.append(s)
         increment = [borders,stepsize]
         return increment
-    
-    
+
     def smooth(self,points=9,order=5):
         y = savgol_filter(self.normalized_intensity,points,order)
         self.normalized_intensity = y
+
+    def detailed_analysis(self, threshold=3):
+        x_array = self.wavenumbers[::-1]
+        y_array = self.normalized_intensity[::-1]
+
+        slopes = [(y_array[i + 1] - y_array[i]) / (x_array[i + 1] - x_array[i]) for i in range((len(x_array) - 1))]
+        possible_peaks = []
+        peak_tuples = []
+
+        for i in range(1, len(y_array) - 1):
+            if slopes[i - 1] > 0 and slopes[i] < 0:
+                possible_peaks.append(i)
+
+        average_intensity = np.average(y_array)
+
+        confirmed_peaks = [i for i in possible_peaks if (y_array[i] > average_intensity * threshold)]
+
+        for i in confirmed_peaks:
+
+            left = 0
+            right = 0
+            center = i
+            k = i - 2
+
+            # check for left border
+            while slopes[k] > 0:
+                k -= 1
+            left = k
+
+            # check for right border
+            k = i + 1
+
+            while ((slopes[k] < 0) and (k + 1 <= len(slopes) - 1)):
+                k += 1
+
+            right = k
+
+            peak_tuples.append((center, left, right))
+
+        data_out = []
+        for i in peak_tuples:
+            indices = (i[0], i[1], i[2])
+            center = x_array[i[0]]
+            left = x_array[i[1]]
+            right = x_array[i[2]]
+            peak_slice_x = x_array[i[1]:i[2] + 1]
+            peak_slice_y = y_array[i[1]:i[2] + 1]
+            area = self.integrate_peak(peak_slice_x, peak_slice_y)
+            datapoints = len(peak_slice_x)
+
+            data_out.append((center, left, right, peak_slice_x, peak_slice_y, datapoints, area, indices))
+        return data_out
+
+    def integrate_peak(self, x_array, y_array):
+
+        area = 0
+        for i in range(len(x_array) - 1):
+            dx = abs(x_array[i + 1] - x_array[i])
+            square = dx * y_array[i]
+            triangle = dx * abs(y_array[i + 1] - y_array[i]) * 0.5
+            total = square + triangle
+            area += total
+        return area
+
 
 class Systematic_Name:
 
@@ -556,21 +618,6 @@ class Analyzer:
     def __init__(self,speclist):
         
         self.speclist = speclist
-
-    def list_peaks(self,number):
-        intensities = []
-        wavenumbers = []
-        
-        for i in self.speclist:
-            j = i.yield_peaklist(num=number)
-            for k in j:
-                intensities.append(k[0])
-                wavenumbers.append(k[1])
-        #plt.scatter(wavenumbers,intensities)
-        plt.hist(wavenumbers,rwidth=0.02,normed=True)
-        plt.show()
-
-#
 
 class Planer:
 
