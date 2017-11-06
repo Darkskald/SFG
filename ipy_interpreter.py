@@ -129,6 +129,8 @@ class Ipy_Interpreter:
             p.raw_plot_plus_ir()
 
     def refine(self, flagstring):
+
+        self.recover = self.subset
         f = self.flagstring_split(flagstring)
         flag = f[0]
         options = f[1]
@@ -240,15 +242,6 @@ class Ipy_Interpreter:
         """st is abbreviation for show tasks"""
         self.planer.show_tasks()
 
-
-
-
-
-
-
-#testcode section
-I = Ipy_Interpreter()
-i.get("su DPPC")
 
 
 

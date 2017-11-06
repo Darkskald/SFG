@@ -36,7 +36,6 @@ class UV_DataCollector:
             for line in c:
                 l = line[0].split(",")
                 if len(l) == 2:
-                    print(l)
                     wavelength.append(float(l[0]))
                     intensity.append(float(l[1]))
         return (wavelength, intensity)

@@ -505,7 +505,7 @@ class Plotter:
             wl = spectrum.wavenumbers
             intensity = spectrum.raw_intensity
             ir = spectrum.ir_intensity
-            plt.plot(wl,intensity,label=spectrum.name.full_name,linestyle='--',markersize=4,marker="o")
+            plt.plot(wl,intensity,label=spectrum.name.full_name,linestyle='dotted',markersize=4,marker="o")
             plt.plot(wl,ir,label=spectrum.name.full_name+" IR_intensity",linestyle='--')
         plt.grid(True)
         plt.title(self.title)
@@ -523,26 +523,31 @@ class Plotter:
                 intensity = spectrum.normalized_intensity
             else:
                 intensity = spectrum.raw_intensity
-            stitle = str(spectrum.name.sample_number)+" "+spectrum.name.comment+" "+str(spectrum.name.measurement)
-            ax.plot(wl,intensity,label=stitle,linestyle='--',markersize=4,marker="o")
+            photo = ""
+
+            if spectrum.name.photolysis != "none":
+                photo = spectrum.name.photolysis
+
+            stitle = str(spectrum.name.sample_number)+" "+spectrum.name.comment+" "+str(spectrum.name.measurement)+" "+photo
+            ax.plot(wl, intensity, label=stitle, linestyle='dotted', markersize=2,marker="o")
         
         
         
         box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])      
+        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         ax.grid()
         ax.set_title(self.title)
         ax.set_xlabel("Wavenumber/ $cm^{-1}$")
         ax.set_ylabel("Intensity/ a.u.")
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-        plt.savefig("analysis_out/"+self.title+".pdf")
+        lgd = ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        plt.savefig("analysis_out/"+self.title+".pdf", bbox_extra_artists=(lgd,), bbox_inches='tight')
         plt.close()
         with open("analysis_out/"+self.title+".log","w") as outfile:
 
-            outfile.write("Logfile of Spectal anaylsis routine")
-            outfile.write("List of included specta/n")
+            outfile.write("Logfile of Spectral analysis routine")
+            outfile.write("List of included spectra\n")
             for spectrum in self.speclist:
-                outfile.write(spectrum.name.full_name+"/n")
+                outfile.write(spectrum.name.full_name+"\n")
 
 class Analyzer:
     """This class takes, what a surprise, a list of SFG spectra as constructor argument. Its purpose
