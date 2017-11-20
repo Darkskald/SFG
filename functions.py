@@ -1,5 +1,6 @@
 from ipy_interpreter import Ipy_Interpreter
 from Classes import Plotter
+import numpy as np
 
 """A supporting module with useful functions for all the data management and analysis in the SFG module"""
 
@@ -58,8 +59,35 @@ def simple_analysis():
         i.clear()
 
 
+def calc_dish_area(diameter):
+    """A auxialiary function to calculate the area of a teflon dish in square angstroms. Diameter given in cm."""
+    radius = diameter*0.5
+    area = np.pi*radius**2
+    area = area*10**16     #conversion to square angstroms
+    return area
+
+
+def calc_area_per_molecule(area, concentration, volume):
+
+    """The function calculates the area per molecule. The area should be given in square angstroms, the
+    concentration in milimole per liter and the volume in microleter"""
+
+    concentration = concentration*10**-3    #conversion in mol per liter
+    volume = volume*10**-6                  #conversion in liter
+    amount = volume*concentration
+    molecules = (6.022*10**23)*amount       #number of molecules
+    area_per_molecule = area/molecules
+
+    return area_per_molecule
+
 
 #Test code section
 
-simple_analysis()
+diameter = 5.1
+concentration = 5
+volume = 1.5
 
+area = calc_dish_area(5.1)
+pm = calc_area_per_molecule(area, concentration, volume)
+
+print(pm)

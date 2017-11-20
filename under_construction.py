@@ -92,32 +92,7 @@ def get_iraman_data(filename):
 
 
 # test code section
-a = get_iraman_data("BX9")
-b = get_iraman_data("BX9.dpt")
 
-d = FileFetcher("20170901_BX9_5_x1_#2_5mM.sfg").sfg
-c = (d.wavenumbers, d.normalized_intensity)
-
-fig, ax1 = plt.subplots()
-
-ax1.plot(a[0], a[1])
-ax1.set_xlabel("Wavenumbers")
-ax1.set_ylabel("Raman intensity")
-ax1.set_xlim(1000, 4000)
-
-ax2 = ax1.twinx()  # creating another axis object sharing x axis, twiny() also possible
-ax2.plot(b[0], b[1], color="r")
-ax2.set_xlim(1000, 4000)
-
-"""
-ax3 = ax1.twinx()
-ax3.plot(c[0],c[1],color="black")
-ax2.set_xlim(1000,4000)
-"""
-ax2.set_ylabel("Transmission")
-
-# fig.tight_layout()
-plt.show()
 
 """not yet implemented classes"""
 class Day_meta:
