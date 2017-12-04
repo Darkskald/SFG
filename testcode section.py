@@ -11,10 +11,10 @@ def integrate_peak(x_array, y_array):
         area += total
     return area
 
-x = np.linspace(0,5,10000)
+x = np.linspace(0,5,200)
 y = (2*x**2)+(0.4*x)-3
-y2 = (6*x**3)+(2*x**2)+(0.4*x)-3
-y3 = 0.5*np.sin(x)+2*x
+y2 = ((6*x**3)+(2*x**2)+(0.4*x)-3)**2
+y3 = (0.5*np.sin(x)+2*x)**2
 
 als = integrate_peak(x,y)
 aln = np.trapz(y,x)
