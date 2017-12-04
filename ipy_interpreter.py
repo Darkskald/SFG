@@ -248,4 +248,9 @@ class Ipy_Interpreter:
 
 
 
+I = Ipy_Interpreter()
+I.get("su DPPC")
+Q = I.subset[0]+I.subset[1]
+print(Q)
+P = Plotter([Q])
 

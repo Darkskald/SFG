@@ -112,38 +112,40 @@ class SFG_Spectrum:
         return date+"\t"+surf+"\t"+srange+"\t\t"+full
 
     def __add__(self, SFG2):
-
         wavenumbers = self.wavenumbers
         intensity = self.normalized_intensity
-        not_in_list = []
 
+        values = [(a, b) for a, b in zip(wavenumbers, intensity)]
         for i in range(len(SFG2.wavenumbers)):
-            if SFG2.wavenumbers[i] in wavenumbers:
-                index = intensity.index(SFG2.wavenumbers[i])
-                intensity[index] = (intensity[index]+SFG2.normalized_intensity[i])*0.5
-            else:
-                not_in_list.append((SFG2.wavenumbers[i], SFG2.normalized_intensity[i]))
+            values.append((SFG2.wavenumbers[i], SFG2.normalized_intensity[i]))
 
-        for a, b in zip(wavenumbers, intensity):
-            not_in_list.append((a, b))
-
-        not_in_list = not_in_list.sort()
-        not_in_list = not_in_list[::-1] #restore original order
-
+        values.sort()
+        values = values[::-1]
         new_wavenumbers = []
         new_intensities = []
+        last_wl = 0
 
-        for i in range(len(not_in_list)):
-            print("*****debug******\n")
-            tup = not_in_list[i]
-            print(tup)
-            new_wavenumbers.append(tup[0])
-            new_intensities.append(tup[1])
-
-        names = [self.name.full_name[:-4],SFG2.name.full_name[:-4]]
-        Added = Add_Spectrum((new_wavenumbers, new_intensities), names)
-
+        for i in range(len(values)):
+            tup = values[i]
+            if last_wl != tup[0]:
+                new_wavenumbers.append(tup[0])
+                new_intensities.append(tup[1])
+                last_wl = tup[0]
+            else:
+                x = len(new_intensities)-1
+                new_intensities[x] = (new_intensities[x]+tup[1])*0.5
+        new_wavenumbers = np.array(new_wavenumbers)
+        new_intensities = np.array(new_intensities)
+        names = [self.name.full_name[:-4], SFG2.name.full_name[:-4]]
+        Added = Add_Spectrum((new_wavenumbers,new_intensities),names)
         return Added
+
+
+
+
+
+
+
 
 
 
@@ -282,13 +284,17 @@ class SFG_Spectrum:
 
 class Add_Spectrum(SFG_Spectrum):
 
-    def __init__(self , wn_intenstup, names):
+    def __init__(self , wn_intenstup, names, name="default"):
 
-        self.wavenumber = wn_intenstup[0]
+        self.wavenumbers = wn_intenstup[0]
         self.normalized_intensity = wn_intenstup[1]
         self.names = [names]
         self.speccounter = 2
+        self.name = name
 
+    def __str__(self):
+        s = "sum of "+str(self.speccounter)+"SFG spectra with systematic names"+str(self.names)
+        return s
 class Systematic_Name:
 
     def __init__(self, namestring):
@@ -720,3 +726,4 @@ class Planer:
         with open("tasks", "w") as outfile:
             for task in self.tasks:
                 outfile.write(task)
+
