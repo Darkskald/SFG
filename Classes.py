@@ -286,9 +286,46 @@ class Add_Spectrum(SFG_Spectrum):
         s = "sum of " + str(self.speccounter) + "SFG spectra with systematic names" + str(self.names)
         return s
 
+    def __add__(self, SFG2):
+        wavenumbers = self.wavenumbers
+        intensity = self.normalized_intensity
+
+        values = [(a, b) for a, b in zip(wavenumbers, intensity)]
+        for i in range(len(SFG2.wavenumbers)):
+            values.append((SFG2.wavenumbers[i], SFG2.normalized_intensity[i]))
+
+        values.sort()
+        values = values[::-1]
+        new_wavenumbers = []
+        new_intensities = []
+        last_wl = 0
+
+        for i in range(len(values)):
+            tup = values[i]
+            if last_wl != tup[0]:
+                new_wavenumbers.append(tup[0])
+                new_intensities.append(tup[1])
+                last_wl = tup[0]
+            else:
+                x = len(new_intensities) - 1
+                new_intensities[x] = (new_intensities[x] + tup[1]) * 0.5
+        new_wavenumbers = np.array(new_wavenumbers)
+        new_intensities = np.array(new_intensities)
+        names = [self.name.full_name[:-4], SFG2.name.full_name[:-4]]
+        Added = Add_Spectrum((new_wavenumbers, new_intensities), names)
+        Added.speccounter += self.speccounter
+
+        if type (SFG2) == "Add_Spectrum":
+            Added.speccounter += SFG2.speccounter
+        else:
+            Added.speccounter += 1
+
+        return Added
+
 
 # noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck
 class Systematic_Name:
+
     def __init__(self, namestring):
         # load the allowed surfactans and sensitizers from files
         self.Surfactants = {}
