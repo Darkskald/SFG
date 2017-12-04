@@ -89,6 +89,8 @@ class Library_Manager:
 
 class SFG_Spectrum:
 
+    #magic methods
+
     def __init__(self,wavenumbers,intensity,ir_intensity,vis_intensity,systematic_name):
         self.wavenumbers = wavenumbers
         self.raw_intensity = intensity
@@ -96,6 +98,10 @@ class SFG_Spectrum:
         self.ir_intensity = ir_intensity
         self.name = systematic_name
         self.normalized_intensity = self.raw_intensity/(self.vis_intensity*self.ir_intensity)
+
+    def __repr__(self):
+
+        return self.name.full_name+"    "+str(self.yield_spectral_range())
 
     def normalize_to_highest(self,intensity="default"):
         """normalize an given array to its maximum, typically the normalized or raw intensity"""
