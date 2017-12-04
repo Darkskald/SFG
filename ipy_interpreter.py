@@ -16,9 +16,9 @@ class Ipy_Interpreter:
         self.ramandata = spc.SpecDatabase("Raman")
         self.planer = Planer()
 
-    #SFG Management
+    # SFG Management
     def show(self):
-        tabstring = "Nr."+"\t\t"+"Surf."+"\t"+"spectral range"+"\t\t\t"+"full spectrum name"
+        tabstring = "Nr." + "\t\t" + "Surf." + "\t" + "spectral range" + "\t\t\t" + "full spectrum name"
         print(tabstring)
         print("\n")
         for i in range(len(self.subset)):
@@ -48,23 +48,23 @@ class Ipy_Interpreter:
                     option = self.retranslate_name(i)
                     print(option)
                     collector = self.database.surfactant_based(option)
-                    for i in collector:
-                        self.subset.append(i)
+                    for j in collector:
+                        self.subset.append(j)
 
             elif flag == "se":
                 for i in options:
                     option = self.retranslate_name(i)
                     print(option)
                     collector = self.database.sensitizer_based(option)
-                    for i in collector:
-                        self.subset.append(i)
+                    for j in collector:
+                        self.subset.append(j)
 
             elif flag == "s":
 
                 for i in options:
                     collector = self.database.sample_based(i)
-                    for i in collector:
-                        self.subset.append(i)
+                    for j in collector:
+                        self.subset.append(j)
 
             elif flag == "d":
 
@@ -74,14 +74,14 @@ class Ipy_Interpreter:
 
                 for i in options:
                     collector = self.database.sur_volume_based(i)
-                    for i in collector:
-                        self.subset.append(i)
+                    for j in collector:
+                        self.subset.append(j)
 
             elif flag == "m":
                 for i in options:
                     collector = self.database.measurement_based(i)
-                    for i in collector:
-                        self.subset.append(i)
+                    for j in collector:
+                        self.subset.append(j)
 
             elif flag == "ml":
                 months = options
@@ -99,7 +99,7 @@ class Ipy_Interpreter:
         f = flagstring.split(" ")
         flag = f[0]
         options = f[1]
-        print("options: "+options)
+        print("options: " + options)
 
         allowed = ["su", "se", "p", "c", "d", "s", "suv", "m", "ml", "y"]
 
@@ -125,6 +125,7 @@ class Ipy_Interpreter:
 
     def plot(self, flag=False):
         p = Plotter(self.subset)
+        # noinspection PySimplifyBooleanCheck
         if flag == False:
             p.simple_plot()
         elif flag == "raw":
@@ -213,12 +214,12 @@ class Ipy_Interpreter:
         a = Analyzer(self.subset)
         a.list_peaks(number)
 
-    #further analytics
+    # further analytics
 
     def show_uv(self):
         counter = 1
         for spectrum in self.uvdata:
-            print(str(counter)+" : "+spectrum.name)
+            print(str(counter) + " : " + spectrum.name)
             counter += 1
 
     def show_ir(self):
@@ -233,7 +234,7 @@ class Ipy_Interpreter:
             print(str(counter) + " : " + spectrum.name)
             counter += 1
 
-    #section for planer
+    # section for planer
     def dn(self, number):
         """dn is abbreviation vor done"""
         self.planer.done(number)
@@ -247,10 +248,7 @@ class Ipy_Interpreter:
         self.planer.show_tasks()
 
 
-
 I = Ipy_Interpreter()
 I.get("su DPPC")
-Q = I.subset[0]+I.subset[1]
+Q = I.subset[0] + I.subset[1]
 print(Q)
-P = Plotter([Q])
-

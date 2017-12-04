@@ -2,22 +2,24 @@ import os
 import csv
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+
 rcParams['mathtext.default'] = 'regular'
 
-class Spectrum:
 
+class Spectrum:
     """Abstract class to manage the very basic properties of a spectra (wavelength/number, intensity and name
     in a convenient way. Covers IR, Raman and UV spectra at once"""
+
     def __init__(self, name, wavelengths, intensities):
         self.name = name
         self.wavelengths = wavelengths
         self.intensities = intensities
 
-class UV_DataCollector:
 
+class UV_DataCollector:
     """Class to fetch UV spectral data from file. Handles the change to the UV directory internally"""
 
-    def __init__(self,name):
+    def __init__(self, name):
 
         initial_dir = os.getcwd()
         os.chdir("UV")
@@ -26,7 +28,7 @@ class UV_DataCollector:
         self.spectrum = self.yield_uv()
         os.chdir(initial_dir)
 
-    def get_data(self,filename):
+    def get_data(self, filename):
         with open(filename, "r") as infile:
             next(infile)
             next(infile)
@@ -46,12 +48,12 @@ class UV_DataCollector:
         uv = Spectrum(name, self.data[0], self.data[1])
         return uv
 
-class IR_DataCollector:
 
+class IR_DataCollector:
     """Class to fetch IR and Raman spectral data from file. Handles the change to the IR/Raman
     directory internally"""
 
-    def __init__(self,name,type):
+    def __init__(self, name, type):
 
         initial_dir = os.getcwd()
         self.filename = name
@@ -90,8 +92,8 @@ class IR_DataCollector:
         spec = Spectrum(name, self.data[0], self.data[1])
         return spec
 
-class SpecDatabase:
 
+class SpecDatabase:
     """A simple class for dealing with a certain set of experimental UV/Vis, IR and Raman spectra. Gives access
     to plotting, comparison and other useful functions. The type argument in the constructor determines
     the concrete procedure"""
@@ -109,13 +111,13 @@ class SpecDatabase:
 
         elif self.type == "IR":
             for file in os.listdir("IR"):
-                    collect = IR_DataCollector(file, type="IR").yield_spec()
-                    self.database.append(collect)
+                collect = IR_DataCollector(file, type="IR").yield_spec()
+                self.database.append(collect)
 
         elif self.type == "Raman":
             for file in os.listdir("Raman"):
-                    collect = IR_DataCollector(file, type="Raman").yield_spec()
-                    self.database.append(collect)
+                collect = IR_DataCollector(file, type="Raman").yield_spec()
+                self.database.append(collect)
 
     def uv_plot(self):
         if self.type != "UV":
@@ -128,7 +130,7 @@ class SpecDatabase:
         ax.set_xlabel("wavelength/ nm")
         ax.set_ylabel("absorbance")
         ax.legend()
-        ax.set_xlim(250,700)
+        ax.set_xlim(250, 700)
         plt.show()
 
     def ir_plot(self):
@@ -144,6 +146,4 @@ class SpecDatabase:
         ax.legend()
         plt.show()
 
-
-
-#test code section
+# test code section

@@ -1,9 +1,6 @@
-
-
-
-
-
 """Former UV file"""
+
+
 class UV_Spectrum:
     def __init__(self, name, wavelengths, intensities):
         self.name = name
@@ -95,6 +92,8 @@ def get_iraman_data(filename):
 
 
 """not yet implemented classes"""
+
+
 class Day_meta:
     pass
 
@@ -221,7 +220,7 @@ class Interpreter:
             self.answerset = subsets
 
 
-#stolen from the Analyzer Class
+# stolen from the Analyzer Class
 """def list_peaks(self, number):
     intensities = []
     wavenumbers = []
