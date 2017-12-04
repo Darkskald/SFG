@@ -111,6 +111,41 @@ class SFG_Spectrum:
 
         return date+"\t"+surf+"\t"+srange+"\t\t"+full
 
+    def __add__(self, SFG2):
+
+        wavenumbers = self.wavenumbers
+        intensity = self.normalized_intensity
+        not_in_list = []
+
+        for i in range(len(SFG2.wavenumbers)):
+            if SFG2.wavenumbers[i] in wavenumbers:
+                index = intensity.index(SFG2.wavenumbers[i])
+                intensity[index] = (intensity[index]+SFG2.normalized_intensity[i])*0.5
+            else:
+                not_in_list.append((SFG2.wavenumbers[i], SFG2.normalized_intensity[i]))
+
+        for a, b in zip(wavenumbers, intensity):
+            not_in_list.append((a, b))
+
+        not_in_list = not_in_list.sort()
+        not_in_list = not_in_list[::-1] #restore original order
+
+        new_wavenumbers = []
+        new_intensities = []
+
+        for i in range(len(not_in_list)):
+            print("*****debug******\n")
+            tup = not_in_list[i]
+            print(tup)
+            new_wavenumbers.append(tup[0])
+            new_intensities.append(tup[1])
+
+        names = [self.name.full_name[:-4],SFG2.name.full_name[:-4]]
+        Added = Add_Spectrum((new_wavenumbers, new_intensities), names)
+
+        return Added
+
+
 
     def normalize_to_highest(self,intensity="default"):
         """normalize an given array to its maximum, typically the normalized or raw intensity"""
@@ -245,9 +280,18 @@ class SFG_Spectrum:
             area += total
         return area
 
+class Add_Spectrum(SFG_Spectrum):
+
+    def __init__(self , wn_intenstup, names):
+
+        self.wavenumber = wn_intenstup[0]
+        self.normalized_intensity = wn_intenstup[1]
+        self.names = [names]
+        self.speccounter = 2
+
 class Systematic_Name:
 
-    def __init__(self,namestring):
+    def __init__(self, namestring):
         #load the allowed surfactans and sensitizers from files
         self.Surfactants = {}
         self.Sensitizers = {}
