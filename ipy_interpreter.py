@@ -247,3 +247,16 @@ class Ipy_Interpreter:
         """st is abbreviation for show tasks"""
         self.planer.show_tasks()
 
+I = Ipy_Interpreter()
+
+I.get("su DPPC")
+t = I.subset[0]+I.subset[1]
+print(t)
+t2 = t+I.subset[3]
+print(t2)
+
+for i in range(len(I.subset)):
+    t += I.subset[i]
+print(t)
+P = Plotter([t])
+P.simple_plot()

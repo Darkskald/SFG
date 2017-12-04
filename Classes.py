@@ -135,11 +135,42 @@ class SFG_Spectrum:
             else:
                 x = len(new_intensities) - 1
                 new_intensities[x] = (new_intensities[x] + tup[1]) * 0.5
+
+
         new_wavenumbers = np.array(new_wavenumbers)
         new_intensities = np.array(new_intensities)
-        names = [self.name.full_name[:-4], SFG2.name.full_name[:-4]]
-        Added = Add_Spectrum((new_wavenumbers, new_intensities), names)
-        return Added
+
+        if isinstance(SFG2, SFG_Spectrum):
+
+            print("***DEBUG2****")
+            names = [self.name.full_name[:-4], SFG2.name.full_name[:-4]]
+            sensitizers = [self.name.sensitizer, SFG2.name.sensitizer]
+            surfactants = [self.name.surfactant, SFG2.name.surfactant]
+
+            name = Added_Name(names, sensitizers, surfactants)
+            Added = Add_Spectrum((new_wavenumbers, new_intensities), name)
+            return Added
+
+        elif isinstance(SFG2, Add_Spectrum):
+            names = self.name.full_name + "_" + SFG2.name.full_name
+
+            sensitizers = self.name.sensitizer
+            for i in SFG2.name.sensitizer:
+                if i not in sensitizers:
+                    sensitizers.append(i)
+
+            surfactants = self.name.surfactants
+            for i in SFG2.name.sensitizer:
+                if i not in surfactants:
+                    surfactants.append(i)
+
+            name = Added_Name(names, sensitizers, surfactants)
+            Added = Add_Spectrum((new_wavenumbers, new_intensities), name)
+            Added.speccounter += self.speccounter
+            Added.speccounter += SFG2.speccounter
+            return Added
+
+
 
     def normalize_to_highest(self, intensity="default"):
         """normalize an given array to its maximum, typically the normalized or raw intensity"""
@@ -269,15 +300,14 @@ class SFG_Spectrum:
 
 # noinspection PyMissingConstructor
 class Add_Spectrum(SFG_Spectrum):
-    def __init__(self, wn_intenstup, names, name="default"):
+    def __init__(self, wn_intenstup, name):
         self.wavenumbers = wn_intenstup[0]
         self.normalized_intensity = wn_intenstup[1]
-        self.names = [names]
         self.speccounter = 2
         self.name = name
 
     def __str__(self):
-        s = "sum of " + str(self.speccounter) + "SFG spectra with systematic names" + str(self.names)
+        s = "sum of " + str(self.speccounter) + " SFG spectra with systematic names" + str(self.name.full_name)
         return s
 
     def __add__(self, SFG2):
@@ -303,18 +333,40 @@ class Add_Spectrum(SFG_Spectrum):
             else:
                 x = len(new_intensities) - 1
                 new_intensities[x] = (new_intensities[x] + tup[1]) * 0.5
+
         new_wavenumbers = np.array(new_wavenumbers)
         new_intensities = np.array(new_intensities)
-        names = [self.name.full_name[:-4], SFG2.name.full_name[:-4]]
-        Added = Add_Spectrum((new_wavenumbers, new_intensities), names)
-        Added.speccounter += self.speccounter
 
-        if type(SFG2) == "Add_Spectrum":
+        if isinstance(SFG2, SFG_Spectrum):
+            names = [self.name.full_name[:-4], SFG2.name.full_name[:-4]]
+            sensitizers = [self.name.sensitizer, SFG2.name.sensitizer]
+            surfactants = [self.name.surfactant, SFG2.name.surfactant]
+
+            name = Added_Name(names, sensitizers, surfactants)
+            Added = Add_Spectrum((new_wavenumbers, new_intensities), name)
+            Added.speccounter = self.speccounter+1
+            return Added
+
+        elif isinstance(SFG2, Add_Spectrum):
+            names = self.name.full_name+"_"+SFG2.name.full_name
+
+            sensitizers = self.name.sensitizer
+            for i in SFG2.name.sensitizer:
+                if i not in sensitizers:
+                    sensitizers.append(i)
+
+            surfactants = self.name.surfactants
+            for i in SFG2.name.sensitizer:
+                if i not in surfactants:
+                    surfactants.append(i)
+
+            name = Added_Name(names, sensitizers, surfactants)
+            Added = Add_Spectrum((new_wavenumbers, new_intensities),name)
+            Added.speccounter += self.speccounter
             Added.speccounter += SFG2.speccounter
-        else:
-            Added.speccounter += 1
+            return Added
 
-        return Added
+
 
 
 # noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck
@@ -440,8 +492,11 @@ class Systematic_Name:
 
 class Added_Name(Systematic_Name):
 
-    def __init__(self,name,spectra):
-        pass
+    def __init__(self,names,sensitizers,surfactants):
+
+        self.full_name = ("_").join(names)
+        self.sensitizer = [s for s in sensitizers]
+        self.surfactant = [s for s in surfactants]
 
 
 
