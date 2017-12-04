@@ -101,7 +101,16 @@ class SFG_Spectrum:
 
     def __repr__(self):
 
-        return self.name.full_name+"    "+str(self.yield_spectral_range())
+        return self.name.full_name[:-4]+"              "+str(self.yield_spectral_range())
+
+    def __str__(self):
+        date = self.name.date
+        surf = self.name.surfactant
+        srange = str(self.yield_spectral_range())
+        full = self.name.full_name[:-4]
+
+        return date+"\t"+surf+"\t"+srange+"\t\t"+full
+
 
     def normalize_to_highest(self,intensity="default"):
         """normalize an given array to its maximum, typically the normalized or raw intensity"""

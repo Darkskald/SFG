@@ -18,8 +18,12 @@ class Ipy_Interpreter:
 
     #SFG Management
     def show(self):
+        tabstring = "Nr."+"\t\t"+"Surf."+"\t"+"spectral range"+"\t\t\t"+"full spectrum name"
+        print(tabstring)
+        print("\n")
         for i in range(len(self.subset)):
-            print(str(i) + " : " + self.subset[i])
+            print(str(i) + " : " + str(self.subset[i]))
+            print("\n")
 
     def clear(self):
         self.subset = []
