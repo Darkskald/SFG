@@ -19,7 +19,7 @@ class Ipy_Interpreter:
     #SFG Management
     def show(self):
         for i in range(len(self.subset)):
-            print(str(i) + " : " + self.subset[i].name.full_name)
+            print(str(i) + " : " + self.subset[i])
 
     def clear(self):
         self.subset = []
