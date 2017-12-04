@@ -263,13 +263,7 @@ class SFG_Spectrum:
         return data_out
 
     def integrate_peak(self, x_array, y_array):
-        area = 0
-        for i in range(len(x_array) - 1):
-            dx = abs(x_array[i + 1] - x_array[i])
-            square = dx * y_array[i]
-            triangle = dx * abs(y_array[i + 1] - y_array[i]) * 0.5
-            total = square + triangle
-            area += total
+        area = np.trapz(y_array, x_array)
         return area
 
 
@@ -315,7 +309,7 @@ class Add_Spectrum(SFG_Spectrum):
         Added = Add_Spectrum((new_wavenumbers, new_intensities), names)
         Added.speccounter += self.speccounter
 
-        if type (SFG2) == "Add_Spectrum":
+        if type(SFG2) == "Add_Spectrum":
             Added.speccounter += SFG2.speccounter
         else:
             Added.speccounter += 1
@@ -443,6 +437,12 @@ class Systematic_Name:
         day = int(self.date[6:])
 
         return (year, month, day)
+
+class Added_Name(Systematic_Name):
+
+    def __init__(self,name,spectra):
+        pass
+
 
 
 class FileFetcher:

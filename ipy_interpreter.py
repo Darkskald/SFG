@@ -15,7 +15,6 @@ class Ipy_Interpreter:
         self.irdata = spc.SpecDatabase("IR")
         self.ramandata = spc.SpecDatabase("Raman")
         self.planer = Planer()
-
     # SFG Management
     def show(self):
         tabstring = "Nr." + "\t\t" + "Surf." + "\t" + "spectral range" + "\t\t\t" + "full spectrum name"
@@ -235,6 +234,7 @@ class Ipy_Interpreter:
             counter += 1
 
     # section for planer
+
     def dn(self, number):
         """dn is abbreviation vor done"""
         self.planer.done(number)
@@ -247,8 +247,3 @@ class Ipy_Interpreter:
         """st is abbreviation for show tasks"""
         self.planer.show_tasks()
 
-
-I = Ipy_Interpreter()
-I.get("su DPPC")
-Q = I.subset[0] + I.subset[1]
-print(Q)
