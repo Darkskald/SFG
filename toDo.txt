@@ -16,6 +16,7 @@
         - reunite the show_ir, show_raman...etc from interpreter to a single show function taking
           a flag instead of having three parallel functions
 - set a time frame whitch features have to be implemented before the next group seminar
+- todo: add docstring to EVERY function/class method
 
 
 [important features]
