@@ -22,8 +22,14 @@ are established and tested before final implementation.
 This file is a container for useful code snippets which simplify chemistry-related and data analysis
 related calculations
 
-### scripts
+###Spec_utilities
+A submodule giving access to IR/Raman and UV/Vis spectra data processing and plotting
+
+### Scripts
 This file contains code for automized spectra analysis to simplify workflow.
 
 ### under_construction
 A collection file for code that is not ready to use, under construction or under testing.
+
+### testcode section
+short code snippets for test purposes

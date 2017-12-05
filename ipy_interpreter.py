@@ -1,6 +1,6 @@
 from Classes import *
 import Spec_utilities as spc
-
+import time
 
 class Ipy_Interpreter:
     """A class for interaction between the spectra datebase and the user by
@@ -16,11 +16,13 @@ class Ipy_Interpreter:
         self.ramandata = spc.SpecDatabase("Raman")
         self.planer = Planer()
     # SFG Management
+
     def show(self):
         """Prints all spectra contained in the current subset"""
-        tabstring = "Nr." + "\t\t" + "Surf." + "\t" + "spectral range" + "\t\t\t" + "full spectrum name"
+        tabstring = "Nr."+"\t\t"+"Date"+"\t" + "Surf." + "\t" + "spectral range" + "\t\t\t\t" + "full spectrum name"
         print(tabstring)
         print("\n")
+        #todo this code snippet hast to be replaced by enumarate
         for i in range(len(self.subset)):
             print(str(i) + " : " + str(self.subset[i]))
             print("\n")
@@ -226,26 +228,26 @@ class Ipy_Interpreter:
         a = Analyzer(self.subset)
         a.list_peaks(number)
 
-    # further analytics
+    # further analytics (IR/Raman/UV)
 
     def show_uv(self):
         """Prints the names of stored UV/Vis spectra to the console"""
         counter = 1
-        for spectrum in self.uvdata:
+        for spectrum in self.uvdata.database:
             print(str(counter) + " : " + spectrum.name)
             counter += 1
 
     def show_ir(self):
         """Prints the names of stored IR spectra to the console"""
         counter = 1
-        for spectrum in self.irdata:
+        for spectrum in self.irdata.database:
             print(str(counter) + " : " + spectrum.name)
             counter += 1
 
     def show_raman(self):
         """Prints the names of stored Raman spectra to the console"""
         counter = 1
-        for spectrum in self.ramandata:
+        for spectrum in self.ramandata.database:
             print(str(counter) + " : " + spectrum.name)
             counter += 1
 
@@ -262,3 +264,13 @@ class Ipy_Interpreter:
     def st(self):
         """st is abbreviation for show tasks"""
         self.planer.show_tasks()
+
+    def note(self, note):
+        timestamp = time.strftime("%b %d %Y %H:%M:%S")
+        with open("notes", "a") as outfile:
+            outfile.write(timestamp+"\t"+note+"\n")
+
+
+I = Ipy_Interpreter()
+I.note("Spectrum looks strange. Needs some readjustment")
+I.note("This is the second annotation line")
