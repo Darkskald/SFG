@@ -17,7 +17,7 @@
           a flag instead of having three parallel functions
 - set a time frame whitch features have to be implemented before the next group seminar
 - todo: add docstring to EVERY function/class method
-
+- todo convert all class names to CamelCase
 
 [important features]
 

@@ -44,7 +44,7 @@ class Importer:
                     shutil.copy2("archive/" + folder + "/" + file, "library/" + new_filename)
 
     def gate_keeper(self, checkdir, filename):
-        # checks if filename is already present in the directory chekdir
+        """checks if filename is already present in the directory chekdir"""
         checklist = []
         for file in os.listdir(checkdir):
             checklist.append(file)
@@ -56,7 +56,7 @@ class Importer:
 
 
 class Library_Manager:
-    # controll and maintain the library management file
+    """controll and maintain the library management file"""
     def __init__(self):
         # self.entries is a list of lists extracted from the lines of the library file and splitted at the ;
         self.entries = []
@@ -66,6 +66,7 @@ class Library_Manager:
                 self.entries.append(buffer)
 
     def update(self):
+
         files = []
         for file in os.listdir("library"):
             if file.endswith(".sfg"):
@@ -101,10 +102,10 @@ class SFG_Spectrum:
         self.normalized_intensity = self.raw_intensity / (self.vis_intensity * self.ir_intensity)
 
     def __repr__(self):
-
         return self.name.full_name[:-4] + "              " + str(self.yield_spectral_range())
 
     def __str__(self):
+        """Printable represantation of the SFG object"""
         date = self.name.date
         surf = self.name.surfactant
         srange = str(self.yield_spectral_range())
@@ -113,6 +114,7 @@ class SFG_Spectrum:
         return date + "\t" + surf + "\t" + srange + "\t\t" + full
 
     def __add__(self, SFG2):
+        """Definition of an addition method for SFG spectra. Returning an Added_SFG object"""
         wavenumbers = self.wavenumbers
         intensity = self.normalized_intensity
 
@@ -238,10 +240,13 @@ class SFG_Spectrum:
         return increment
 
     def smooth(self, points=9, order=5):
+        """Apply a smooth routine to the normalized_intensity"""
         y = savgol_filter(self.normalized_intensity, points, order)
         self.normalized_intensity = y
 
     def detailed_analysis(self, threshold=3):
+        """Function returning peak information (central wavenumber, flanks, integral). The threshold value characterizes
+        the factor that a peak must be greater than the average intensity"""
         x_array = self.wavenumbers[::-1]
         y_array = self.normalized_intensity[::-1]
 
@@ -294,6 +299,7 @@ class SFG_Spectrum:
         return data_out
 
     def integrate_peak(self, x_array, y_array):
+        """Numpy integration routine for numerical peak integration with the trapezoidal rule"""
         area = np.trapz(y_array, x_array)
         return area
 
@@ -373,6 +379,7 @@ class Add_Spectrum(SFG_Spectrum):
 class Systematic_Name:
 
     def __init__(self, namestring):
+
         # load the allowed surfactans and sensitizers from files
         self.Surfactants = {}
         self.Sensitizers = {}
@@ -464,6 +471,7 @@ class Systematic_Name:
             self.sensitizer_spread_volume = "-"
 
     def is_number(self, s):
+        """Auxiliary function returning e boolean, depending on test variable can be converted in a float"""
         try:
             float(s)
             return True
@@ -476,6 +484,7 @@ class Systematic_Name:
                 self.sample_number, self.measurement, self.comment)
 
     def check_boknis(self):
+        """Function determining if a spectrum belongs to the BE time series. Those follow a certain name convention"""
 
         if self.is_number(self.processing_list[0]) == True and self.is_number(self.processing_list[1]) == True:
             self.comment = "BoknisEckSample"
@@ -483,6 +492,8 @@ class Systematic_Name:
             self.surfactant = "Nat. surface sample"
 
     def date_split(self):
+        """Splitting the date which is stored as an integer (YYYYMMDD), extracting year, month and day information
+        separately"""
 
         year = int(self.date[0:4])
         month = int(self.date[4:6])
@@ -546,7 +557,7 @@ class Data_Collector:
             self.data_package = convert
 
     def yield_SFG_Spectrum(self):
-        # this function will need exception handling. It retuns an SFG spectrum object
+        #todo this function will need exception handling. It returns an SFG spectrum object
         sysname = Systematic_Name(self.file)
         data = self.data_package
         sfg = SFG_Spectrum(data[0], data[1], data[3], data[2], sysname)
@@ -566,7 +577,7 @@ class Finder:
                 sfg = FileFetcher(file).sfg
                 self.database.append(sfg)
 
-    # Basic search funcions
+    """Basic search functions. Choose spectra from database by date, surfactant etc.."""
     def date_based(self, dateflag, subset="default"):
         if subset == "default":
             subset = self.database
@@ -671,6 +682,8 @@ class Finder:
 
 # noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck
 class Plotter:
+    """Simple class providing an interface between the matplotlib API and the SFG objects. Depending on the specific method
+    and kwargs, a variety of different methods is accessible"""
     def __init__(self, speclist, raw=False, title="Default"):
         self.speclist = speclist
         self.raw = raw
