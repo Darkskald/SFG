@@ -373,8 +373,6 @@ class AddedSpectrum(SfgSpectrum):
             return Added
 
 
-
-
 # noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck
 class SystematicName:
 
@@ -501,6 +499,7 @@ class SystematicName:
 
         return (year, month, day)
 
+
 class AddedName(SystematicName):
 
     def __init__(self,names,sensitizers,surfactants):
@@ -508,7 +507,6 @@ class AddedName(SystematicName):
         self.full_name = ("_").join(names)
         self.sensitizer = [s for s in sensitizers]
         self.surfactant = [s for s in surfactants]
-
 
 
 class FileFetcher:
