@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from scipy.signal import savgol_filter
+from scipy.integrate import simps as sp
 
 rcParams['mathtext.default'] = 'regular'
 
@@ -55,7 +56,7 @@ class Importer:
             return False
 
 
-class Library_Manager:
+class LibraryManager:
     """controll and maintain the library management file"""
     def __init__(self):
         # self.entries is a list of lists extracted from the lines of the library file and splitted at the ;
@@ -90,15 +91,15 @@ class Library_Manager:
                     specrange[2]) + "\n")
 
 
-class SFG_Spectrum:
+class SfgSpectrum:
     # magic methods
 
-    def __init__(self, wavenumbers, intensity, ir_intensity, vis_intensity, systematic_name):
+    def __init__(self, wavenumbers, intensity, ir_intensity, vis_intensity, SystematicName):
         self.wavenumbers = wavenumbers
         self.raw_intensity = intensity
         self.vis_intensity = vis_intensity
         self.ir_intensity = ir_intensity
-        self.name = systematic_name
+        self.name = SystematicName
         self.normalized_intensity = self.raw_intensity / (self.vis_intensity * self.ir_intensity)
 
     def __repr__(self):
@@ -142,18 +143,17 @@ class SFG_Spectrum:
         new_wavenumbers = np.array(new_wavenumbers)
         new_intensities = np.array(new_intensities)
 
-        if isinstance(SFG2, SFG_Spectrum):
+        if isinstance(SFG2, SfgSpectrum):
 
-            print("***DEBUG2****")
             names = [self.name.full_name[:-4], SFG2.name.full_name[:-4]]
             sensitizers = [self.name.sensitizer, SFG2.name.sensitizer]
             surfactants = [self.name.surfactant, SFG2.name.surfactant]
 
-            name = Added_Name(names, sensitizers, surfactants)
-            Added = Add_Spectrum((new_wavenumbers, new_intensities), name)
+            name = AddedName(names, sensitizers, surfactants)
+            Added = AddedSpectrum((new_wavenumbers, new_intensities), name)
             return Added
 
-        elif isinstance(SFG2, Add_Spectrum):
+        elif isinstance(SFG2, AddedSpectrum):
             names = self.name.full_name + "_" + SFG2.name.full_name
 
             sensitizers = self.name.sensitizer
@@ -166,8 +166,8 @@ class SFG_Spectrum:
                 if i not in surfactants:
                     surfactants.append(i)
 
-            name = Added_Name(names, sensitizers, surfactants)
-            Added = Add_Spectrum((new_wavenumbers, new_intensities), name)
+            name = AddedName(names, sensitizers, surfactants)
+            Added = AddedSpectrum((new_wavenumbers, new_intensities), name)
             Added.speccounter += self.speccounter
             Added.speccounter += SFG2.speccounter
             return Added
@@ -300,12 +300,12 @@ class SFG_Spectrum:
 
     def integrate_peak(self, x_array, y_array):
         """Numpy integration routine for numerical peak integration with the trapezoidal rule"""
-        area = np.trapz(y_array, x_array)
+        area = sp(y_array, x_array)
         return area
 
 
 # noinspection PyMissingConstructor
-class Add_Spectrum(SFG_Spectrum):
+class AddedSpectrum(SfgSpectrum):
     def __init__(self, wn_intenstup, name):
         self.wavenumbers = wn_intenstup[0]
         self.normalized_intensity = wn_intenstup[1]
@@ -343,17 +343,17 @@ class Add_Spectrum(SFG_Spectrum):
         new_wavenumbers = np.array(new_wavenumbers)
         new_intensities = np.array(new_intensities)
 
-        if isinstance(SFG2, SFG_Spectrum):
+        if isinstance(SFG2, SfgSpectrum):
             names = [self.name.full_name[:-4], SFG2.name.full_name[:-4]]
             sensitizers = [self.name.sensitizer, SFG2.name.sensitizer]
             surfactants = [self.name.surfactant, SFG2.name.surfactant]
 
-            name = Added_Name(names, sensitizers, surfactants)
-            Added = Add_Spectrum((new_wavenumbers, new_intensities), name)
+            name = AddedName(names, sensitizers, surfactants)
+            Added = AddedSpectrum((new_wavenumbers, new_intensities), name)
             Added.speccounter = self.speccounter+1
             return Added
 
-        elif isinstance(SFG2, Add_Spectrum):
+        elif isinstance(SFG2, AddedSpectrum):
             names = self.name.full_name+"_"+SFG2.name.full_name
 
             sensitizers = self.name.sensitizer
@@ -366,8 +366,8 @@ class Add_Spectrum(SFG_Spectrum):
                 if i not in surfactants:
                     surfactants.append(i)
 
-            name = Added_Name(names, sensitizers, surfactants)
-            Added = Add_Spectrum((new_wavenumbers, new_intensities),name)
+            name = AddedName(names, sensitizers, surfactants)
+            Added = AddedSpectrum((new_wavenumbers, new_intensities),name)
             Added.speccounter += self.speccounter
             Added.speccounter += SFG2.speccounter
             return Added
@@ -376,7 +376,7 @@ class Add_Spectrum(SFG_Spectrum):
 
 
 # noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck
-class Systematic_Name:
+class SystematicName:
 
     def __init__(self, namestring):
 
@@ -501,7 +501,7 @@ class Systematic_Name:
 
         return (year, month, day)
 
-class Added_Name(Systematic_Name):
+class AddedName(SystematicName):
 
     def __init__(self,names,sensitizers,surfactants):
 
@@ -514,19 +514,19 @@ class Added_Name(Systematic_Name):
 class FileFetcher:
     """The file fetcher class interconnects different subdirectories of the folder and simplifies
     the handling of filenames and filepaths. It changes the working directory to the file storage directory,
-    usually the library, creates a Data_Collector obect and returns a SFG object"""
+    usually the library, creates a DataCollector obect and returns a SFG object"""
 
     def __init__(self, filename, destination="library"):
         self.filename = filename
         initial_wd = os.getcwd()
         os.chdir(destination)
 
-        self.collector = Data_Collector(filename)
-        self.sfg = self.collector.yield_SFG_Spectrum()
+        self.collector = DataCollector(filename)
+        self.sfg = self.collector.yield_SfgSpectrum()
         os.chdir(initial_wd)
 
 
-class Data_Collector:
+class DataCollector:
     # noinspection PyTypeChecker
     def __init__(self, filename):
         # the filename is ONLY the filename, not containing any directory information.
@@ -556,11 +556,11 @@ class Data_Collector:
             convert = [np.array(i) for i in convert]
             self.data_package = convert
 
-    def yield_SFG_Spectrum(self):
+    def yield_SfgSpectrum(self):
         #todo this function will need exception handling. It returns an SFG spectrum object
-        sysname = Systematic_Name(self.file)
+        sysname = SystematicName(self.file)
         data = self.data_package
-        sfg = SFG_Spectrum(data[0], data[1], data[3], data[2], sysname)
+        sfg = SfgSpectrum(data[0], data[1], data[3], data[2], sysname)
         return sfg
 
 
