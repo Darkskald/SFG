@@ -17,6 +17,7 @@ class Ipy_Interpreter:
         self.planer = Planer()
     # SFG Management
     def show(self):
+        """Prints all spectra contained in the current subset"""
         tabstring = "Nr." + "\t\t" + "Surf." + "\t" + "spectral range" + "\t\t\t" + "full spectrum name"
         print(tabstring)
         print("\n")
@@ -25,9 +26,11 @@ class Ipy_Interpreter:
             print("\n")
 
     def clear(self):
+        """Removes everything from the subset"""
         self.subset = []
 
     def get(self, flagstring):
+        """Gets spectra according to specified criteria from the database and passes them into the subset"""
 
         if flagstring == "bo":
             self.subset = self.database.comment_based()
@@ -108,6 +111,7 @@ class Ipy_Interpreter:
             return (flag, options)
 
     def remove(self, numbers):
+        """Removes items by (a list of) index(indices from the subset"""
         options = numbers.split(",")
         to_remove = [self.subset[int(i)] for i in options]
         newlist = [i for i in self.subset if i not in to_remove]
@@ -115,6 +119,7 @@ class Ipy_Interpreter:
         self.recover = to_remove
 
     def keep(self, flagstring):
+        """Removes everything but the specified items. Specification is done by a list of indices"""
         f = flagstring
         options = f.split(",")
         new_list = [self.subset[int(i)] for i in options]
@@ -123,6 +128,7 @@ class Ipy_Interpreter:
         self.subset = new_list
 
     def plot(self, flag=False):
+        """Plots an overlay of all spectra currently present in the subset"""
         p = Plotter(self.subset)
         # noinspection PySimplifyBooleanCheck
         if flag == False:
@@ -133,6 +139,8 @@ class Ipy_Interpreter:
             p.raw_plot_plus_ir()
 
     def refine(self, flagstring):
+        """Keeps a a subset of the current subset according to specified selection criteria. This function is totally
+        equivalent to the get function, but is applied to the subset and not the overall database"""
 
         self.recover = self.subset
         f = self.flagstring_split(flagstring)
@@ -180,10 +188,14 @@ class Ipy_Interpreter:
             self.subset = self.database.by_year(years, self.subset)
 
     def update(self):
+        """This is called when new spectra are added from the lab. It makes them available, creates the final systematic
+        name and copies them to the Library"""
         Importer()
         Library_Manager().update()
 
     def retranslate_name(self, stri):
+        """This auxiliary function creates the long form of the name of a surfactant or sensitizer, using a text file as
+        database"""
         # load the allowed surfactans and sensitizers from files
         self.Surfactants = {}
         self.Sensitizers = {}
@@ -205,6 +217,7 @@ class Ipy_Interpreter:
             print("Retranslation failed. Unknown expression.")
 
     def recovery(self):
+        """Restores the subset to one step before the last refinement(keep, refine)"""
         for i in self.recover:
             self.subset.append(i)
 
@@ -216,18 +229,21 @@ class Ipy_Interpreter:
     # further analytics
 
     def show_uv(self):
+        """Prints the names of stored UV/Vis spectra to the console"""
         counter = 1
         for spectrum in self.uvdata:
             print(str(counter) + " : " + spectrum.name)
             counter += 1
 
     def show_ir(self):
+        """Prints the names of stored IR spectra to the console"""
         counter = 1
         for spectrum in self.irdata:
             print(str(counter) + " : " + spectrum.name)
             counter += 1
 
     def show_raman(self):
+        """Prints the names of stored Raman spectra to the console"""
         counter = 1
         for spectrum in self.ramandata:
             print(str(counter) + " : " + spectrum.name)
@@ -246,17 +262,3 @@ class Ipy_Interpreter:
     def st(self):
         """st is abbreviation for show tasks"""
         self.planer.show_tasks()
-
-I = Ipy_Interpreter()
-
-I.get("su DPPC")
-t = I.subset[0]+I.subset[1]
-print(t)
-t2 = t+I.subset[3]
-print(t2)
-
-for i in range(len(I.subset)):
-    t += I.subset[i]
-print(t)
-P = Plotter([t])
-P.simple_plot()
