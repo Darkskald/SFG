@@ -7,7 +7,7 @@ rcParams['mathtext.default'] = 'regular'
 
 
 class Spectrum:
-    """Abstract class to manage the very basic properties of a spectra (wavelength/number, intensity and name
+    """Simple class to manage the very basic properties of a spectra (wavelength/number, intensity and name
     in a convenient way. Covers IR, Raman and UV spectra at once"""
 
     def __init__(self, name, wavelengths, intensities):
