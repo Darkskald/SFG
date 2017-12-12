@@ -501,7 +501,7 @@ class SystematicName:
 
 
 class AddedName(SystematicName):
-
+    """This class is derived from the SfgSpectrum and represents the result of the addition of Sfg intensities."""
     def __init__(self,names,sensitizers,surfactants):
 
         self.full_name = ("_").join(names)

@@ -15,6 +15,12 @@ from numpy import arange, sin, pi
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+from matplotlib import rcParams
+rcParams['mathtext.default'] = 'regular'
+
+
+from SFGPlot import Ui_MainWindow
+from ipy_interpreter import IpyInterpreter
 
 def integrate_peak(x_array, y_array):
     area = 0
@@ -102,8 +108,6 @@ class MyMplCanvas(FigureCanvas):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
 
-        self.compute_initial_figure()
-
         FigureCanvas.__init__(self, fig)
         self.setParent(parent)
 
@@ -111,6 +115,14 @@ class MyMplCanvas(FigureCanvas):
                                    QtWidgets.QSizePolicy.Expanding,
                                    QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
+        self.init_axes()
+        self.compute_initial_figure()
+
+    def init_axes(self,title="default"):
+        self.axes.grid()
+        self.axes.set_title(title)
+        self.axes.set_xlabel("Wavenumber/ $cm^{-1}$")
+        self.axes.set_ylabel("Intensity/ a.u.")
 
     def compute_initial_figure(self):
         pass
@@ -123,6 +135,37 @@ class MyStaticMplCanvas(MyMplCanvas):
         t = arange(0.0, 3.0, 0.01)
         s = sin(2*pi*t)
         self.axes.plot(t, s)
+
+    def plot_sfg(self, sfg_list,title="default",flag="none"):
+        self.axes.cla()
+        self.init_axes(title)
+        for spectrum in sfg_list:
+            if flag == "IR":
+                self.axes.plot(spectrum.wavenumbers, spectrum.ir_intensity, label=(spectrum.name.full_name + "_IR"))
+                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=spectrum.name.full_name)
+
+            elif flag == "Vis":
+                self.axes.plot(spectrum.wavenumbers, spectrum.vis_intensity, label=spectrum.name.full_name)
+                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=(spectrum.name.full_name + "_vis"))
+            elif flag == "b":
+                self.axes.plot(spectrum.wavenumbers, spectrum.ir_intensity, label=(spectrum.name.full_name + "_IR"))
+                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=spectrum.name.full_name)
+                self.axes.plot(spectrum.wavenumbers, spectrum.vis_intensity, label=(spectrum.name.full_name + "_vis"))
+            elif flag == "r":
+                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=spectrum.name.full_name)
+            else:
+                self.axes.plot(spectrum.wavenumbers, spectrum.normalized_intensity, label=spectrum.name.full_name)
+
+
+        #box = self.axes.get_position()
+        #self.axes.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+        #self.axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+
+    def clear(self):
+        print("Debuggedidooo")
+        self.axes.cla()
 
 
 class MyDynamicMplCanvas(MyMplCanvas):
@@ -198,7 +241,7 @@ This is modified from the embedding in qt4 example to show the difference
 between qt4 and qt5"""
                                 )
 
-
+""""
 qApp = QtWidgets.QApplication(sys.argv)
 
 aw = ApplicationWindow()
@@ -206,3 +249,101 @@ aw.setWindowTitle("%s" % progname)
 aw.show()
 sys.exit(qApp.exec_())
 #qApp.exec_()
+"""
+
+
+class UiWindow(QtWidgets.QMainWindow, Ui_MainWindow):
+
+    def __init__(self):
+        QtWidgets.QMainWindow.__init__(self)
+        self.setupUi(self)
+        l = QtWidgets.QVBoxLayout(self.plotframe)
+        self.sc = MyStaticMplCanvas(self.plotframe, width=5, height=4, dpi=100)
+        #dc = MyDynamicMplCanvas(self.plotframe, width=5, height=4, dpi=100)
+        self.toolbar = NavigationToolbar(self.sc, self)
+        l.addWidget(self.sc)
+        #l.addWidget(dc)
+        l.addWidget(self.toolbar)
+
+        self.setWindowTitle("SFG Plot Gui")
+        self.plotLabelLineEdit.setText("Default")
+
+
+
+
+
+class UiManager:
+
+    def __init__(self, subset, window):
+        self.subset = subset
+        #todo calling the constructor of the window here, removing it from arglist
+        self.window = window
+        self.flag = "none"
+        if self.subset[0]:
+            self.active_spectrum = self.subset[0]
+        else:
+            self.active_spectrum= "none"
+        #todo implementation of toolbar and PlotCanvas missing here
+
+
+        self.fill_form()
+        self.window.pushButton_4.clicked.connect(self.test)
+
+        self.window.sc.plot_sfg(self.subset, flag=self.flag)
+        self.window.show()
+
+
+    def fill_form(self):
+        #individual properties
+        self.window.fullNameLineEdit.setText(self.active_spectrum.name.full_name)
+        self.window.dateLineEdit.setText(self.active_spectrum.name.date)
+        self.window.surfactantLineEdit.setText(self.active_spectrum.name.surfactant)
+        self.window.spreadingVolumeLineEdit.setText(self.active_spectrum.name.surfactant_spread_volume)
+        self.window.spreadingVolumeLineEdit_2.setText(self.active_spectrum.name.sensitizer_spread_volume)
+        self.window.sensitizerLineEdit.setText(self.active_spectrum.name.sensitizer)
+        self.window.photolysisLineEdit.setText(self.active_spectrum.name.photolysis)
+        self.window.specralRangeLineEdit.setText(str(self.active_spectrum.yield_spectral_range()))
+        self.window.Comment.insertPlainText(self.active_spectrum.name.comment)
+        #collective properties
+        self.window.totalSpectraCountLineEdit.setText(str(len(self.subset)))
+        self.window.plotLabelLineEdit.setText("default")
+
+    def test(self):
+        normalized = self.window.checkBox.checkState()
+        show_IR = self.window.checkBox_2.checkState()
+        show_Vis = self.window.checkBox_3.checkState()
+        title = self.window.plotLabelLineEdit.text()
+
+
+        if show_IR != 0:
+            if show_Vis != 0:
+                self.flag = "b"
+
+            else:
+                self.flag ="IR"
+        elif show_Vis != 0:
+            self.flag = "Vis"
+
+        elif normalized == 0:
+            self.flag = "r"
+        else:
+            #todo add the possbility of pure raw plotting
+            self.flag= "none"
+        print(self.flag)
+        self.window.sc.plot_sfg(self.subset, flag=self.flag)
+        self.window.sc.draw()
+
+        print("boing blöööök bumm miau")
+        print(normalized,show_IR, show_Vis)
+
+#test code section
+qApp = QtWidgets.QApplication(sys.argv)
+ui = UiWindow()
+
+I = IpyInterpreter()
+I.get("su DPPC")
+I.subset=[I.subset[0]]
+
+um = UiManager(I.subset, ui)
+
+sys.exit(qApp.exec_())

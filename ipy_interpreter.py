@@ -2,7 +2,7 @@ from Classes import *
 import Spec_utilities as spc
 import time
 
-class Ipy_Interpreter:
+class IpyInterpreter:
     """A class for interaction between the spectra datebase and the user by
     fetching single spectra upon matching criteria adding them to an internal
     list of SFG spectra."""
@@ -270,7 +270,4 @@ class Ipy_Interpreter:
         with open("notes", "a") as outfile:
             outfile.write(timestamp+"\t"+note+"\n")
 
-
-I = Ipy_Interpreter()
-I.note("Spectrum looks strange. Needs some readjustment")
-I.note("This is the second annotation line")
+#Test code section
