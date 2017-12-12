@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>892</width>
-    <height>856</height>
+    <width>928</width>
+    <height>749</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,8 +19,8 @@
      <rect>
       <x>700</x>
       <y>20</y>
-      <width>191</width>
-      <height>421</height>
+      <width>201</width>
+      <height>536</height>
      </rect>
     </property>
     <layout class="QFormLayout" name="formLayout">
@@ -43,6 +43,13 @@
      </item>
      <item row="1" column="1">
       <widget class="QLineEdit" name="dateLineEdit"/>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="surfactantLabel">
+       <property name="text">
+        <string>Surfactant</string>
+       </property>
+      </widget>
      </item>
      <item row="2" column="1">
       <widget class="QLineEdit" name="surfactantLineEdit"/>
@@ -118,23 +125,40 @@
       </widget>
      </item>
      <item row="10" column="0" colspan="2">
-      <widget class="QTextEdit" name="Comment"/>
+      <widget class="QPlainTextEdit" name="Comment"/>
      </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="surfactantLabel">
+     <item row="11" column="0">
+      <widget class="QLabel" name="label_2">
        <property name="text">
-        <string>Surfactant</string>
+        <string>Peaks</string>
        </property>
       </widget>
      </item>
-     <item row="11" column="0">
+     <item row="12" column="0" colspan="2">
+      <widget class="QTextEdit" name="Peaks"/>
+     </item>
+     <item row="13" column="0">
+      <widget class="QPushButton" name="bExport">
+       <property name="text">
+        <string>Export</string>
+       </property>
+      </widget>
+     </item>
+     <item row="13" column="1">
+      <widget class="QPushButton" name="bClear">
+       <property name="text">
+        <string>Clear</string>
+       </property>
+      </widget>
+     </item>
+     <item row="14" column="0">
       <widget class="QLabel" name="plotLabelLabel">
        <property name="text">
         <string>Plot label</string>
        </property>
       </widget>
      </item>
-     <item row="11" column="1">
+     <item row="14" column="1">
       <widget class="QLineEdit" name="plotLabelLineEdit"/>
      </item>
     </layout>
@@ -155,20 +179,13 @@
    <widget class="QWidget" name="formLayoutWidget_2">
     <property name="geometry">
      <rect>
-      <x>710</x>
-      <y>450</y>
+      <x>730</x>
+      <y>650</y>
       <width>174</width>
       <height>51</height>
      </rect>
     </property>
     <layout class="QFormLayout" name="formLayout_2">
-     <item row="0" column="0">
-      <widget class="QLabel" name="totalSpectraCountLabel">
-       <property name="text">
-        <string>total spectra count</string>
-       </property>
-      </widget>
-     </item>
      <item row="0" column="1">
       <widget class="QLineEdit" name="totalSpectraCountLineEdit"/>
      </item>
@@ -176,6 +193,13 @@
       <widget class="QPushButton" name="pushButton">
        <property name="text">
         <string>Select</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="QLabel" name="totalSpectraCountLabel">
+       <property name="text">
+        <string>total spectra count</string>
        </property>
       </widget>
      </item>
@@ -200,7 +224,7 @@
     <property name="geometry">
      <rect>
       <x>590</x>
-      <y>540</y>
+      <y>560</y>
       <width>101</width>
       <height>71</height>
      </rect>
@@ -232,22 +256,22 @@
    <widget class="QWidget" name="horizontalLayoutWidget_2">
     <property name="geometry">
      <rect>
-      <x>420</x>
-      <y>530</y>
+      <x>530</x>
+      <y>500</y>
       <width>160</width>
       <height>41</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
-      <widget class="QPushButton" name="pushButton_4">
+      <widget class="QPushButton" name="bRefresh">
        <property name="text">
         <string>Refresh</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton_3">
+      <widget class="QPushButton" name="bIntegrate">
        <property name="text">
         <string>Integrate</string>
        </property>
@@ -258,8 +282,8 @@
    <widget class="QWidget" name="formLayoutWidget_3">
     <property name="geometry">
      <rect>
-      <x>710</x>
-      <y>520</y>
+      <x>350</x>
+      <y>510</y>
       <width>171</width>
       <height>111</height>
      </rect>
@@ -307,13 +331,28 @@
      </item>
     </layout>
    </widget>
+   <widget class="QWidget" name="horizontalLayoutWidget_3">
+    <property name="geometry">
+     <rect>
+      <x>700</x>
+      <y>560</y>
+      <width>201</width>
+      <height>75</height>
+     </rect>
+    </property>
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <item>
+      <widget class="QListWidget" name="lSpeclist"/>
+     </item>
+    </layout>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>892</width>
+     <width>928</width>
      <height>21</height>
     </rect>
    </property>

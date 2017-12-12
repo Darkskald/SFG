@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 import numpy as np
 from scipy.integrate import simps as sp
 
-
+import time
 import sys
 import os
 import random
@@ -136,25 +136,25 @@ class MyStaticMplCanvas(MyMplCanvas):
         s = sin(2*pi*t)
         self.axes.plot(t, s)
 
-    def plot_sfg(self, sfg_list,title="default",flag="none"):
+    def plot_sfg(self, sfg_list,title="default", flag="none"):
         self.axes.cla()
         self.init_axes(title)
         for spectrum in sfg_list:
             if flag == "IR":
-                self.axes.plot(spectrum.wavenumbers, spectrum.ir_intensity, label=(spectrum.name.full_name + "_IR"))
-                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=spectrum.name.full_name)
+                self.axes.plot(spectrum.wavenumbers, spectrum.ir_intensity, label=(spectrum.name.full_name + "_IR"), linestyle='dotted', markersize=2, marker="o")
+                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=spectrum.name.full_name, linestyle='dotted', markersize=4, marker="o")
 
             elif flag == "Vis":
-                self.axes.plot(spectrum.wavenumbers, spectrum.vis_intensity, label=spectrum.name.full_name)
-                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=(spectrum.name.full_name + "_vis"))
+                self.axes.plot(spectrum.wavenumbers, spectrum.vis_intensity, label=spectrum.name.full_name, linestyle='dotted', markersize=2, marker="o")
+                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=(spectrum.name.full_name + "_vis"), linestyle='dotted', markersize=4, marker="o")
             elif flag == "b":
-                self.axes.plot(spectrum.wavenumbers, spectrum.ir_intensity, label=(spectrum.name.full_name + "_IR"))
-                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=spectrum.name.full_name)
-                self.axes.plot(spectrum.wavenumbers, spectrum.vis_intensity, label=(spectrum.name.full_name + "_vis"))
+                self.axes.plot(spectrum.wavenumbers, spectrum.ir_intensity, label=(spectrum.name.full_name + "_IR"), linestyle='dotted', markersize=2, marker="o")
+                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=spectrum.name.full_name, linestyle='dotted', markersize=4, marker="o")
+                self.axes.plot(spectrum.wavenumbers, spectrum.vis_intensity, label=(spectrum.name.full_name + "_vis"), linestyle='dotted', markersize=2, marker="o")
             elif flag == "r":
-                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=spectrum.name.full_name)
+                self.axes.plot(spectrum.wavenumbers, spectrum.raw_intensity, label=spectrum.name.full_name, linestyle='dotted', markersize=4, marker="o")
             else:
-                self.axes.plot(spectrum.wavenumbers, spectrum.normalized_intensity, label=spectrum.name.full_name)
+                self.axes.plot(spectrum.wavenumbers, spectrum.normalized_intensity, label=spectrum.name.full_name, linestyle='dotted', markersize=4, marker="o")
 
 
         #box = self.axes.get_position()
@@ -166,6 +166,13 @@ class MyStaticMplCanvas(MyMplCanvas):
     def clear(self):
         print("Debuggedidooo")
         self.axes.cla()
+
+    def onclick(self, event):
+        print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+              ('double' if event.dblclick else 'single', event.button,
+               event.x, event.y, event.xdata, event.ydata))
+
+
 
 
 class MyDynamicMplCanvas(MyMplCanvas):
@@ -259,6 +266,7 @@ class UiWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         l = QtWidgets.QVBoxLayout(self.plotframe)
         self.sc = MyStaticMplCanvas(self.plotframe, width=5, height=4, dpi=100)
+
         #dc = MyDynamicMplCanvas(self.plotframe, width=5, height=4, dpi=100)
         self.toolbar = NavigationToolbar(self.sc, self)
         l.addWidget(self.sc)
@@ -282,12 +290,20 @@ class UiManager:
         if self.subset[0]:
             self.active_spectrum = self.subset[0]
         else:
-            self.active_spectrum= "none"
+            self.active_spectrum = "none"
+        self.index = 0
+        self.peakcounter = 1
+        self.exports = 1
+
         #todo implementation of toolbar and PlotCanvas missing here
 
 
         self.fill_form()
-        self.window.pushButton_4.clicked.connect(self.test)
+        self.window.bRefresh.clicked.connect(self.test)
+        self.window.bClear.clicked.connect(self.clear_peaks)
+        self.window.bExport.clicked.connect(self.export)
+        #self.window.pushButton.clicked.connect(self.next)
+        cid = self.window.sc.mpl_connect('button_press_event', self.pick)
 
         self.window.sc.plot_sfg(self.subset, flag=self.flag)
         self.window.show()
@@ -312,7 +328,7 @@ class UiManager:
         normalized = self.window.checkBox.checkState()
         show_IR = self.window.checkBox_2.checkState()
         show_Vis = self.window.checkBox_3.checkState()
-        title = self.window.plotLabelLineEdit.text()
+        ntitle = self.window.plotLabelLineEdit.text()
 
 
         if show_IR != 0:
@@ -330,19 +346,58 @@ class UiManager:
             #todo add the possbility of pure raw plotting
             self.flag= "none"
         print(self.flag)
-        self.window.sc.plot_sfg(self.subset, flag=self.flag)
+        self.window.sc.plot_sfg(self.subset, title=ntitle, flag=self.flag)
         self.window.sc.draw()
 
         print("boing blöööök bumm miau")
-        print(normalized,show_IR, show_Vis)
+        print(normalized, show_IR, show_Vis)
+
+    def printy(self):
+        print("blööök"*1000)
+
+    def next(self):
+
+        self.index += 1
+        try:
+            self.active_spectrum = self.subset[self.index]
+        except IndexError:
+            self.active_spectrum= self.subset[0]
+            self.index = 0
+            self.window.sc.plot_sfg(self.subset, title="default", flag=self.flag)
+            self.window.sc.draw()
+
+        self.fill_form()
+
+    def pick(self, event):
+
+        if event.button == 3:
+            x = event.xdata
+            y = event.ydata
+            self.window.Peaks.insertPlainText(str(x)+"\n"+str(y)+"\n\n")
+        print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+              ('double' if event.dblclick else 'single', event.button,
+               event.x, event.y, event.xdata, event.ydata))
+
+    def clear_peaks(self):
+        self.window.Peaks.clear()
+
+    def export(self):
+        timestamp = time.strftime("%b %d %Y %H:%M:%S")
+        title = self.window.plotLabelLineEdit.text()
+        with open(str(self.exports)+".txt", "w") as outfile:
+            text = self.window.Peaks.toPlainText()
+            outfile.write(timestamp+" "+title+"\n\n")
+            outfile.write(text)
+            self.exports += 1
+
 
 #test code section
 qApp = QtWidgets.QApplication(sys.argv)
 ui = UiWindow()
 
 I = IpyInterpreter()
-I.get("su DPPC")
-I.subset=[I.subset[0]]
+I.get("bo")
+#I.subset=[I.subset[0]]
 
 um = UiManager(I.subset, ui)
 
