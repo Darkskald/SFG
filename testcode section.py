@@ -299,10 +299,13 @@ class UiManager:
 
 
         self.fill_form()
+
         self.window.bRefresh.clicked.connect(self.test)
         self.window.bClear.clicked.connect(self.clear_peaks)
         self.window.bExport.clicked.connect(self.export)
-        #self.window.pushButton.clicked.connect(self.next)
+        self.window.bNext.clicked.connect(self.next)
+        self.window.bPrevious.clicked.connect(self.previous)
+
         cid = self.window.sc.mpl_connect('button_press_event', self.pick)
 
         self.window.sc.plot_sfg(self.subset, flag=self.flag)
@@ -319,6 +322,7 @@ class UiManager:
         self.window.sensitizerLineEdit.setText(self.active_spectrum.name.sensitizer)
         self.window.photolysisLineEdit.setText(self.active_spectrum.name.photolysis)
         self.window.specralRangeLineEdit.setText(str(self.active_spectrum.yield_spectral_range()))
+        self.window.Comment.clear()
         self.window.Comment.insertPlainText(self.active_spectrum.name.comment)
         #collective properties
         self.window.totalSpectraCountLineEdit.setText(str(len(self.subset)))
@@ -329,26 +333,43 @@ class UiManager:
         show_IR = self.window.checkBox_2.checkState()
         show_Vis = self.window.checkBox_3.checkState()
         ntitle = self.window.plotLabelLineEdit.text()
+        mode = self.window.cStacked.checkState()
 
+        if mode != 0:
+            if show_IR != 0:
+                if show_Vis != 0:
+                    self.flag = "b"
 
-        if show_IR != 0:
-            if show_Vis != 0:
-                self.flag = "b"
+                else:
+                    self.flag ="IR"
+            elif show_Vis != 0:
+                self.flag = "Vis"
 
+            elif normalized == 0:
+                self.flag = "r"
             else:
-                self.flag ="IR"
-        elif show_Vis != 0:
-            self.flag = "Vis"
+                #todo add the possbility of pure raw plotting
+                self.flag= "none"
+            print(self.flag)
+            self.window.sc.plot_sfg(self.subset, title=ntitle, flag=self.flag)
 
-        elif normalized == 0:
-            self.flag = "r"
         else:
-            #todo add the possbility of pure raw plotting
-            self.flag= "none"
-        print(self.flag)
-        self.window.sc.plot_sfg(self.subset, title=ntitle, flag=self.flag)
-        self.window.sc.draw()
+            if show_IR != 0:
+                if show_Vis != 0:
+                    self.flag = "b"
 
+                else:
+                    self.flag = "IR"
+            elif show_Vis != 0:
+                self.flag = "Vis"
+
+            elif normalized == 0:
+                self.flag = "r"
+            else:
+                self.flag = "none"
+
+            self.window.sc.plot_sfg([self.active_spectrum], title=ntitle, flag=self.flag)
+        self.window.sc.draw()
         print("boing blöööök bumm miau")
         print(normalized, show_IR, show_Vis)
 
@@ -358,15 +379,15 @@ class UiManager:
     def next(self):
 
         self.index += 1
-        try:
-            self.active_spectrum = self.subset[self.index]
-        except IndexError:
-            self.active_spectrum= self.subset[0]
-            self.index = 0
-            self.window.sc.plot_sfg(self.subset, title="default", flag=self.flag)
-            self.window.sc.draw()
-
+        self.active_spectrum = self.subset[self.index]
         self.fill_form()
+        self.test()
+
+    def previous(self):
+        self.index -= 1
+        self.active_spectrum = self.subset[self.index]
+        self.fill_form()
+        self.test()
 
     def pick(self, event):
 
