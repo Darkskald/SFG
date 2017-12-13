@@ -403,13 +403,27 @@ class UiManager:
         self.window.Peaks.clear()
 
     def export(self):
+        if not self.window.cStacked.checkState():
+            nametag = self.get_infostring()
+        else:
+            nametag = ""
         timestamp = time.strftime("%b %d %Y %H:%M:%S")
         title = self.window.plotLabelLineEdit.text()
         with open(str(self.exports)+".txt", "w") as outfile:
             text = self.window.Peaks.toPlainText()
             outfile.write(timestamp+" "+title+"\n\n")
+            outfile.write(nametag)
             outfile.write(text)
             self.exports += 1
+
+    def get_infostring(self):
+        n = self.active_spectrum.name.full_name+"\n"
+        sr = str(self.active_spectrum.yield_spectral_range())+"\n"
+        sep1 = "*************************\n"+"Peaks manually picked\n"+"*************************\n"
+        calc = str(self.active_spectrum.detailed_anylsis())
+        sep1 = "*************************\n" + "Peaks calculated\n" + "*************************\n"
+
+        return n+sr+sep
 
 
 #test code section
