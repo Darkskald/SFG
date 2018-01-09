@@ -427,6 +427,8 @@ class UiManager:
 
 
 #test code section
+
+""""
 qApp = QtWidgets.QApplication(sys.argv)
 ui = UiWindow()
 
@@ -437,3 +439,7 @@ I.get("bo")
 um = UiManager(I.subset, ui)
 
 sys.exit(qApp.exec_())
+"""
+I = IpyInterpreter()
+I.get("bo")
+I.subset[0].drop_ascii()

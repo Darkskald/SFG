@@ -303,6 +303,12 @@ class SfgSpectrum:
         area = sp(y_array, x_array)
         return area
 
+    def drop_ascii(self):
+        """Create an ascii file with the wavenumbers and normalized intensities"""
+        with open(self.name.full_name[:-4]+".csv" , "w") as outfile:
+            writer = csv.writer(outfile, delimiter=";")
+            for i in zip(self.wavenumbers,self.normalized_intensity):
+                writer.writerow((i[0],i[1]))
 
 # noinspection PyMissingConstructor
 class AddedSpectrum(SfgSpectrum):
