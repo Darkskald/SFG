@@ -518,7 +518,7 @@ class AddedName(SystematicName):
 class FileFetcher:
     """The file fetcher class interconnects different subdirectories of the folder and simplifies
     the handling of filenames and filepaths. It changes the working directory to the file storage directory,
-    usually the library, creates a DataCollector obect and returns a SFG object"""
+    usually the library, creates a DataCollector object and returns a SFG object"""
 
     def __init__(self, filename, destination="library"):
         self.filename = filename
