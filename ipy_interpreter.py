@@ -193,7 +193,7 @@ class IpyInterpreter:
         """This is called when new spectra are added from the lab. It makes them available, creates the final systematic
         name and copies them to the Library"""
         Importer()
-        Library_Manager().update()
+        LibraryManager().update()
 
     def retranslate_name(self, stri):
         """This auxiliary function creates the long form of the name of a surfactant or sensitizer, using a text file as
