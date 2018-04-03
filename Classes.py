@@ -288,6 +288,7 @@ class SfgSpectrum:
         for i in peak_tuples:
             indices = (i[0], i[1], i[2])
             center = x_array[i[0]]
+            center_intensity = y_array[i[0]]
             left = x_array[i[1]]
             right = x_array[i[2]]
             peak_slice_x = x_array[i[1]:i[2] + 1]
@@ -295,7 +296,7 @@ class SfgSpectrum:
             area = self.integrate_peak(peak_slice_x, peak_slice_y)
             datapoints = len(peak_slice_x)
 
-            data_out.append((center, left, right, peak_slice_x, peak_slice_y, datapoints, area, indices))
+            data_out.append((center, left, right, center_intensity, peak_slice_x, peak_slice_y, datapoints, area, indices))
         return data_out
 
     def integrate_peak(self, x_array, y_array):
@@ -615,7 +616,7 @@ class Finder:
             subset = self.database
         matches = []
         for spectrum in subset:
-            if spectrum.name.surfactant == sensitizerflag:
+            if spectrum.name.sensitizer == sensitizerflag:
                 matches.append(spectrum)
         return matches
 
@@ -724,7 +725,7 @@ class Plotter:
         plt.title(self.title)
         plt.xlabel("Wavenumber/ $cm^{-1}$")
         plt.ylabel("Raw intensity/ a.u.")
-        if len(self.speclist < 6):
+        if len(self.speclist) < 6:
             plt.legend(loc="upper right")
         else:
             plt.legend(bbox_to_anchor(1, 0.5), loc='center left', numpoints=1)
@@ -779,6 +780,47 @@ class Plotter:
             for spectrum in self.speclist:
                 outfile.write(spectrum.name.full_name + "\n")
 
+    def stack_plot(self):
+        spacer = 0
+        fig = plt.figure()
+        ax = plt.subplot(111)
+        for spectrum in self.speclist:
+            fig = plt.figure()
+            ax = plt.subplot(111)
+            for spectrum in self.speclist:
+                wl = spectrum.wavenumbers
+                intensity = spectrum.normalize_to_highest()+spacer
+                ax.plot(wl, intensity, label=spectrum.name.full_name, linestyle='--', markersize=4, marker="o")
+                spacer += 0.5
+
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+            ax.grid()
+            ax.set_title(self.title)
+            ax.set_xlabel("Wavenumber/ $cm^{-1}$")
+            ax.set_ylabel("Intensity/ a.u.")
+            ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            ax.axes.get_yaxis().set_ticks([])
+            self.log_plot("stack")
+            plt.show()
+
+    def log_plot(self, mode):
+        # Part 1: Generate logfile
+        with open(self.title+"_"+mode, "w") as outfile:
+            outfile.write("Log file for plot " + self.title + "\n")
+            outfile.write("The mode of the plot is: " + mode + "\n")
+            outfile.write("Plot contains the following spectra: \n")
+            for spectrum in self.speclist:
+                outfile.write(spectrum.name.full_name + "\n")
+
+    def bar_peaks(self):
+        A = Analyzer(self.speclist)
+        dic = A.count_peak_abundance()
+        for key in dic:
+            plt.bar(key, dic[key])
+        plt.ylabel("wavenumber")
+        plt.xlabel("peak abundance")
+        plt.show()
 
 class Analyzer:
     """This class takes, what a surprise, a list of SFG spectra as constructor argument. Its purpose
@@ -787,6 +829,41 @@ class Analyzer:
 
     def __init__(self, speclist):
         self.speclist = speclist
+
+    def count_peak_abundance(self):
+        peaklists = []
+        abundance = {}
+
+        for spectrum in self.speclist:
+            temp = spectrum.yield_peaklist(threshold=8)
+            peaklists.append(temp)
+
+        for peaklist in peaklists:
+            for peak in peaklist:
+                if peak[1] not in abundance:
+                    abundance[peak[1]] = 1
+                else:
+                    abundance[peak[1]] += 1
+        return abundance
+
+    def write_analysis(self):
+        for spectrum in self.speclist:
+            with open(spectrum.name.full_name+".ana", "w") as outfile:
+                outfile.write("*"*80+"\n")
+                outfile.write("Analytics output: "+"\n")
+                tup = spectrum.detailed_analysis()
+                counter = 1
+                for peak in tup:
+                    outfile.write("Peak "+str(counter)+":\n")
+                    outfile.write("Wavenumber: " + str(peak[0]))
+                    outfile.write("\nIntensity: "+str(peak[3]))
+                    outfile.write("\nLeft border: "+str(peak[1]))
+                    outfile.write("\nRight border: "+str(peak[2]))
+                    outfile.write("\nIntegral: "+str(peak[7])+"\n")
+                    outfile.write("-"*80+"\n")
+                    counter += 1
+
+
 
 
 class Planer:

@@ -1,7 +1,7 @@
 from ipy_interpreter import IpyInterpreter
 from Classes import Plotter
 import numpy as np
-
+import matplotlib.pyplot as plt
 """A supporting module with useful functions for all the data management and analysis in the SFG module"""
 
 
@@ -71,14 +71,16 @@ def calc_area_per_molecule(area, concentration, volume):
 
     return area_per_molecule
 
+#advanced plotting functionality
+
+
+
+
+
+
 
 # Test code section
 I = IpyInterpreter()
 I.update()
 I.get("se PA")
 set = I.subset
-collect = []
-for spectrum in set:
-    tuple = spectrum.detailed_analysis()
-    collect.append(tuple)
-print(collect)
