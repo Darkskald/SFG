@@ -1,4 +1,4 @@
-from ipy_interpreter import Ipy_Interpreter
+from ipy_interpreter import IpyInterpreter
 from Classes import Plotter
 import numpy as np
 
@@ -73,12 +73,12 @@ def calc_area_per_molecule(area, concentration, volume):
 
 
 # Test code section
-
-diameter = 5.1
-concentration = 5
-volume = 1.5
-
-area = calc_dish_area(5.1)
-pm = calc_area_per_molecule(area, concentration, volume)
-
-print(pm)
+I = IpyInterpreter()
+I.update()
+I.get("se PA")
+set = I.subset
+collect = []
+for spectrum in set:
+    tuple = spectrum.detailed_analysis()
+    collect.append(tuple)
+print(collect)
