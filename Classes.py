@@ -172,8 +172,6 @@ class SfgSpectrum:
             Added.speccounter += SFG2.speccounter
             return Added
 
-
-
     def normalize_to_highest(self, intensity="default"):
         """normalize an given array to its maximum, typically the normalized or raw intensity"""
         if intensity == "default":
@@ -310,6 +308,53 @@ class SfgSpectrum:
             writer = csv.writer(outfile, delimiter=";")
             for i in zip(self.wavenumbers,self.normalized_intensity):
                 writer.writerow((i[0],i[1]))
+
+    def calc_dish_area(self, diameter):
+        """An auxialiary function to calculate the area of a teflon dish in square angstroms. Diameter given in cm."""
+        radius = diameter * 0.5
+        area = np.pi * radius ** 2
+        area = area * 10 ** 16  # conversion to square angstroms
+        return area
+
+    def calc_area_per_molecule(self,mode="surfactant"):
+        """The function calculates the area per molecule. The area should be given in square angstroms, the
+        concentration in milimole per liter and the volume in microleter"""
+
+        area = self.calc_dish_area(5.1)
+
+        if self.name.sensitizer_spread_volume == "-":
+            concentration = input("Enter surfactant volume while name is " + self.name.full_name + " :")
+            concentration = float(concentration)
+            volume = float(self.name.surfactant_spread_volume)
+            concentration = concentration * 10 ** -3  # conversion in mol per liter
+            volume = volume * 10 ** -6  # conversion in liter
+            amount = volume * concentration
+        #todo: reomove redundance from those sections (create a new func)
+        else:
+            # surfactant section
+            concentration = input("Enter surfactant stock concentration while name is " + self.name.full_name + " :")
+            concentration = float(concentration)
+            volume = float(self.name.surfactant_spread_volume)
+            concentration = concentration * 10 ** -3  # conversion in mol per liter
+            volume = volume * 10 ** -6  # conversion in liter
+            amount_su = volume * concentration
+
+            #sensitizer section
+            concentration = input("Enter sensitizer stock concentration while name is " + self.name.full_name + " :")
+            concentration = float(concentration)
+            volume = float(self.name.surfactant_spread_volume)
+            concentration = concentration * 10 ** -3  # conversion in mol per liter
+            volume = volume * 10 ** -6  # conversion in liter
+            amount_se = volume * concentration
+
+            amount = amount_su+amount_se
+
+
+
+        molecules = (6.022 * 10 ** 23) * amount  # number of molecules
+        area_per_molecule = area / molecules
+
+        return area_per_molecule
 
 # noinspection PyMissingConstructor
 class AddedSpectrum(SfgSpectrum):
@@ -571,9 +616,9 @@ class DataCollector:
 
 # noinspection PySimplifyBooleanCheck
 class Finder:
-    """Powerfull class generating sfg objects of ALL files in library and traversing them for match
-    criteria. Contains a list of SFG objects whitch mach the criteria. Later features to extract 
-    information from libary management file and day information file will be added"""
+    """Powerful class generating sfg objects of ALL files in library and traversing them for match
+    criteria. Contains a list of SFG objects which mach the criteria. Later features to extract
+    information from library management file and day information file will be added"""
 
     def __init__(self):
         self.database = []
@@ -713,6 +758,7 @@ class Plotter:
         ax.set_xlabel("Wavenumber/ $cm^{-1}$")
         ax.set_ylabel("Intensity/ a.u.")
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        self.log_plot("simple")
         plt.show()
 
     def raw_plot(self):
@@ -729,6 +775,7 @@ class Plotter:
             plt.legend(loc="upper right")
         else:
             plt.legend(bbox_to_anchor(1, 0.5), loc='center left', numpoints=1)
+        self.log_plot("raw")
         plt.show()
 
     def raw_plot_plus_ir(self):
@@ -743,6 +790,7 @@ class Plotter:
         plt.xlabel("Wavenumber/ $cm^{-1}$")
         plt.ylabel("Raw intensity/ a.u.")
         plt.legend(loc="upper right")
+        self.log_plot("raw_plot_plus_ir")
         plt.show()
 
     def custom_plot(self):
@@ -806,7 +854,7 @@ class Plotter:
 
     def log_plot(self, mode):
         # Part 1: Generate logfile
-        with open(self.title+"_"+mode, "w") as outfile:
+        with open("logs/"+self.title+"_"+mode, "w") as outfile:
             outfile.write("Log file for plot " + self.title + "\n")
             outfile.write("The mode of the plot is: " + mode + "\n")
             outfile.write("Plot contains the following spectra: \n")
@@ -820,7 +868,10 @@ class Plotter:
             plt.bar(key, dic[key])
         plt.ylabel("wavenumber")
         plt.xlabel("peak abundance")
+        self.log_plot("bar_peaks")
         plt.show()
+
+
 
 class Analyzer:
     """This class takes, what a surprise, a list of SFG spectra as constructor argument. Its purpose

@@ -3,7 +3,7 @@ import Spec_utilities as spc
 import time
 
 class IpyInterpreter:
-    """A class for interaction between the spectra datebase and the user by
+    """A class for interaction between the spectra database and the user by
     fetching single spectra upon matching criteria adding them to an internal
     list of SFG spectra."""
 
@@ -15,10 +15,14 @@ class IpyInterpreter:
         self.irdata = spc.SpecDatabase("IR")
         self.ramandata = spc.SpecDatabase("Raman")
         self.planer = Planer()
+
+        self.log_file = self.init_session_control()
     # SFG Management
 
     def show(self):
         """Prints all spectra contained in the current subset"""
+        self.write_log_entry("show")
+
         tabstring = "Nr."+"\t\t"+"Date"+"\t" + "Surf." + "\t" + "spectral range" + "\t\t\t\t" + "full spectrum name"
         print(tabstring)
         print("\n")
@@ -29,9 +33,12 @@ class IpyInterpreter:
 
     def clear(self):
         """Removes everything from the subset"""
+        self.write_log_entry("show")
         self.subset = []
 
     def get(self, flagstring):
+        self.write_log_entry("get "+flagstring)
+
         """Gets spectra according to specified criteria from the database and passes them into the subset"""
 
         if flagstring == "bo":
@@ -114,6 +121,8 @@ class IpyInterpreter:
 
     def remove(self, numbers):
         """Removes items by (a list of) index(indices from the subset"""
+        self.write_log_entry("remove"+str(numbers))
+
         options = numbers.split(",")
         to_remove = [self.subset[int(i)] for i in options]
         newlist = [i for i in self.subset if i not in to_remove]
@@ -122,6 +131,7 @@ class IpyInterpreter:
 
     def keep(self, flagstring):
         """Removes everything but the specified items. Specification is done by a list of indices"""
+        self.write_log_entry("keep " + str(flagstring))
         f = flagstring
         options = f.split(",")
         new_list = [self.subset[int(i)] for i in options]
@@ -131,6 +141,14 @@ class IpyInterpreter:
 
     def plot(self, flag=False):
         """Plots an overlay of all spectra currently present in the subset"""
+
+        s1 = "plot "+str(flag)+"\n"
+        s2 = "Specs included in plot: \n"
+        for spec in self.subset:
+            s2 += "\t"+spec.name.full_name+"\n"
+        s = s1+s2
+        self.write_log_entry(s)
+
         p = Plotter(self.subset)
         # noinspection PySimplifyBooleanCheck
         if flag == False:
@@ -139,11 +157,14 @@ class IpyInterpreter:
             p.raw_plot()
         elif flag == "rawi":
             p.raw_plot_plus_ir()
+        elif flag == "stack":
+            p.stack_plot()
 
-    def refine(self, flagstring):
+
+    def ref(self, flagstring):
         """Keeps a a subset of the current subset according to specified selection criteria. This function is totally
         equivalent to the get function, but is applied to the subset and not the overall database"""
-
+        self.write_log_entry("refine "+flagstring)
         self.recover = self.subset
         f = self.flagstring_split(flagstring)
         flag = f[0]
@@ -192,6 +213,7 @@ class IpyInterpreter:
     def update(self):
         """This is called when new spectra are added from the lab. It makes them available, creates the final systematic
         name and copies them to the Library"""
+        self.write_log_entry("update")
         Importer()
         LibraryManager().update()
 
@@ -218,7 +240,8 @@ class IpyInterpreter:
         else:
             print("Retranslation failed. Unknown expression.")
 
-    def recovery(self):
+    def rec(self):
+        self.write_log_entry("recover")
         """Restores the subset to one step before the last refinement(keep, refine)"""
         for i in self.recover:
             self.subset.append(i)
@@ -270,4 +293,13 @@ class IpyInterpreter:
         with open("notes", "a") as outfile:
             outfile.write(timestamp+"\t"+note+"\n")
 
-#Test code section
+    def init_session_control(self):
+        timestamp = time.strftime("%b_%d_%Y_%H_%M")
+        with open("logs/"+timestamp, "w") as outfile:
+            outfile.write("Logfile of IpyInterpreter session\n")
+        return timestamp
+
+    def write_log_entry(self, keyword):
+        timestamp = time.strftime("%b %d %Y %H:%M:%S")
+        with open("logs/"+self.log_file, "a") as outfile:
+            outfile.write(timestamp + "\t" + keyword + "\n")
