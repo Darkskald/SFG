@@ -1,0 +1,33 @@
+\documentclass[12pt,a4paper,fceqn,reqno]{scrartcl}
+%support for maths                                                                 
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
+%font and language
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+\usepackage{setspace} 
+\usepackage[scaled]{helvet}
+\renewcommand*\familydefault{\sfdefault}
+%generic other packages
+\usepackage{hyperref}
+
+%graphic and image support
+\usepackage{graphicx}
+\usepackage{caption} %Caption-Paket f�r Beschriftungen
+\usepackage{subcaption}
+\captionsetup{font=small, labelfont=bf} %Einstellung f�r das Caption-Paket
+\setlength{\abovecaptionskip}{10pt} %Abstand zwischen Text und nachfolgender Grafik 
+\setlength{\belowcaptionskip}{0pt} %Abstand zwischen Grafik und nachfolgendem Text
+
+%source code support
+\usepackage{xcolor}
+\usepackage{minted}
+\usemintedstyle{monokai}
+
+%title and formatting utilities
+\begin{document}
+\onehalfspacing

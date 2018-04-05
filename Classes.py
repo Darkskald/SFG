@@ -172,6 +172,8 @@ class SfgSpectrum:
             Added.speccounter += SFG2.speccounter
             return Added
 
+
+
     def normalize_to_highest(self, intensity="default"):
         """normalize an given array to its maximum, typically the normalized or raw intensity"""
         if intensity == "default":
@@ -299,8 +301,11 @@ class SfgSpectrum:
 
     def integrate_peak(self, x_array, y_array):
         """Numpy integration routine for numerical peak integration with the trapezoidal rule"""
-        area = sp(y_array, x_array)
-        return area
+        try:
+            area = sp(y_array, x_array)
+            return area
+        except:
+            return "Area  could not be calculated"
 
     def drop_ascii(self):
         """Create an ascii file with the wavenumbers and normalized intensities"""
@@ -309,52 +314,23 @@ class SfgSpectrum:
             for i in zip(self.wavenumbers,self.normalized_intensity):
                 writer.writerow((i[0],i[1]))
 
-    def calc_dish_area(self, diameter):
-        """An auxialiary function to calculate the area of a teflon dish in square angstroms. Diameter given in cm."""
-        radius = diameter * 0.5
-        area = np.pi * radius ** 2
-        area = area * 10 ** 16  # conversion to square angstroms
-        return area
+    def drop_tex_peaktable(self, threshold=1.5):
 
-    def calc_area_per_molecule(self,mode="surfactant"):
-        """The function calculates the area per molecule. The area should be given in square angstroms, the
-        concentration in milimole per liter and the volume in microleter"""
+        peaks = self.detailed_analysis(threshold=threshold)
+        tablestring = ""
 
-        area = self.calc_dish_area(5.1)
+        counter = 1
+        for peak in peaks:
+            tablestring += "\subcaption*{" + "Peak " + str(counter) + "}\n"
+            tablestring += "\\begin{tabular}{|c|c|c|c|c|c|}\n\hline\n"
+            tablestring += "Wavenumber & normalized intensity & area & left border & right border"+"\\\\"+"\hline\n"
 
-        if self.name.sensitizer_spread_volume == "-":
-            concentration = input("Enter surfactant volume while name is " + self.name.full_name + " :")
-            concentration = float(concentration)
-            volume = float(self.name.surfactant_spread_volume)
-            concentration = concentration * 10 ** -3  # conversion in mol per liter
-            volume = volume * 10 ** -6  # conversion in liter
-            amount = volume * concentration
-        #todo: reomove redundance from those sections (create a new func)
-        else:
-            # surfactant section
-            concentration = input("Enter surfactant stock concentration while name is " + self.name.full_name + " :")
-            concentration = float(concentration)
-            volume = float(self.name.surfactant_spread_volume)
-            concentration = concentration * 10 ** -3  # conversion in mol per liter
-            volume = volume * 10 ** -6  # conversion in liter
-            amount_su = volume * concentration
+            tablestring += str(peak[0]) + " & " + str(peak[3]) + " & " + str(peak[7]) + " & " + str(
+                peak[1]) + " & " + str(peak[2]) + "\\\\"
+            tablestring += "\n\hline\n\end{tabular}\n"
+            counter += 1
 
-            #sensitizer section
-            concentration = input("Enter sensitizer stock concentration while name is " + self.name.full_name + " :")
-            concentration = float(concentration)
-            volume = float(self.name.surfactant_spread_volume)
-            concentration = concentration * 10 ** -3  # conversion in mol per liter
-            volume = volume * 10 ** -6  # conversion in liter
-            amount_se = volume * concentration
-
-            amount = amount_su+amount_se
-
-
-
-        molecules = (6.022 * 10 ** 23) * amount  # number of molecules
-        area_per_molecule = area / molecules
-
-        return area_per_molecule
+        return tablestring
 
 # noinspection PyMissingConstructor
 class AddedSpectrum(SfgSpectrum):
@@ -616,9 +592,9 @@ class DataCollector:
 
 # noinspection PySimplifyBooleanCheck
 class Finder:
-    """Powerful class generating sfg objects of ALL files in library and traversing them for match
-    criteria. Contains a list of SFG objects which mach the criteria. Later features to extract
-    information from library management file and day information file will be added"""
+    """Powerfull class generating sfg objects of ALL files in library and traversing them for match
+    criteria. Contains a list of SFG objects whitch mach the criteria. Later features to extract 
+    information from libary management file and day information file will be added"""
 
     def __init__(self):
         self.database = []
@@ -738,8 +714,9 @@ class Plotter:
         self.speclist = speclist
         self.raw = raw
         self.title = title
+        self.save_dir = "tex_out/fig"
 
-    def simple_plot(self):
+    def simple_plot(self, mode="show"):
 
         fig = plt.figure()
         ax = plt.subplot(111)
@@ -758,10 +735,13 @@ class Plotter:
         ax.set_xlabel("Wavenumber/ $cm^{-1}$")
         ax.set_ylabel("Intensity/ a.u.")
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-        self.log_plot("simple")
-        plt.show()
+        if mode == "show":
+            plt.show()
+        elif mode =="save":
+            plt.savefig(self.save_dir+"/"+self.title+".pdf")
 
-    def raw_plot(self):
+
+    def raw_plot(self, mode="show"):
         for spectrum in self.speclist:
             wl = spectrum.wavenumbers
             intensity = spectrum.raw_intensity
@@ -775,10 +755,12 @@ class Plotter:
             plt.legend(loc="upper right")
         else:
             plt.legend(bbox_to_anchor(1, 0.5), loc='center left', numpoints=1)
-        self.log_plot("raw")
-        plt.show()
+        if mode == "show":
+            plt.show()
+        elif mode =="save":
+            plt.savefig(self.save_dir+"/"+self.title+".pdf")
 
-    def raw_plot_plus_ir(self):
+    def raw_plot_plus_ir(self, mode="show"):
         for spectrum in self.speclist:
             wl = spectrum.wavenumbers
             intensity = spectrum.raw_intensity
@@ -790,8 +772,10 @@ class Plotter:
         plt.xlabel("Wavenumber/ $cm^{-1}$")
         plt.ylabel("Raw intensity/ a.u.")
         plt.legend(loc="upper right")
-        self.log_plot("raw_plot_plus_ir")
-        plt.show()
+        if mode == "show":
+            plt.show()
+        elif mode =="save":
+            plt.savefig(self.save_dir+"/"+self.title+".pdf")
 
     def custom_plot(self):
 
@@ -828,7 +812,7 @@ class Plotter:
             for spectrum in self.speclist:
                 outfile.write(spectrum.name.full_name + "\n")
 
-    def stack_plot(self):
+    def stack_plot(self, mode="show"):
         spacer = 0
         fig = plt.figure()
         ax = plt.subplot(111)
@@ -850,11 +834,14 @@ class Plotter:
             ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
             ax.axes.get_yaxis().set_ticks([])
             self.log_plot("stack")
-            plt.show()
+            if mode == "show":
+                plt.show()
+            elif mode == "save":
+                plt.savefig(self.save_dir + "/" + self.title + ".pdf")
 
     def log_plot(self, mode):
         # Part 1: Generate logfile
-        with open("logs/"+self.title+"_"+mode, "w") as outfile:
+        with open(self.title+"_"+mode, "w") as outfile:
             outfile.write("Log file for plot " + self.title + "\n")
             outfile.write("The mode of the plot is: " + mode + "\n")
             outfile.write("Plot contains the following spectra: \n")
@@ -868,10 +855,7 @@ class Plotter:
             plt.bar(key, dic[key])
         plt.ylabel("wavenumber")
         plt.xlabel("peak abundance")
-        self.log_plot("bar_peaks")
         plt.show()
-
-
 
 class Analyzer:
     """This class takes, what a surprise, a list of SFG spectra as constructor argument. Its purpose
@@ -959,3 +943,69 @@ class Planer:
         with open("tasks", "w") as outfile:
             for task in self.tasks:
                 outfile.write(task)
+
+
+class TexInterface:
+
+    def __init__(self, name, sfg_list):
+        self.name = name
+        self.blocks = []
+        self.out_dir = "tex_out/"
+        self.fig_dir = "fig/"
+        self.sfg_list = sfg_list
+
+        # section control
+        self.create_header()
+
+    def add_figure(self, filename, label):
+
+        figstring = "\\begin{figure}[h!]\n\centering\n\includegraphics[scale=0.4]"
+        figstring += "{"+self.fig_dir+filename+"}\n"
+        figstring += "\caption{"+label+".}\n\end{figure}\n"
+        self.blocks.append(figstring)
+
+    def add_tabular(self, spectrum):
+        corr_name = " ".join(spectrum.name.full_name.split("_"))
+        corr_name = corr_name.replace("#", "NR. ")
+        tabular_string = "\\begin{table}[h!]\n"
+        tabular_string += "\caption{"+"Peaklist of "+corr_name+"}"+"\n"
+        tabular_string += "\\begin{center}\n"
+
+        tabular_string += spectrum.drop_tex_peaktable()
+
+        tabular_string += "\\end{center}\n"
+        tabular_string += "\\end{table}\n"
+        print("DEBUUUUUUUUUG")
+        self.blocks.append(tabular_string)
+
+    def load_template(self, name):
+        pass
+
+    def create_header(self):
+        with open("texhead", "r") as infile:
+            string = infile.read()
+            self.blocks.append(string)
+    
+    def write_file(self):
+        self.blocks.append("\n" + "\end{document}")
+        outstring = "\n".join(self.blocks)
+        with open(self.out_dir + self.name + ".tex", "w") as outfile:
+            outfile.write(outstring)
+
+    def compile(self):
+        pass
+
+    def add_section(self, name):
+        self.blocks.append("\section{" + name + "}" + "\n")
+
+    def traverse_sfg_list(self):
+        for spectrum in self.sfg_list:
+            corr_name = " ".join(spectrum.name.full_name.split("_"))
+            corr_name = corr_name.replace("#", "NR. ")
+            self.add_section(corr_name)
+            P = Plotter([spectrum])
+            s = spectrum.name.full_name[:-4].replace(".", "x")
+            P.title = s
+            P.simple_plot(mode="save")
+            self.add_figure(s+".pdf", "Simple plot with normalized intensity")
+            self.add_tabular(spectrum)
