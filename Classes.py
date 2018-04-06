@@ -250,7 +250,9 @@ class SfgSpectrum:
         x_array = self.wavenumbers[::-1]
         y_array = self.normalized_intensity[::-1]
 
+
         slopes = [(y_array[i + 1] - y_array[i]) / (x_array[i + 1] - x_array[i]) for i in range((len(x_array) - 1))]
+
         possible_peaks = []
         peak_tuples = []
 
@@ -277,13 +279,16 @@ class SfgSpectrum:
             # check for right border
             k = i + 1
 
-            while ((slopes[k] < 0) and (k + 1 <= len(slopes) - 1)):
-                k += 1
+            if k >= len(slopes):
+                k = len(slopes)-1
+            else:
+                while (slopes[k] < 0):
+                    k += 1
 
             right = k
 
             peak_tuples.append((center, left, right))
-
+            print("center,left,right: ",center,left,right)
         data_out = []
         for i in peak_tuples:
             indices = (i[0], i[1], i[2])
@@ -849,6 +854,7 @@ class Plotter:
                 outfile.write(spectrum.name.full_name + "\n")
 
     def bar_peaks(self):
+
         A = Analyzer(self.speclist)
         dic = A.count_peak_abundance()
         for key in dic:
@@ -857,6 +863,39 @@ class Plotter:
         plt.xlabel("peak abundance")
         plt.show()
 
+    def marked_peaks(self, mode="show"):
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax2 = ax.twiny()
+
+
+        for spectrum in self.speclist:
+            wl = spectrum.wavenumbers
+            if self.raw == False:
+                intensity = spectrum.normalized_intensity
+            else:
+                intensity = spectrum.raw_intensity
+            ax.plot(wl, intensity, label=spectrum.name.full_name, linestyle='--', markersize=4, marker="o")
+
+            peakticks = []
+            for peak in spectrum.detailed_analysis():
+                ax2.axvline(peak[0])
+                peakticks.append(peak[0])
+
+        ax.grid()
+        ax.set_xlabel("Wavenumber/ $cm^{-1}$")
+        ax.set_ylabel("Intensity/ a.u.")
+        ax.legend()
+
+
+        ax2.set_xticks(peakticks)
+        ax2.set_xticklabels(peakticks, rotation=45, color='blue')
+        ax2.set_xlim(ax.get_xlim())
+
+        if mode == "show":
+            plt.show()
+        elif mode == "save":
+            plt.savefig(self.save_dir + "/" + self.title + ".pdf")
 class Analyzer:
     """This class takes, what a surprise, a list of SFG spectra as constructor argument. Its purpose
     is to perform analytical tasks with the spectral data, e.g. compare peaks, integral, datapoints
@@ -966,7 +1005,7 @@ class TexInterface:
 
     def add_tabular(self, spectrum):
         corr_name = " ".join(spectrum.name.full_name.split("_"))
-        corr_name = corr_name.replace("#", "NR. ")
+        corr_name = corr_name.replace("#", "no")
         tabular_string = "\\begin{table}[h!]\n"
         tabular_string += "\caption{"+"Peaklist of "+corr_name+"}"+"\n"
         tabular_string += "\\begin{center}\n"
@@ -1005,6 +1044,7 @@ class TexInterface:
             self.add_section(corr_name)
             P = Plotter([spectrum])
             s = spectrum.name.full_name[:-4].replace(".", "x")
+            s = s.replace("#","no")
             P.title = s
             P.simple_plot(mode="save")
             self.add_figure(s+".pdf", "Simple plot with normalized intensity")
