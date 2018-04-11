@@ -106,13 +106,13 @@ class SfgSpectrum:
         return self.name.full_name[:-4] + "              " + str(self.yield_spectral_range())
 
     def __str__(self):
-        """Printable represantation of the SFG object"""
+        """Printable representation of the SFG object"""
         date = self.name.date
         surf = self.name.surfactant
         srange = str(self.yield_spectral_range())
         full = self.name.full_name[:-4]
 
-        return date + "\t" + surf + "\t" + srange + "\t\t" + full
+        return date + "\t" + surf + "\t" + srange + "\t" + full
 
     def __add__(self, SFG2):
         """Definition of an addition method for SFG spectra. Returning an Added_SFG object"""
@@ -172,45 +172,23 @@ class SfgSpectrum:
             Added.speccounter += SFG2.speccounter
             return Added
 
-
-
-    def normalize_to_highest(self, intensity="default"):
+    def normalize_to_highest(self, intensity="default", external_norm="none"):
         """normalize an given array to its maximum, typically the normalized or raw intensity"""
         if intensity == "default":
             intensity = self.normalized_intensity
-        norm_factor = np.max(intensity)
+        if external_norm == "none":
+            norm_factor = np.max(intensity)
+        else:
+            norm_factor = external_norm
+
         return (intensity / norm_factor)
 
-    def yield_peaklist(self, intensity="default", num=6, threshold=25):
-        """yield a defined list of peaks separated from each other by minimum the threshold value in wavenumber"""
-        pair_get = []
+    def yield_peaklist(self, mode="norm"):
+
         out = []
-        num = num
-        if intensity == "default":
-            intensity = self.normalized_intensity
-
-        for i in range(len(self.wavenumbers)):
-            pair_get.append([intensity[i], self.wavenumbers[i]])
-
-        while len(out) < (num):
-
-            if len(out) != 0:
-
-                for i in range(len(out)):
-                    k = max(pair_get)
-
-                    if np.abs(out[i][1] - k[1]) < threshold:
-                        pair_get.remove(k)
-                        break
-                    if i == (len(out) - 1):
-                        out.append(k)
-                        pair_get.remove(k)
-
-
-            else:
-                k = max(pair_get)
-                out.append(k)
-
+        tup = self.detailed_analysis(threshold=1.5, intensity= mode)
+        for peak in tup:
+            out.append(peak[0])
         return out
 
     def yield_spectral_range(self):
@@ -244,12 +222,14 @@ class SfgSpectrum:
         y = savgol_filter(self.normalized_intensity, points, order)
         self.normalized_intensity = y
 
-    def detailed_analysis(self, threshold=3):
+    def detailed_analysis(self, threshold=2, intensity="norm"):
         """Function returning peak information (central wavenumber, flanks, integral). The threshold value characterizes
         the factor that a peak must be greater than the average intensity"""
         x_array = self.wavenumbers[::-1]
-        y_array = self.normalized_intensity[::-1]
-
+        if intensity == "norm":
+            y_array = self.normalized_intensity[::-1]
+        elif intensity == "raw":
+            y_array = self.raw_intensity[::-1]
 
         slopes = [(y_array[i + 1] - y_array[i]) / (x_array[i + 1] - x_array[i]) for i in range((len(x_array) - 1))]
 
@@ -270,9 +250,10 @@ class SfgSpectrum:
             right = 0
             center = i
             k = i - 2
+            border = np.average(slopes)*1/10
 
             # check for left border
-            while slopes[k] > 0:
+            while slopes[k] > border and k >= 0:
                 k -= 1
             left = k
 
@@ -282,13 +263,17 @@ class SfgSpectrum:
             if k >= len(slopes):
                 k = len(slopes)-1
             else:
-                while (slopes[k] < 0):
-                    k += 1
-
+                #if traversing to the right does not find a proper peak ending
+                try:
+                    while (slopes[k] < border):
+                        k += 1
+                except IndexError:
+                        k = k-1
+                        break
             right = k
 
             peak_tuples.append((center, left, right))
-            print("center,left,right: ",center,left,right)
+
         data_out = []
         for i in peak_tuples:
             indices = (i[0], i[1], i[2])
@@ -302,6 +287,9 @@ class SfgSpectrum:
             datapoints = len(peak_slice_x)
 
             data_out.append((center, left, right, center_intensity, peak_slice_x, peak_slice_y, datapoints, area, indices))
+
+        #sort peaks by peak intensity
+        data_out = sorted(data_out, key=(lambda x: x[3]), reverse=True)
         return data_out
 
     def integrate_peak(self, x_array, y_array):
@@ -336,6 +324,58 @@ class SfgSpectrum:
             counter += 1
 
         return tablestring
+
+    def calc_dish_area(self, diameter=5.1):
+        """A auxialiary function to calculate the area of a teflon dish in square angstroms. Diameter given in cm."""
+        radius = diameter * 0.5
+        area = np.pi * radius ** 2
+        area = area * 10 ** 16  # conversion to square angstroms
+        return area
+
+    def calc_area_per_molecule(self):
+        """The function calculates the area per molecule. The area should be given in square angstroms, the
+        concentration in milimole per liter and the volume in microliter"""
+        if self.name.sensitizer == "-" or self.name.sensitizer in ["Benzophenone", "Humic Acid"]:
+            concentration = self.name.surf_stock_concentration
+            if self.name.surf_stock_concentration == "unknown":
+                concentration = input("Enter surf stock concentration of spectrum "+self.name.full_name+": \n")
+
+
+            volume = float(self.name.surfactant_spread_volume)
+
+            concentration = float(concentration) * 10 ** -3  # conversion in mol per liter
+            volume = volume * 10 ** -6  # conversion in liter
+            amount = volume * concentration
+
+        else:
+            concentration = self.name.surf_stock_concentration
+            if self.name.surf_stock_concentration == "unknown":
+                concentration = input(
+                    "Enter surf stock concentration of spectrum " + self.name.full_name+": \n")
+
+            volume = float(self.name.surfactant_spread_volume)
+            concentration = float(concentration) * 10 ** -3  # conversion in mol per liter
+            volume = volume * 10 ** -6  # conversion in liter
+            amount_su = volume * concentration
+
+            sens_stock_conc = input("Enter sens stock concentration of spectrum " + self.name.full_name+": \n")
+            concentration = float(sens_stock_conc) * 10 ** -3  # conversion in mol per liter
+            volume = float(self.name.sensitizer_spread_volume) * 10 ** -6  # conversion in liter
+            amount_se = volume * concentration
+
+            amount = amount_se + amount_su
+
+        molecules = (6.022 * 10 ** 23) * amount  # number of molecules
+        area_per_molecule = self.calc_dish_area()/ molecules
+
+        return area_per_molecule
+
+
+
+
+
+
+
 
 # noinspection PyMissingConstructor
 class AddedSpectrum(SfgSpectrum):
@@ -435,11 +475,12 @@ class SystematicName:
         self.surfactant = "unknown"
         self.surfactant_spread_volume = "unknown"
         self.sensitizer = "-"
-        self.sensitizer_spread_volume = "-"
+        self.sensitizer_spread_volume = 0
         self.photolysis = "none"
         self.sample_number = 1
         self.measurement = "#1"  # das ist nicht optimal, sample_number als int und measurement als string zu haben
         self.comment = "none"
+        self.surf_stock_concentration = "unknown"
         if len(self.processing_list) == 2:
             self.check_boknis()
         # traversing the processing list
@@ -456,8 +497,9 @@ class SystematicName:
                 if self.surfactant_spread_volume == "unknown":
                     self.surfactant_spread_volume = i
                 else:
-                    sensitizer_spread_volume = i
-            # pH value info will be comment
+                    self.sensitizer_spread_volume = i
+
+            # pH value info will be comment#todo fix that this is bullshit
             elif "p" in i and "H" in i:
                 self.comment = i
 
@@ -486,6 +528,14 @@ class SystematicName:
             elif "#" in i:
                 self.measurement = i  # hier auch ein String! ggf. aendern
 
+            elif self.is_number(i.strip("mM")) == True:
+                self.surf_stock_concentration = float(i.strip("mM"))
+
+            elif "mM" in i:
+                index = i.find("mM")
+                if self.is_number(i[index-1]):
+                    self.surf_stock_concentration = float(i[index-1])
+
             else:
                 if self.comment == "none":
                     self.comment = i
@@ -499,7 +549,10 @@ class SystematicName:
             self.sensitizer = "-"
 
         if self.sensitizer == "-":
-            self.sensitizer_spread_volume = "-"
+            self.sensitizer_spread_volume = 0
+
+        if self.sensitizer == "-" and self.surfactant == "DPPC":
+            self.stock_concentration = 1
 
     def is_number(self, s):
         """Auxiliary function returning e boolean, depending on test variable can be converted in a float"""
@@ -745,7 +798,6 @@ class Plotter:
         elif mode =="save":
             plt.savefig(self.save_dir+"/"+self.title+".pdf")
 
-
     def raw_plot(self, mode="show"):
         for spectrum in self.speclist:
             wl = spectrum.wavenumbers
@@ -857,17 +909,20 @@ class Plotter:
 
         A = Analyzer(self.speclist)
         dic = A.count_peak_abundance()
+
         for key in dic:
-            plt.bar(key, dic[key])
-        plt.ylabel("wavenumber")
-        plt.xlabel("peak abundance")
+            plt.bar(key, dic[key], width=2.)
+
+        plt.xlabel("wavenumber")
+        plt.ylabel("rel. peak abundance")
+        plt.grid(True)
+        plt.minorticks_on()
         plt.show()
 
     def marked_peaks(self, mode="show"):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax2 = ax.twiny()
-
 
         for spectrum in self.speclist:
             wl = spectrum.wavenumbers
@@ -878,8 +933,10 @@ class Plotter:
             ax.plot(wl, intensity, label=spectrum.name.full_name, linestyle='--', markersize=4, marker="o")
 
             peakticks = []
-            for peak in spectrum.detailed_analysis():
-                ax2.axvline(peak[0])
+            for peak in spectrum.detailed_analysis(threshold=1.5):
+                ax2.axvline(peak[0], color="red")
+                ax2.axvline(peak[1], ls="dashed", color="blue")
+                ax2.axvline(peak[2], ls="dashed", color="blue")
                 peakticks.append(peak[0])
 
         ax.grid()
@@ -896,6 +953,17 @@ class Plotter:
             plt.show()
         elif mode == "save":
             plt.savefig(self.save_dir + "/" + self.title + ".pdf")
+
+    def relation_coverage_peaks(self):
+
+        A = Analyzer(self.speclist)
+        fig = plt.figure()
+        ax = plt.subplot(111)
+        for entry in A.intensity_vs_surfcoverage():
+            ax.scatter(entry[0], entry[1])
+        ax.set_xlabel("area per molecule/ A$^{2}$")
+        ax.set_ylabel("maximum intensity")
+        plt.show()
 class Analyzer:
     """This class takes, what a surprise, a list of SFG spectra as constructor argument. Its purpose
     is to perform analytical tasks with the spectral data, e.g. compare peaks, integral, datapoints
@@ -905,20 +973,31 @@ class Analyzer:
         self.speclist = speclist
 
     def count_peak_abundance(self):
-        peaklists = []
-        abundance = {}
+        peaklist = []
 
         for spectrum in self.speclist:
-            temp = spectrum.yield_peaklist(threshold=8)
-            peaklists.append(temp)
+            temp = spectrum.yield_peaklist()
+            for peak in temp:
+                peaklist.append(peak)
 
-        for peaklist in peaklists:
-            for peak in peaklist:
-                if peak[1] not in abundance:
-                    abundance[peak[1]] = 1
-                else:
-                    abundance[peak[1]] += 1
+        abundance = {}
+
+        for peak in peaklist:
+
+            if peak not in abundance:
+                abundance[peak] = 1
+            else:
+                abundance[peak] += 1
+
+        #calculate total number
+
+        for key in abundance:
+            abundance[key] /= len(self.speclist)
+
         return abundance
+
+
+
 
     def write_analysis(self):
         for spectrum in self.speclist:
@@ -936,6 +1015,21 @@ class Analyzer:
                     outfile.write("\nIntegral: "+str(peak[7])+"\n")
                     outfile.write("-"*80+"\n")
                     counter += 1
+
+    def intensity_vs_surfcoverage(self):
+
+        out= []
+        for spectrum in self.speclist:
+            maxi = 0
+            temp = spectrum.detailed_analysis()
+
+            for peak in temp:
+                if maxi < peak[3]:
+                    maxi = peak[3]
+
+            out.append((spectrum.calc_area_per_molecule(), maxi))
+
+        return out
 
 
 

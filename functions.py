@@ -49,8 +49,37 @@ def simple_analysis():
 
         # subset wieder säubern
         i.clear()
+"""
+def yield_peaklist():
+    yield a defined list of peaks separated from each other by minimum the threshold value in wavenumber
+    pair_get = []
+    out = []
+    num = num
+    if intensity == "default":
+        intensity = self.normalized_intensity
+
+    for i in range(len(self.wavenumbers)):
+        pair_get.append([intensity[i], self.wavenumbers[i]])
+
+    while len(out) < (num):
+
+        if len(out) != 0:
+
+            for i in range(len(out)):
+                k = max(pair_get)
+
+                if np.abs(out[i][1] - k[1]) < threshold:
+                    pair_get.remove(k)
+                    break
+                if i == (len(out) - 1):
+                    out.append(k)
+                    pair_get.remove(k)
 
 
+        else:
+            k = max(pair_get)
+            out.append(k)
+"""
 def calc_dish_area(diameter):
     """A auxialiary function to calculate the area of a teflon dish in square angstroms. Diameter given in cm."""
     radius = diameter * 0.5
