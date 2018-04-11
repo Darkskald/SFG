@@ -160,7 +160,6 @@ class IpyInterpreter:
         elif flag == "stack":
             p.stack_plot()
 
-
     def ref(self, flagstring):
         """Keeps a a subset of the current subset according to specified selection criteria. This function is totally
         equivalent to the get function, but is applied to the subset and not the overall database"""
