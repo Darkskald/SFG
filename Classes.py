@@ -6,6 +6,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+from mpl_toolkits.mplot3d import Axes3D
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
 
@@ -101,6 +102,7 @@ class SfgSpectrum:
         self.ir_intensity = ir_intensity
         self.name = SystematicName
         self.normalized_intensity = self.raw_intensity / (self.vis_intensity * self.ir_intensity)
+        self.peaks = self.detailed_analysis()
 
     def __repr__(self):
         return self.name.full_name[:-4] + "              " + str(self.yield_spectral_range())
@@ -552,7 +554,7 @@ class SystematicName:
             self.sensitizer_spread_volume = 0
 
         if self.sensitizer == "-" and self.surfactant == "DPPC":
-            self.stock_concentration = 1
+            self.surf_stock_concentration = 1
 
     def is_number(self, s):
         """Auxiliary function returning e boolean, depending on test variable can be converted in a float"""
@@ -905,13 +907,14 @@ class Plotter:
             for spectrum in self.speclist:
                 outfile.write(spectrum.name.full_name + "\n")
 
-    def bar_peaks(self):
+    def bar_peaks(self, number=4):
 
         A = Analyzer(self.speclist)
-        dic = A.count_peak_abundance()
+        dic = A.count_peak_abundance(number)
+
 
         for key in dic:
-            plt.bar(key, dic[key], width=2.)
+            plt.bar(key, dic[key], width=3.)
 
         plt.xlabel("wavenumber")
         plt.ylabel("rel. peak abundance")
@@ -964,6 +967,27 @@ class Plotter:
         ax.set_xlabel("area per molecule/ A$^{2}$")
         ax.set_ylabel("maximum intensity")
         plt.show()
+
+    def relation_3d(self):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        wavelengths = []
+        intensities = []
+        surface_concentrations = []
+
+        for spectrum in self.speclist:
+            for peak in spectrum.peaks:
+                wavelengths.append(peak[0])
+                intensities.append(peak[3])
+                surface_concentrations.append(spectrum.calc_area_per_molecule())
+
+        ax.scatter(wavelengths, intensities, surface_concentrations)
+        ax.set_xlabel("wavelength")
+        ax.set_ylabel("intensity")
+        ax.set_zlabel("area per molecule")
+        plt.show()
+
+
 class Analyzer:
     """This class takes, what a surprise, a list of SFG spectra as constructor argument. Its purpose
     is to perform analytical tasks with the spectral data, e.g. compare peaks, integral, datapoints
@@ -972,11 +996,13 @@ class Analyzer:
     def __init__(self, speclist):
         self.speclist = speclist
 
-    def count_peak_abundance(self):
+    def count_peak_abundance(self, number):
         peaklist = []
 
         for spectrum in self.speclist:
             temp = spectrum.yield_peaklist()
+            if len(temp) > number:
+                temp = temp[:number]
             for peak in temp:
                 peaklist.append(peak)
 
@@ -995,9 +1021,6 @@ class Analyzer:
             abundance[key] /= len(self.speclist)
 
         return abundance
-
-
-
 
     def write_analysis(self):
         for spectrum in self.speclist:
@@ -1030,6 +1053,46 @@ class Analyzer:
             out.append((spectrum.calc_area_per_molecule(), maxi))
 
         return out
+
+    def average_peak(self, number):
+
+        out = []
+
+        for i in range(number):
+            wavenumber = []
+            intensity = []
+            counter = 0
+
+            for spec in self.speclist:
+                try:
+                    peaks = spec.detailed_analysis()[i]
+                except IndexError:
+                    break
+
+                wavenumber.append(peaks[0])
+                intensity.append(peaks[3])
+
+                counter += 1
+                #print("found for Peak"+str(i)+":" + str(peaks[0]), str(peaks[3]))
+
+            wavenumber = np.average(np.array(wavenumber))
+            intensity = np.average(np.array(intensity))
+
+            out.append((wavenumber, intensity))
+
+        return out
+
+    def detect_odds(self):
+
+        pass
+
+
+
+
+
+
+
+
 
 
 
@@ -1143,3 +1206,11 @@ class TexInterface:
             P.simple_plot(mode="save")
             self.add_figure(s+".pdf", "Simple plot with normalized intensity")
             self.add_tabular(spectrum)
+
+    def join_speclist(self):
+
+        P = Plotter(self.sfg_list)
+        P.title = self.name
+        P.simple_plot(mode="save")
+        self.add_section(self.name)
+        self.add_figure(self.name + ".pdf", "Joint plot of a list of spectra")
