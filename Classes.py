@@ -813,7 +813,7 @@ class Plotter:
         if len(self.speclist) < 6:
             plt.legend(loc="upper right")
         else:
-            plt.legend(bbox_to_anchor(1, 0.5), loc='center left', numpoints=1)
+            plt.legend(bbox_to_anchor=(1, 0.5), loc='center left', numpoints=1)
         if mode == "show":
             plt.show()
         elif mode =="save":
