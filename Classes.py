@@ -2,11 +2,12 @@
 import os
 import shutil
 import csv
-import sys
+import time
+import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
-from mpl_toolkits.mplot3d import Axes3D
+import sqlite3
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
 
@@ -252,7 +253,7 @@ class SfgSpectrum:
             right = 0
             center = i
             k = i - 2
-            border = np.average(slopes)*1/10
+            border = np.average(slopes)*1/6
 
             # check for left border
             while slopes[k] > border and k >= 0:
@@ -372,13 +373,6 @@ class SfgSpectrum:
 
         return area_per_molecule
 
-
-
-
-
-
-
-
 # noinspection PyMissingConstructor
 class AddedSpectrum(SfgSpectrum):
     def __init__(self, wn_intenstup, name):
@@ -451,18 +445,28 @@ class AddedSpectrum(SfgSpectrum):
 # noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck
 class SystematicName:
 
-    def __init__(self, namestring):
+    def __init__(self, namestring, creation_time="unknown"):
 
+        self.refpath = "name_info/"
+
+        try:
+            with open(self.refpath+"Surfactants.txt") as outfile:
+                print("DIR FOUND!")
+        except FileNotFoundError:
+            print("change dir")
+            self.refpath = "../name_info/"
+
+        self.creation_time = creation_time
         # load the allowed surfactans and sensitizers from files
         self.Surfactants = {}
         self.Sensitizers = {}
 
-        with open("../name_info/Surfactants.txt", "r") as infile:
+        with open(self.refpath+"Surfactants.txt", "r") as infile:
             for line in infile:
                 collect = line.split(":")
                 self.Surfactants[collect[0]] = collect[1].strip()
 
-        with open("../name_info/Sensitizers.txt", "r") as infile:
+        with open(self.refpath+"Sensitizers.txt", "r") as infile:
             for line in infile:
                 collect = line.split(":")
                 self.Sensitizers[collect[0]] = collect[1].strip()
@@ -617,6 +621,7 @@ class DataCollector:
     def __init__(self, filename):
         # the filename is ONLY the filename, not containing any directory information.
         self.file = filename
+        self.creation_time = self.get_creation_time()
 
         # now start extraction
         data_collect = []
@@ -644,10 +649,14 @@ class DataCollector:
 
     def yield_SfgSpectrum(self):
         #todo this function will need exception handling. It returns an SFG spectrum object
-        sysname = SystematicName(self.file)
+        sysname = SystematicName(self.file, self.creation_time)
         data = self.data_package
         sfg = SfgSpectrum(data[0], data[1], data[3], data[2], sysname)
         return sfg
+
+    def get_creation_time(self):
+        t = datetime.datetime.fromtimestamp(os.path.getmtime(self.file))
+        return t
 
 
 # noinspection PySimplifyBooleanCheck
@@ -936,7 +945,7 @@ class Plotter:
             ax.plot(wl, intensity, label=spectrum.name.full_name, linestyle='--', markersize=4, marker="o")
 
             peakticks = []
-            for peak in spectrum.detailed_analysis(threshold=1.5):
+            for peak in spectrum.detailed_analysis(threshold=1.2):
                 ax2.axvline(peak[0], color="red")
                 ax2.axvline(peak[1], ls="dashed", color="blue")
                 ax2.axvline(peak[2], ls="dashed", color="blue")
@@ -1082,9 +1091,9 @@ class Analyzer:
 
         return out
 
-    def detect_odds(self):
 
-        pass
+
+
 
 
 
@@ -1214,3 +1223,227 @@ class TexInterface:
         P.simple_plot(mode="save")
         self.add_section(self.name)
         self.add_figure(self.name + ".pdf", "Joint plot of a list of spectra")
+
+class SqlWizard:
+
+    def __init__(self, speclist):
+
+        self.create_database()
+        self.speclist = speclist
+
+        single = [i for i in self.speclist if i.name.sensitizer == "-"]
+        double = [i for i in self.speclist if i.name.sensitizer != "-"]
+
+
+        for spec in single:
+            self.add_spectrum_single(spec)
+
+        for spec in double:
+            self.add_spectrum_double(spec)
+
+
+    def create_database(self):
+
+        #Table one for SFGs without Sensitizer
+        command =\
+        """
+        CREATE TABLE IF NOT EXISTS single_sub_sfg (
+        name TEXT,
+        measured_time TIMESTAMP,
+        substance TEXT,
+        sample TEXT,
+        measurement TEXT,
+        spread_volume TEXT,
+        stock_conc TEXT,
+        photolysis TEXT,
+        spectral_range TEXT,
+        comment TEXT,
+        wavenumbers TEXT,
+        sfg TEXT,
+        ir TEXT,
+        vis TEXT,
+        CONSTRAINT unique_name UNIQUE(name)
+        );
+        """
+        db = sqlite3.connect("sfg.db")
+        cur = db.cursor()
+        cur.execute(command)
+        db.commit()
+
+        command = \
+            """
+            CREATE TABLE IF NOT EXISTS sens_surf_sfg (
+            name TEXT,
+            measured_time TIMESTAMP,
+            surfactant TEXT,
+            sensitizer TEXT,
+            sample TEXT,
+            measurement TEXT,
+            spread_volume TEXT,
+            stock_conc TEXT,
+            photolysis TEXT,
+            spectral_range TEXT,
+            comment TEXT,
+            wavenumbers TEXT,
+            sfg TEXT,
+            ir TEXT,
+            vis TEXT,
+            CONSTRAINT unique_name UNIQUE(name)
+            );
+            """
+
+        cur.execute(command)
+        db.commit()
+
+        db.close()
+
+    def add_spectrum_single(self, spectrum):
+
+        s = spectrum  # type: SfgSpectrum
+        fname = s.name # type: SystematicName
+
+        name = fname.full_name
+        substance = fname.surfactant
+        sample = fname.sample_number
+        measurement = fname.measurement.strip("#")
+        volume = fname.surfactant_spread_volume
+        time = fname.creation_time
+        comment = fname.comment
+        photolysis = fname.photolysis.strip("p")
+        stock_conc = fname.surf_stock_concentration
+
+        spectral_range = str(s.yield_spectral_range())
+        wavenumbers = ";".join(s.wavenumbers.astype(str))
+        sfg = ";".join(s.raw_intensity.astype(str))
+        ir = ";".join(s.ir_intensity.astype(str))
+        vis = ";".join(s.vis_intensity.astype(str))
+
+
+
+        name = spectrum.name.full_name
+
+        db = sqlite3.connect("sfg.db")
+        cur = db.cursor()
+
+        command =\
+        """
+        INSERT INTO single_sub_sfg
+        (
+        name,
+        measured_time,
+        substance,
+        sample,
+        measurement,
+        spread_volume,
+        stock_conc,
+        photolysis,
+        spectral_range,
+        comment,
+        wavenumbers,
+        sfg,
+        ir,
+        vis)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+        """
+        try:
+            cur.execute(command,(name,time,substance,sample,measurement,volume, stock_conc, photolysis,\
+                                spectral_range,comment, wavenumbers, sfg, ir, vis))
+        except sqlite3.IntegrityError as e:
+            print("Spectrum already in database!")
+
+
+        db.commit()
+        db.close()
+
+    def add_spectrum_double(self, spectrum):
+
+        s = spectrum  # type: SfgSpectrum
+        fname = s.name # type: SystematicName
+
+        name = fname.full_name
+        surfactant = fname.surfactant
+        sensitizer = fname.sensitizer
+        sample = fname.sample_number
+        measurement = fname.measurement.strip("#")
+        volume = fname.surfactant_spread_volume
+        time = fname.creation_time
+        comment = fname.comment
+        photolysis = fname.photolysis.strip("p")
+        stock_conc = fname.surf_stock_concentration
+
+        spectral_range = str(s.yield_spectral_range())
+        wavenumbers = ";".join(s.wavenumbers.astype(str))
+        sfg = ";".join(s.raw_intensity.astype(str))
+        ir = ";".join(s.ir_intensity.astype(str))
+        vis = ";".join(s.vis_intensity.astype(str))
+
+
+
+        name = spectrum.name.full_name
+
+        db = sqlite3.connect("sfg.db")
+        cur = db.cursor()
+
+        command =\
+        """
+        INSERT INTO sens_surf_sfg
+        (
+        name,
+        measured_time,
+        surfactant,
+        sensitizer,
+        sample,
+        measurement,
+        spread_volume,
+        stock_conc,
+        photolysis,
+        spectral_range,
+        comment,
+        wavenumbers,
+        sfg,
+        ir,
+        vis)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+        """
+        try:
+            cur.execute(command,(name,time,surfactant,sensitizer,sample,measurement,volume, stock_conc, photolysis,\
+                                 spectral_range,comment, wavenumbers, sfg, ir, vis))
+        except sqlite3.IntegrityError as e:
+            print("Spectrum already in database!")
+
+        db.commit()
+        db.close()
+
+
+class SqlExtractor:
+
+    def __init__(self, database):
+
+        self.db = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+        self.cur = self.db.cursor()
+
+    def fetch_single(self, table, number):
+
+        command = "SELECT * FROM "+table+" WHERE ROWID="+str(number)
+        self.cur.execute(command)
+        result = self.cur.fetchall()[0]
+
+        creationtime = result[1]
+
+        sysname = SystematicName(result[0], creationtime)
+        wavenumber = np.array(result[-4].split(";")).astype(np.float)
+        sfg = np.array(result[-3].split(";")).astype(np.float)
+        ir = np.array(result[-2].split(";")).astype(np.float)
+        vis = np.array(result[-1].split(";")).astype(np.float)
+
+        spec = SfgSpectrum(wavenumber, sfg, ir, vis, sysname)
+
+        return spec
+
+    def clean(self):
+
+        self.cur.close()
+        self.db.close()
+
+
+
