@@ -1103,7 +1103,8 @@ class Analyzer:
 
 
 
-
+def null():
+    pass
 
 
 class Planer:
