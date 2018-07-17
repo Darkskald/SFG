@@ -451,7 +451,7 @@ class SystematicName:
 
         try:
             with open(self.refpath+"Surfactants.txt") as outfile:
-                print("DIR FOUND!")
+                pass
         except FileNotFoundError:
             print("change dir")
             self.refpath = "../name_info/"
@@ -1092,21 +1092,6 @@ class Analyzer:
         return out
 
 
-
-
-
-
-
-
-
-
-
-
-
-def null():
-    pass
-
-
 class Planer:
     """A class to perform task management and plan the research tasks for a period of measurements"""
 
@@ -1225,6 +1210,7 @@ class TexInterface:
         self.add_section(self.name)
         self.add_figure(self.name + ".pdf", "Joint plot of a list of spectra")
 
+
 class SqlWizard:
 
     def __init__(self, speclist):
@@ -1232,191 +1218,77 @@ class SqlWizard:
         self.create_database()
         self.speclist = speclist
 
-        single = [i for i in self.speclist if i.name.sensitizer == "-"]
-        double = [i for i in self.speclist if i.name.sensitizer != "-"]
-
-
-        for spec in single:
-            self.add_spectrum_single(spec)
-
-        for spec in double:
-            self.add_spectrum_double(spec)
-
+        for spectrum in self.speclist:
+            self.add_spectrum(spectrum)
 
     def create_database(self):
 
         #Table one for SFGs without Sensitizer
         command =\
-        """
-        CREATE TABLE IF NOT EXISTS single_sub_sfg (
-        name TEXT,
-        measured_time TIMESTAMP,
-        substance TEXT,
-        sample TEXT,
-        measurement TEXT,
-        spread_volume TEXT,
-        stock_conc TEXT,
-        photolysis TEXT,
-        spectral_range TEXT,
-        comment TEXT,
-        wavenumbers TEXT,
-        sfg TEXT,
-        ir TEXT,
-        vis TEXT,
-        CONSTRAINT unique_name UNIQUE(name)
-        );
-        """
-        db = sqlite3.connect("sfg.db")
-        cur = db.cursor()
-        cur.execute(command)
-        db.commit()
-
-        command = \
             """
-            CREATE TABLE IF NOT EXISTS sens_surf_sfg (
+            CREATE TABLE IF NOT EXISTS sfg_database (
             name TEXT,
             measured_time TIMESTAMP,
-            surfactant TEXT,
-            sensitizer TEXT,
-            sample TEXT,
-            measurement TEXT,
-            spread_volume TEXT,
-            stock_conc TEXT,
-            photolysis TEXT,
-            spectral_range TEXT,
-            comment TEXT,
+            measurer TEXT,
             wavenumbers TEXT,
             sfg TEXT,
             ir TEXT,
             vis TEXT,
+            surfactant TEXT,
+            sensitizer TEXT,
+            photolysis TEXT,
             CONSTRAINT unique_name UNIQUE(name)
             );
             """
-
+        db = sqlite3.connect("sfg.db")
+        cur = db.cursor()
         cur.execute(command)
         db.commit()
-
         db.close()
 
-    def add_spectrum_single(self, spectrum):
+    def add_spectrum(self, spectrum):
 
         s = spectrum  # type: SfgSpectrum
         fname = s.name # type: SystematicName
 
         name = fname.full_name
-        substance = fname.surfactant
-        sample = fname.sample_number
-        measurement = fname.measurement.strip("#")
-        volume = fname.surfactant_spread_volume
         time = fname.creation_time
-        comment = fname.comment
-        photolysis = fname.photolysis.strip("p")
-        stock_conc = fname.surf_stock_concentration
-
-        spectral_range = str(s.yield_spectral_range())
         wavenumbers = ";".join(s.wavenumbers.astype(str))
         sfg = ";".join(s.raw_intensity.astype(str))
         ir = ";".join(s.ir_intensity.astype(str))
         vis = ";".join(s.vis_intensity.astype(str))
 
-
-
-        name = spectrum.name.full_name
-
-        db = sqlite3.connect("sfg.db")
-        cur = db.cursor()
-
-        command =\
-        """
-        INSERT INTO single_sub_sfg
-        (
-        name,
-        measured_time,
-        substance,
-        sample,
-        measurement,
-        spread_volume,
-        stock_conc,
-        photolysis,
-        spectral_range,
-        comment,
-        wavenumbers,
-        sfg,
-        ir,
-        vis)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?);
-        """
-        try:
-            cur.execute(command,(name,time,substance,sample,measurement,volume, stock_conc, photolysis,\
-                                spectral_range,comment, wavenumbers, sfg, ir, vis))
-        except sqlite3.IntegrityError as e:
-            print("Spectrum already in database!")
-
-
-        db.commit()
-        db.close()
-
-    def add_spectrum_double(self, spectrum):
-
-        s = spectrum  # type: SfgSpectrum
-        fname = s.name # type: SystematicName
-
-        name = fname.full_name
         surfactant = fname.surfactant
         sensitizer = fname.sensitizer
-        sample = fname.sample_number
-        measurement = fname.measurement.strip("#")
-        volume = fname.surfactant_spread_volume
-        time = fname.creation_time
-        comment = fname.comment
-        photolysis = fname.photolysis.strip("p")
-        stock_conc = fname.surf_stock_concentration
-
-        spectral_range = str(s.yield_spectral_range())
-        wavenumbers = ";".join(s.wavenumbers.astype(str))
-        sfg = ";".join(s.raw_intensity.astype(str))
-        ir = ";".join(s.ir_intensity.astype(str))
-        vis = ";".join(s.vis_intensity.astype(str))
-
-
-
-        name = spectrum.name.full_name
+        photolysis = fname.photolysis
 
         db = sqlite3.connect("sfg.db")
         cur = db.cursor()
 
         command =\
         """
-        INSERT INTO sens_surf_sfg
+        INSERT INTO sfg_database
         (
         name,
         measured_time,
-        surfactant,
-        sensitizer,
-        sample,
-        measurement,
-        spread_volume,
-        stock_conc,
-        photolysis,
-        spectral_range,
-        comment,
         wavenumbers,
         sfg,
         ir,
-        vis)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+        vis,
+        surfactant,
+        sensitizer,
+        photolysis)
+        VALUES(?,?,?,?,?,?,?,?,?);
         """
         try:
-            cur.execute(command,(name,time,surfactant,sensitizer,sample,measurement,volume, stock_conc, photolysis,\
-                                 spectral_range,comment, wavenumbers, sfg, ir, vis))
+            cur.execute(command, (name, time, wavenumbers, sfg, ir, vis,surfactant,sensitizer,photolysis))
         except sqlite3.IntegrityError as e:
             print("Spectrum already in database!")
-
         db.commit()
         db.close()
 
 
-class SqlExtractor:
+class SessionControlManager:
 
     def __init__(self, database):
 
@@ -1446,5 +1318,26 @@ class SqlExtractor:
         self.cur.close()
         self.db.close()
 
+    def general_fetch(self, condition_1, condition_2):
+        command = "SELECT rowid,* from sfg_database WHERE "+condition_1+"="+condition_2
+        self.cur.execute(command)
+        keys = []
+        for item in self.cur.fetchall():
+            keys.append(item[0])
+        return keys
+
+class SqlImporter:
+        # first: make a list of day folders in the archive directory
+        def __init__(self, newspec_directory):
+            self.speclist = []
+            self.directory = newspec_directory
+            for file in os.listdir(self.directory):
+                if file.endswith("sfg"):
+                    os.chdir("library")
+                    D = DataCollector(file).yield_SfgSpectrum()
+                    os.chdir("..")
+                    self.speclist.append(D)
+
+            S = SqlWizard(self.speclist)
 
 

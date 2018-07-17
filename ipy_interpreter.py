@@ -302,3 +302,10 @@ class IpyInterpreter:
         timestamp = time.strftime("%b %d %Y %H:%M:%S")
         with open("logs/"+self.log_file, "a") as outfile:
             outfile.write(timestamp + "\t" + keyword + "\n")
+
+#testcode section
+
+#S = SqlImporter("library")
+S_2 = SessionControlManager("sfg.db")
+for i in S_2.general_fetch("sensitizer","\"BX12\""):
+    print(i)
