@@ -31,48 +31,8 @@ def integrate_peak(x_array, y_array):
         total = square + triangle
         area += total
     return area
-"""
-x = np.linspace(0,5,2)
-y = (2*x**2)+(0.4*x)-3
-y2 = ((6*x**3)+(2*x**2)+(0.4*x)-3)**2
-y3 = (0.5*np.sin(x)+2*x)**2
-als = integrate_peak(x,y)
-aln = np.trapz(y,x)
-a2i = integrate_peak(x,y2)
-a3i = integrate_peak(x,y3)
-a2n = integrate_peak(y2,x)
-a3n = integrate_peak(y3,x)
-a1s = sp(y, x)
-a2s = sp(y2, x)
-a3s = sp(y3, x)
-print("My Integrate")
-print(als)
-print("\n")
-print("Numpy")
-print(aln)
-print("\n")
-print("Simpson")
-print(a1s)
-print("\n")
-print("My Integrate")
-print(a2i)
-print("\n")
-print("Numpy")
-print(a2n)
-print("\n")
-print("Simpson")
-print(a2s)
-print("\n")
-print("My Integrate")
-print(a3i)
-print("\n")
-print("Numpy")
-print(a3n)
-print("\n")
-print("Simpson")
-print(a3s)
-print("\n")
-"""
+
+
 # embedding_in_qt5.py --- Simple Qt5 application embedding matplotlib canvases
 #
 # Copyright (C) 2005 Florent Rougon
