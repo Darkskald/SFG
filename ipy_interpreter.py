@@ -1,4 +1,5 @@
 from Classes import *
+from new_gui import run_app
 import Spec_utilities as spc
 import time
 
@@ -306,6 +307,9 @@ class IpyInterpreter:
 #testcode section
 
 #S = SqlImporter("library")
-S_2 = SessionControlManager("sfg.db")
-for i in S_2.general_fetch("sensitizer","\"BX12\""):
-    print(i)
+S_2 = SessionControlManager("sfg.db","today")
+
+S_2.get("se BX12")
+S_2.ref("p n")
+S_2.show()
+S_2.plot()
