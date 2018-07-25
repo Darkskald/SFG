@@ -311,6 +311,9 @@ class SfgSpectrum:
 
         return output
 
+    def root(self):
+        return np.sort(self.normalized_intensity)
+
 
 # noinspection PyMissingConstructor
 class AddedSpectrum(SfgSpectrum):
@@ -777,6 +780,38 @@ class SessionControlManager:
         flag = f[0]
         options = f[1]
         return (flag, options)
+
+    def rec(self):
+        self.subset = self.recover
+        self.subset_ids = self.recover_ids
+
+    def remove(self, numbers):
+        """Removes items by (a list of) index(indices from the subset"""
+
+        options = numbers.split(",")
+        to_remove = [self.subset[int(i)] for i in options]
+        newlist = [i for i in self.subset if i not in to_remove]
+        new_indexlist = [self.subset_ids[int(i)] for i in options]
+        self.recover = recover
+        self.recover_ids = self.subset_ids
+
+        self.subset = newlist
+        self.subset_ids = new_indexlist
+
+    def keep(self, flagstring):
+        """Removes everything but the specified items. Specification is done by a list of indices"""
+        f = flagstring
+        options = f.split(",")
+        new_list = [self.subset[int(i)] for i in options]
+        new_indexlist = [self.subset_ids[int(i)] for i in options]
+        recover = [i for i in self.subset if i not in new_list]
+
+        self.recover = recover
+        self.recover_ids = self.subset_ids
+
+        self.subset = new_list
+        self.subset_ids = new_indexlist
+
 
 
 
