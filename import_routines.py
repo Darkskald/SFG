@@ -6,6 +6,15 @@ import numpy as np
 import csv
 
 
+def debug(func):
+
+    def debug_wrapper(*args, **kwargs):
+        print(func.__name__ +" calling! Entering function scope")
+        func(args, kwargs)
+        print(func.__name__ + " calling! ... leaving function scope")
+    return debug_wrapper
+
+
 class Importer:
     # first: make a list of day folders in the archive directory
     def __init__(self, input_folder="archive", output_folder="library"):
@@ -28,12 +37,12 @@ class Importer:
 
             # now creating the day_information_file
             day_info_file = daytag + ".dif"
-            if self.gate_keeper("library/day_information", day_info_file) == False:
+            if self.gate_keeper(output_folder + "/" + "day_information/", day_info_file) == False:
 
-                with open("library/day_information/" + day_info_file, "w") as outfile:
+                with open(output_folder + "/" + "/day_information/" + day_info_file, "w") as outfile:
                     outfile.write(daytag + "\n")
                     files = []
-                    for file in os.listdir("archive/" + folder):
+                    for file in os.listdir(input_folder + "/" + folder):
                         files.append(file)
                     outfile.write(str(len(files)) + "\n")
                     for file in files:
@@ -41,15 +50,13 @@ class Importer:
                     outfile.write("#")
 
             # next: collect all spectra per day and copy them to the library
-            for file in os.listdir("archive/" + folder):
+            for file in os.listdir(input_folder + "/" + folder):
                 new_filename = daytag + "_" + file
                 # the gate_keeper function prohibits double import
                 if self.gate_keeper(output_folder, new_filename) == False:
                     shutil.copy2(input_folder + "/" + folder + "/" + file, output_folder + "/" + new_filename)
 
         self.create_speclist(output_folder)
-
-        self.wizard = SqlWizard(self.speclist)
 
     def gate_keeper(self, checkdir, filename):
         """checks if filename is already present in the directory chekdir"""
@@ -77,8 +84,92 @@ class Importer:
 
         for file in os.listdir(target):
             if file.endswith(".sfg"):
-                sfg = self.get_spectrum(file)
+                sfg = self.get_spectrum(file, destination=target)
                 self.speclist.append(sfg)
+
+    def generate_sql(self, flag):
+
+        self.wizard = SqlWizard(self.speclist, flag)
+
+    def import_Lt_data(self, filename):
+
+        with open(filename, "r") as infile:
+
+            collector = []
+
+            for line in infile:
+
+                if line[0] != "#":
+                    temp = line.strip().split("\t")
+                    collector.append(temp)
+
+            return collector
+
+    def refine_collector(self, collector):
+
+        time = []
+        # time_2 = []
+        area = []
+        apm = []
+        surface_pressure = []
+        # surface_pressure2 = []
+
+        for i in collector:
+            time.append(i[1])
+            area.append(i[2])
+            apm.append(i[3])
+            surface_pressure.append(i[4])
+
+        return time, area, apm, surface_pressure
+
+    def create_lt_list(self, folder):
+
+        lt_list = []
+
+        for file in os.listdir(folder):
+
+            if file.endswith(".dat"):
+
+
+                path = folder + "/" + file
+                creation_time = datetime.datetime.fromtimestamp(os.path.getmtime(path))
+                data = self.import_Lt_data(path)
+                data = list(self.refine_collector(data))
+                data.append(creation_time)
+                data.append(file[:-4])
+                lt_list.append(data)
+
+        return lt_list
+
+    def write_lt_to_sql(self, folder):
+
+        lt_list = self.create_lt_list(folder)
+        db = sqlite3.connect("sfg.db")
+        cur = db.cursor()
+        for lt in lt_list:
+
+            command = \
+                """
+                INSERT INTO lt_gasex
+                (
+                name,
+                measured_time,
+                time,
+                area,
+                apm,
+                surface_pressure
+                )
+                VALUES(?,?,?,?,?,?);
+                """
+            try:
+
+                cur.execute(command, (lt[-1], lt[-2], str(lt[0]), str(lt[1]), str(lt[2]), str(lt[3])))
+            except sqlite3.IntegrityError as e:
+                print("Spectrum already in database!")
+        db.commit()
+        db.close()
+
+
 
 
 class DataCollector:
@@ -126,13 +217,17 @@ class DataCollector:
 
 class SqlWizard:
 
-    def __init__(self, speclist):
+    def __init__(self, speclist, flag="regular"):
 
         self.create_database()
         self.speclist = speclist
 
         for spectrum in self.speclist:
-            self.add_spectrum(spectrum)
+
+            if flag == "regular":
+                self.add_spectrum(spectrum)
+            elif flag == "gasex":
+                self.add_gasex_spectrum(spectrum)
 
     def create_database(self):
 
@@ -154,9 +249,46 @@ class SqlWizard:
             CONSTRAINT unique_name UNIQUE(name)
             );
             """
+
+
+
+        command2 =\
+        """
+        CREATE TABLE IF NOT EXISTS sfg_gasex (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            measured_time TIMESTAMP,
+            measurer TEXT,
+            wavenumbers TEXT,
+            sfg TEXT,
+            ir TEXT,
+            vis TEXT,
+            CONSTRAINT unique_name UNIQUE(name)
+            );
+        """
+
+        command3 = \
+            """
+            CREATE TABLE IF NOT EXISTS lt_gasex (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                measured_time TIMESTAMP,
+                measurer TEXT,
+                time TEXT,
+                area TEXT,
+                apm TEXT,
+                surface_pressure TEXT,
+                CONSTRAINT unique_name UNIQUE(name)
+                );
+            """
+
+
         db = sqlite3.connect("sfg.db")
         cur = db.cursor()
+
         cur.execute(command)
+        cur.execute(command2)
+        cur.execute(command3)
         db.commit()
         db.close()
 
@@ -196,6 +328,41 @@ class SqlWizard:
         """
         try:
             cur.execute(command, (name, time, wavenumbers, sfg, ir, vis,surfactant,sensitizer,photolysis))
+        except sqlite3.IntegrityError as e:
+            print("Spectrum already in database!")
+        db.commit()
+        db.close()
+
+    def add_gasex_spectrum(self, spectrum):
+
+        s = spectrum  # type: SfgSpectrum
+        fname = s.name # type: SystematicName
+
+        name = fname.full_name
+        time = fname.creation_time
+        wavenumbers = ";".join(s.wavenumbers.astype(str))
+        sfg = ";".join(s.raw_intensity.astype(str))
+        ir = ";".join(s.ir_intensity.astype(str))
+        vis = ";".join(s.vis_intensity.astype(str))
+
+        db = sqlite3.connect("sfg.db")
+        cur = db.cursor()
+
+        command =\
+        """
+        INSERT INTO sfg_gasex
+        (
+        name,
+        measured_time,
+        wavenumbers,
+        sfg,
+        ir,
+        vis
+        )
+        VALUES(?,?,?,?,?,?);
+        """
+        try:
+            cur.execute(command, (name, time, wavenumbers, sfg, ir, vis))
         except sqlite3.IntegrityError as e:
             print("Spectrum already in database!")
         db.commit()
@@ -642,5 +809,7 @@ class SystematicName:
 
         return (year, month, day)
 
-
-Importer()
+Importer().generate_sql("regular")
+I = Importer("gasex","gasex_out")
+I.generate_sql("gasex")
+I.write_lt_to_sql("gasex_lt")
