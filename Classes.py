@@ -18,82 +18,6 @@ rcParams['mathtext.default'] = 'regular'
 
 
 # noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck
-class Importer:
-    # first: make a list of day folders in the archive directory
-    def __init__(self):
-        self.new_folders = []
-        for folder in os.listdir("archive"):
-            self.new_folders.append(folder)
-
-        # now: get the files of each folder, strip FL off, add daytag to filename
-        self.new_files = []
-        for folder in self.new_folders:
-            daytag = (folder.split("FL"))[0].strip()
-            # now creating the day_information_file
-            day_info_file = daytag + ".dif"
-            if self.gate_keeper("library/day_information", day_info_file) == False:
-                with open("library/day_information/" + day_info_file, "w") as outfile:
-                    outfile.write(daytag + "\n")
-                    files = []
-                    for file in os.listdir("archive/" + folder):
-                        files.append(file)
-                    outfile.write(str(len(files)) + "\n")
-                    for file in files:
-                        outfile.write(file + "\n")
-                    outfile.write("#")
-
-            # next: collect all spectra per day and copy them to the library
-            for file in os.listdir("archive/" + folder):
-                new_filename = daytag + "_" + file
-                # the gate_keeper function prohibits double import
-                if self.gate_keeper("library", new_filename) == False:
-                    shutil.copy2("archive/" + folder + "/" + file, "library/" + new_filename)
-
-    def gate_keeper(self, checkdir, filename):
-        """checks if filename is already present in the directory chekdir"""
-        checklist = []
-        for file in os.listdir(checkdir):
-            checklist.append(file)
-        if filename in checklist:
-            print("File " + filename + " already exists")
-            return True
-        else:
-            return False
-
-
-class LibraryManager:
-    """controll and maintain the library management file"""
-    def __init__(self):
-        # self.entries is a list of lists extracted from the lines of the library file and splitted at the ;
-        self.entries = []
-        with open("library_management.txt", "r") as infile:
-            for line in infile:
-                buffer = line.split(";")
-                self.entries.append(buffer)
-
-    def update(self):
-
-        files = []
-        for file in os.listdir("library"):
-            if file.endswith(".sfg"):
-                files.append(file)
-
-        newfiles = []
-        for file in files:
-            for checkfile in self.entries:
-                if file == checkfile[1].strip():
-                    print("File already in library!")
-            else:
-                newfiles.append(file)
-
-        with open("library_management.txt", "a") as outfile:
-            counter = len(self.entries)
-            for file in newfiles:
-                counter += 1
-                sfg = FileFetcher(file).sfg
-                specrange = sfg.yield_spectral_range()
-                outfile.write(str(counter) + ";" + file + ";" + str(specrange[0]) + ";" + str(specrange[1]) + ";" + str(
-                    specrange[2]) + "\n")
 
 
 class SfgSpectrum:
@@ -379,6 +303,14 @@ class SfgSpectrum:
     def yield_maximum(self):
         return np.max(self.normalized_intensity)
 
+    def create_pointlist(self, y_array):
+
+        output = []
+        for i, (a, b) in enumerate(zip(self.wavenumbers[::-1], y_array)):
+            output.append((a, b, i))
+
+        return output
+
 
 # noinspection PyMissingConstructor
 class AddedSpectrum(SfgSpectrum):
@@ -608,182 +540,6 @@ class AddedName(SystematicName):
         self.surfactant = [s for s in surfactants]
 
 
-class FileFetcher:
-    """The file fetcher class interconnects different subdirectories of the folder and simplifies
-    the handling of filenames and filepaths. It changes the working directory to the file storage directory,
-    usually the library, creates a DataCollector object and returns a SFG object"""
-
-    def __init__(self, filename, destination="library"):
-        self.filename = filename
-        initial_wd = os.getcwd()
-        os.chdir(destination)
-
-        self.collector = DataCollector(filename)
-        self.sfg = self.collector.yield_SfgSpectrum()
-        os.chdir(initial_wd)
-
-
-class DataCollector:
-    # noinspection PyTypeChecker
-    def __init__(self, filename):
-        # the filename is ONLY the filename, not containing any directory information.
-        self.file = filename
-        self.creation_time = self.get_creation_time()
-
-        # now start extraction
-        data_collect = []
-
-        with open(self.file, "r") as infile:
-
-            readCSV = csv.reader(infile, delimiter="\t")
-            for row in readCSV:
-                data_collect.append(row)
-
-            data_package = [0] * len(data_collect[0])
-            for i in range(len(data_collect[0])):
-                # mind this complex list comprehension
-                data_package[i] = [j[i] for j in data_collect]
-                # remove useles column
-            del data_package[2]
-
-            # convert strings to float and generate numpy array
-            convert = []
-            for i in data_package:
-                q = [float(j) for j in i]
-                convert.append(q)
-            convert = [np.array(i) for i in convert]
-            self.data_package = convert
-
-    def yield_SfgSpectrum(self):
-        #todo this function will need exception handling. It returns an SFG spectrum object
-        sysname = SystematicName(self.file, self.creation_time)
-        data = self.data_package
-        sfg = SfgSpectrum(data[0], data[1], data[3], data[2], sysname)
-        return sfg
-
-    def get_creation_time(self):
-        t = datetime.datetime.fromtimestamp(os.path.getmtime(self.file))
-        return t
-
-
-# noinspection PySimplifyBooleanCheck
-class Finder:
-    """Powerfull class generating sfg objects of ALL files in library and traversing them for match
-    criteria. Contains a list of SFG objects whitch mach the criteria. Later features to extract 
-    information from libary management file and day information file will be added"""
-
-    def __init__(self):
-        self.database = []
-        for file in os.listdir("library"):
-            if file.endswith(".sfg"):
-                sfg = FileFetcher(file).sfg
-                self.database.append(sfg)
-
-    """Basic search functions. Choose spectra from database by date, surfactant etc.."""
-    def date_based(self, dateflag, subset="default"):
-        if subset == "default":
-            subset = self.database
-        matches = []
-        dateflag = dateflag.strip("d")
-        for spectrum in subset:
-            if spectrum.name.date == dateflag:
-                matches.append(spectrum)
-        return matches
-
-    def sample_based(self, sampleflag, subset="default"):
-        if subset == "default":
-            subset = self.database
-        matches = []
-        for spectrum in subset:
-            if spectrum.name.sample_number == sampleflag or str(spectrum.name.sample_number) == str(sampleflag):
-                matches.append(spectrum)
-        return matches
-
-    def surfactant_based(self, surfactantflag, subset="default"):
-        if subset == "default":
-            subset = self.database
-        matches = []
-        for spectrum in subset:
-            if spectrum.name.surfactant == surfactantflag:
-                matches.append(spectrum)
-        return matches
-
-    def sensitizer_based(self, sensitizerflag, subset="default"):
-        if subset == "default":
-            subset = self.database
-        matches = []
-        for spectrum in subset:
-            if spectrum.name.sensitizer == sensitizerflag:
-                matches.append(spectrum)
-        return matches
-
-    def photo_based(self, subset="default", photolyzed=True):
-        if photolyzed == True:
-            if subset == "default":
-                subset = self.database
-            matches = []
-            for spectrum in subset:
-                if spectrum.name.photolysis != "none":
-                    matches.append(spectrum)
-        else:
-            if subset == "default":
-                subset = self.database
-            matches = []
-            for spectrum in subset:
-                if spectrum.name.photolysis == "none":
-                    matches.append(spectrum)
-        return matches
-
-    def measurement_based(self, measurementflag, subset="default"):
-        if subset == "default":
-            subset = self.database
-        measures = measurementflag.split(",")
-        matches = [i for i in subset if i.name.measurement in measures]
-        return matches
-
-    def comment_based(self, option="BoknisEckSample", subset="default"):
-        if subset == "default":
-            subset = self.database
-        matches = []
-        for spectrum in subset:
-            if spectrum.name.comment == option:
-                matches.append(spectrum)
-        return matches
-
-    def sur_volume_based(self, amount, subset="default"):
-        if subset == "default":
-            subset = self.database
-        matches = [i for i in subset if i.name.surfactant_spread_volume == amount]
-        return matches
-
-    def unclassified(self):
-        subset = self.database
-        matches = [i for i in subset if i.name.surfactant == "unknown"]
-        return matches
-
-    def by_year(self, yearlist, subset="default"):
-
-        if subset == "default":
-            subset = self.database
-
-        matches = [i for i in subset if str(i.name.date_split()[0]) in yearlist]
-        return matches
-
-    def by_month(self, month, subset="default"):
-        if subset == "default":
-            subset = self.database
-        matches = [i for i in subset if i.name.date_split()[1] == month]
-        return matches
-
-    def by_monthrange(self, begin, end, subset="default"):
-        if subset == "default":
-            subset = self.database
-        matches = [i for i in subset if (begin <= i.name.date_split()[1] <= end)]
-        return matches
-
-
-# noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck
-
 class Analyzer:
     """This class takes, what a surprise, a list of SFG spectra as constructor argument. Its purpose
     is to perform analytical tasks with the spectral data, e.g. compare peaks, integral, datapoints
@@ -877,84 +633,6 @@ class Analyzer:
             out.append((wavenumber, intensity))
 
         return out
-
-
-class SqlWizard:
-
-    def __init__(self, speclist):
-
-        self.create_database()
-        self.speclist = speclist
-
-        for spectrum in self.speclist:
-            self.add_spectrum(spectrum)
-
-    def create_database(self):
-
-        #Table one for SFGs without Sensitizer
-        command =\
-            """
-            CREATE TABLE IF NOT EXISTS sfg_database (
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            measured_time TIMESTAMP,
-            measurer TEXT,
-            wavenumbers TEXT,
-            sfg TEXT,
-            ir TEXT,
-            vis TEXT,
-            surfactant TEXT,
-            sensitizer TEXT,
-            photolysis TEXT,
-            CONSTRAINT unique_name UNIQUE(name)
-            );
-            """
-        db = sqlite3.connect("sfg.db")
-        cur = db.cursor()
-        cur.execute(command)
-        db.commit()
-        db.close()
-
-    def add_spectrum(self, spectrum):
-
-        s = spectrum  # type: SfgSpectrum
-        fname = s.name # type: SystematicName
-
-        name = fname.full_name
-        time = fname.creation_time
-        wavenumbers = ";".join(s.wavenumbers.astype(str))
-        sfg = ";".join(s.raw_intensity.astype(str))
-        ir = ";".join(s.ir_intensity.astype(str))
-        vis = ";".join(s.vis_intensity.astype(str))
-
-        surfactant = fname.surfactant
-        sensitizer = fname.sensitizer
-        photolysis = fname.photolysis
-
-        db = sqlite3.connect("sfg.db")
-        cur = db.cursor()
-
-        command =\
-        """
-        INSERT INTO sfg_database
-        (
-        name,
-        measured_time,
-        wavenumbers,
-        sfg,
-        ir,
-        vis,
-        surfactant,
-        sensitizer,
-        photolysis)
-        VALUES(?,?,?,?,?,?,?,?,?);
-        """
-        try:
-            cur.execute(command, (name, time, wavenumbers, sfg, ir, vis,surfactant,sensitizer,photolysis))
-        except sqlite3.IntegrityError as e:
-            print("Spectrum already in database!")
-        db.commit()
-        db.close()
 
 
 class SessionControlManager:
@@ -1100,19 +778,5 @@ class SessionControlManager:
         options = f[1]
         return (flag, options)
 
-
-class SqlImporter:
-        # first: make a list of day folders in the archive directory
-        def __init__(self, newspec_directory):
-            self.speclist = []
-            self.directory = newspec_directory
-            for file in os.listdir(self.directory):
-                if file.endswith("sfg"):
-                    os.chdir("library")
-                    D = DataCollector(file).yield_SfgSpectrum()
-                    os.chdir("..")
-                    self.speclist.append(D)
-
-            S = SqlWizard(self.speclist)
 
 

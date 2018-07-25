@@ -232,15 +232,19 @@ class UiManager:
             outfile.write(text)
             outfile.write("\n" + "*" * 80+"\n")
 
-    def integrate(self, event):
+    def integrate(self):
 
-        if self.counter == 0:
-            print("Select first peak: ")
-            self.modus = "integrate"
+        if len(self.speclist == 1):
 
-        elif self.counter == 1:
-            print("Select second peak: ")
-            self.modus = "next"
+            if self.counter == 0:
+                print("Select first peak: ")
+                self.modus = "integrate"
+
+            elif self.counter == 1:
+                print("Select second peak: ")
+                self.modus = "next"
+        else:
+            print("Integration not possible for mor than one active spectrum!\n")
 
     def set_title(self):
         text = self.window.plotLabelLineEdit.text()
@@ -268,6 +272,23 @@ class UiManager:
             self.rightborder = (event.xdata, event.ydata)
 
             print("Borders selected",self.leftborder, self.rightborder)
+
+            spectrum = self.speclist[0]  # type: SfgSpectrum
+            point_list = spectrum.create_pointlist(spectrum.normalized_intensity[::-1])
+            left_index = self.get_closest_index(point_list, self.leftborder)
+            right_index = self.get_closest_index(point_list, self.rightborder)
+            x_array = (spectrum.wavenumbers[::-1])[left_index:right_index+1]
+
+            if self.normalized is True:
+                y_array = (spectrum.normalized_intensity[::-1])[left_index:right_index+1]
+            else:
+                y_array = (spectrum.raw_intensity[::-1])[left_index:right_index + 1]
+
+            area = spectrum.integrate_peak(x_array, y_array)
+            self.window.Peaks.insertPlainText("Integral between "+ str(self.leftborder)
+                                              + " and " + str(self.rightborder) + ": "
+                                              + str(area) + "\n")
+
             self.modus = "normal"
             self.counter = 0
 
@@ -318,6 +339,19 @@ class UiManager:
         self.normalized_to_highest = self.window.checkBox_6.isChecked()
 
         self.plot_handler()
+
+    def get_closest_index(self, array_datapoints, check):
+
+        d = 1000000000000
+        index = None
+        for point in array_datapoints:
+
+            d_temp = np.sqrt((check[0] - point[0]) ** 2 + (check[1] - point[1]) ** 2)
+            if d_temp < d:
+                d = d_temp
+                index = point[2]
+
+        return index
 
 
 def run_app(speclist, session_id):
