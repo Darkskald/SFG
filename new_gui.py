@@ -151,6 +151,7 @@ class UiManager:
         self.normalized_to_highest = False
         self.plot_handler()
 
+
     def test(self):
         normalized = self.window.checkBox.checkState()
         show_IR = self.window.checkBox_2.checkState()
