@@ -12,7 +12,7 @@ from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
 
 #for session controll manager
-from new_gui import run_app
+#from new_gui import run_app
 
 rcParams['mathtext.default'] = 'regular'
 
@@ -651,6 +651,8 @@ class SessionControlManager:
         self.Makros = {}
         self.get_senssurf_names()
 
+        self.lt_manager = None
+
 
 
         #former IpyInterpreter functionality, tracking the primary key in parallel
@@ -716,8 +718,8 @@ class SessionControlManager:
         self.cur.close()
         self.db.close()
 
-    def general_fetch(self, condition_1, condition_2):
-        command = "SELECT * from sfg_database WHERE "+condition_1+"="+condition_2
+    def general_fetch(self, condition_1, condition_2, database="sfg_database"):
+        command = "SELECT * from " + database + " WHERE "+condition_1+"="+condition_2
         self.cur.execute(command)
         keys = []
         for item in self.cur.fetchall():
@@ -792,7 +794,7 @@ class SessionControlManager:
         to_remove = [self.subset[int(i)] for i in options]
         newlist = [i for i in self.subset if i not in to_remove]
         new_indexlist = [self.subset_ids[int(i)] for i in options]
-        self.recover = recover
+        self.recover = self.subset
         self.recover_ids = self.subset_ids
 
         self.subset = newlist
@@ -811,6 +813,75 @@ class SessionControlManager:
 
         self.subset = new_list
         self.subset_ids = new_indexlist
+
+    def set_lt_manager(self):
+
+        self.lt_manager = LtManager(self.db)
+
+
+class LtIsotherm:
+
+    def __init__(self, *args):
+
+        self.name = args[0]
+        self.measured_time = args[1]
+        self.time = args[2]
+        self.area = np.array([float(i) for i in args[3].strip("[]").split(",")])
+        self.apm = np.array(args[4].strip("[]"))
+        self.pressure = np.array(args[5].strip("[]"))
+
+    def __str__(self):
+        return self.name+" LtIsotherm Object"
+
+    def drop_ascii(self):
+
+        with open(self.name+".out", "w") as outfile:
+
+            for a,b in zip(self.area, self.pressure):
+                outfile.write(str(a)+";"+str(b))
+
+    def get_maximum_pressure(self, shrinked=None):
+
+        if shrinked == None:
+            return np.max(self.pressure)
+        else:
+            try:
+                return np.max(shrinked)
+            except:
+                #todo specify the type of error numpy will throw
+                raise TypeError("Can not calc maximum for this operand")
+
+class LtManager:
+
+    def __init__(self, database, table="lt_gasex"):
+
+        self.database = database
+        self.cursor = database.cursor()
+        self.table = table
+        self.isotherms = []
+
+    def get_all_isotherms(self):
+
+        command="SELECT * from "+self.table
+        self.cursor.execute(command)
+        result = self.cursor.fetchall()
+        for i in result:
+            lt = LtIsotherm(i[1], i[2], i[4], i[5], i[6], i[7])
+            self.isotherms.append(lt)
+
+
+S = SessionControlManager("sfg.db", "test")
+S.set_lt_manager()
+S.lt_manager.get_all_isotherms()
+for i in S.lt_manager.isotherms: #type: LtIsotherm
+    print(i)
+    #print(type(i))
+    print(i.area)
+    print(type(i.area))
+
+
+
+
 
 
 
