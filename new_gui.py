@@ -12,6 +12,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib import rcParams
+import numpy as np
 rcParams['mathtext.default'] = 'regular'
 
 
@@ -235,15 +236,19 @@ class UiManager:
 
     def integrate(self):
 
-        if len(self.speclist == 1):
+        if len(self.speclist) == 1:
 
             if self.counter == 0:
-                print("Select first peak: ")
+
+                print("Select first peak1: ")
                 self.modus = "integrate"
 
             elif self.counter == 1:
                 print("Select second peak: ")
                 self.modus = "next"
+
+            else:
+                print("Undefined counter state!")
         else:
             print("Integration not possible for mor than one active spectrum!\n")
 
@@ -261,14 +266,14 @@ class UiManager:
 
         elif self.modus == "integrate":
             if event.button == 3:
-                self.counter = 1
-                self.integrate(event)
                 self.pick(event)
                 self.leftborder = (event.xdata, event.ydata)
+                self.counter += 1
+                self.integrate()
 
         elif self.modus == "next" and event.button == 3:
-            self.counter += 1
-            self.integrate(event)
+
+
             self.pick(event)
             self.rightborder = (event.xdata, event.ydata)
 
@@ -276,8 +281,11 @@ class UiManager:
 
             spectrum = self.speclist[0]  # type: SfgSpectrum
             point_list = spectrum.create_pointlist(spectrum.normalized_intensity[::-1])
+
+            print(point_list, self.leftborder)
             left_index = self.get_closest_index(point_list, self.leftborder)
             right_index = self.get_closest_index(point_list, self.rightborder)
+
             x_array = (spectrum.wavenumbers[::-1])[left_index:right_index+1]
 
             if self.normalized is True:
@@ -286,9 +294,18 @@ class UiManager:
                 y_array = (spectrum.raw_intensity[::-1])[left_index:right_index + 1]
 
             area = spectrum.integrate_peak(x_array, y_array)
-            self.window.Peaks.insertPlainText("Integral between "+ str(self.leftborder)
-                                              + " and " + str(self.rightborder) + ": "
+
+
+            l = (f'{self.leftborder[0]:.2f}')+","+(f'{self.leftborder[1]:.2f}')
+            r = (f'{self.rightborder[0]:.2f}')+","+(f'{self.rightborder[1]:.2f}')
+
+
+            self.window.Peaks.insertPlainText("Integral between " + l
+                                              + " and " +  r + ": "
                                               + str(area) + "\n")
+
+            self.window.sc.axes.fill_between(x_array,y_array)
+            self.window.sc.refresh()
 
             self.modus = "normal"
             self.counter = 0
@@ -310,12 +327,23 @@ class UiManager:
             name = spectrum.name.full_name[:-4]
 
             if self.normalized_to_highest is True:
+
                 y_data = spectrum.normalize_to_highest(external_norm=norm_factor)
                 self.window.sc.plot_dataset(x_data, y_data, name, "")
 
+
+
+
+
             else:
                 if self.normalized is True:
-                    self.window.sc.plot_dataset(x_data, spectrum.normalized_intensity, name, "")
+
+                    if self.root is True:
+
+                        self.window.sc.plot_dataset(x_data, spectrum.root(), name, "")
+                    else:
+                        self.window.sc.plot_dataset(x_data, spectrum.normalized_intensity, name, "")
+
                 elif self.normalized is False:
 
                     if self.smooth is False:
