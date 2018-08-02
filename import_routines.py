@@ -6,15 +6,6 @@ import numpy as np
 import csv
 
 
-def debug(func):
-
-    def debug_wrapper(*args, **kwargs):
-        print(func.__name__ +" calling! Entering function scope")
-        func(args, kwargs)
-        print(func.__name__ + " calling! ... leaving function scope")
-    return debug_wrapper
-
-
 class Importer:
     # first: make a list of day folders in the archive directory
     def __init__(self, input_folder="archive", output_folder="library"):
@@ -171,8 +162,6 @@ class Importer:
                 print("Spectrum already in database!")
         db.commit()
         db.close()
-
-
 
 
 class DataCollector:
@@ -674,7 +663,6 @@ class SystematicName:
             with open(self.refpath+"Surfactants.txt") as outfile:
                 pass
         except FileNotFoundError:
-            print("change dir")
             self.refpath = "../name_info/"
 
         self.creation_time = creation_time

@@ -654,8 +654,6 @@ class SessionControlManager:
 
         self.lt_manager = None
 
-
-
         #former IpyInterpreter functionality, tracking the primary key in parallel
         self.subset_ids = []
         self.subset = []
@@ -840,8 +838,8 @@ class LtIsotherm:
 
         with open(self.name+".out", "w") as outfile:
 
-            for a,b in zip(self.area, self.pressure):
-                outfile.write(str(a)+";"+str(b))
+            for a,b,c in zip(self.time, self.area, self.pressure):
+                outfile.write(str(a)+";"+str(b)+";"+str(c)+"\n")
 
     def get_maximum_pressure(self, shrinked=None):
 
@@ -853,6 +851,12 @@ class LtIsotherm:
             except:
                 #todo specify the type of error numpy will throw
                 raise TypeError("Can not calc maximum for this operand")
+
+    def derive_pressure(self):
+        return np.diff(self.pressure)/np.diff(self.area)
+
+
+
 
 class LtManager:
 
@@ -876,11 +880,12 @@ class LtManager:
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
 S.lt_manager.get_all_isotherms()
-for i in S.lt_manager.isotherms: #type: LtIsotherm
-    plt.plot(i.area, i.pressure)
-    plt.savefig(i.name+".png")
-    plt.cla()
 
+q = S.lt_manager.isotherms[6]
+plt.plot(q.area[1:],q.derive_pressure(), label="derivative")
+plt.plot(q.area, q.pressure, label="original")
+plt.legend()
+plt.show()
 
 
 

@@ -289,7 +289,10 @@ class UiManager:
             x_array = (spectrum.wavenumbers[::-1])[left_index:right_index+1]
 
             if self.normalized is True:
-                y_array = (spectrum.normalized_intensity[::-1])[left_index:right_index+1]
+                if self.root is False:
+                 y_array = (spectrum.normalized_intensity[::-1])[left_index:right_index+1]
+                else:
+                    y_array = (spectrum.root()[::-1])[left_index:right_index+1]
             else:
                 y_array = (spectrum.raw_intensity[::-1])[left_index:right_index + 1]
 
