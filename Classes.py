@@ -1,4 +1,5 @@
 # import functions as fun
+from new_gui import run_app
 import os
 import shutil
 import csv
@@ -312,7 +313,7 @@ class SfgSpectrum:
         return output
 
     def root(self):
-        return np.sort(self.normalized_intensity)
+        return np.sqrt(self.normalized_intensity)
 
 
 # noinspection PyMissingConstructor
@@ -825,10 +826,12 @@ class LtIsotherm:
 
         self.name = args[0]
         self.measured_time = args[1]
-        self.time = args[2]
-        self.area = np.array([float(i) for i in args[3].strip("[]").split(",")])
-        self.apm = np.array(args[4].strip("[]"))
-        self.pressure = np.array(args[5].strip("[]"))
+        self.time = np.array(args[2].split(";")).astype(np.float)
+
+        self.area = np.array(args[3].split(";")).astype(np.float)
+
+        self.apm = np.array(args[4].split(";")).astype(np.float)
+        self.pressure = np.array(args[5].split(";")).astype(np.float)
 
     def __str__(self):
         return self.name+" LtIsotherm Object"
@@ -874,10 +877,9 @@ S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
 S.lt_manager.get_all_isotherms()
 for i in S.lt_manager.isotherms: #type: LtIsotherm
-    print(i)
-    #print(type(i))
-    print(i.area)
-    print(type(i.area))
+    plt.plot(i.area, i.pressure)
+    plt.savefig(i.name+".png")
+    plt.cla()
 
 
 

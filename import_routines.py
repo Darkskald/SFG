@@ -108,11 +108,9 @@ class Importer:
     def refine_collector(self, collector):
 
         time = []
-        # time_2 = []
         area = []
         apm = []
         surface_pressure = []
-        # surface_pressure2 = []
 
         for i in collector:
             time.append(i[1])
@@ -120,7 +118,7 @@ class Importer:
             apm.append(i[3])
             surface_pressure.append(i[4])
 
-        return time, area, apm, surface_pressure
+        return np.array(time), np.array(area), np.array(apm), np.array(surface_pressure)
 
     def create_lt_list(self, folder):
 
@@ -148,6 +146,11 @@ class Importer:
         cur = db.cursor()
         for lt in lt_list:
 
+            time = ";".join(lt[0].astype(str))
+            area = ";".join(lt[1].astype(str))
+            apm = ";".join(lt[2].astype(str))
+            surface_pressure = ";".join(lt[3].astype(str))
+
             command = \
                 """
                 INSERT INTO lt_gasex
@@ -163,7 +166,7 @@ class Importer:
                 """
             try:
 
-                cur.execute(command, (lt[-1], lt[-2], str(lt[0]), str(lt[1]), str(lt[2]), str(lt[3])))
+                cur.execute(command, (lt[-1], lt[-2], time, area, apm, surface_pressure))
             except sqlite3.IntegrityError as e:
                 print("Spectrum already in database!")
         db.commit()
