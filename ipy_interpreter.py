@@ -307,10 +307,4 @@ class IpyInterpreter:
 #testcode section
 
 #S = SqlImporter("library")
-S_2 = SessionControlManager("sfg.db","today")
 
-S_2.get("se BX12")
-S_2.ref("p n")
-S_2.subset = S_2.subset[0:1]
-S_2.show()
-S_2.plot()

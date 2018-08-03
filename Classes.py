@@ -834,6 +834,14 @@ class LtIsotherm:
     def __str__(self):
         return self.name+" LtIsotherm Object"
 
+    def get_day(self):
+        string = self.name.split("_")
+        if len(string[1]) == 4:
+            day = string[1][2:]
+        day = int(day)
+        day = day-2
+        return day
+
     def drop_ascii(self):
 
         with open(self.name+".out", "w") as outfile:
@@ -854,6 +862,11 @@ class LtIsotherm:
 
     def derive_pressure(self):
         return np.diff(self.pressure)/np.diff(self.area)
+
+
+
+
+
 
 
 
@@ -881,13 +894,11 @@ S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
 S.lt_manager.get_all_isotherms()
 
-q = S.lt_manager.isotherms[6]
-plt.plot(q.area[1:],q.derive_pressure(), label="derivative")
-plt.plot(q.area, q.pressure, label="original")
-plt.legend()
+for i in S.lt_manager.isotherms:
+    print(f'maximum pressure: {i.get_maximum_pressure()} with {i.name}')
+    plt.scatter(i.get_day(), i.get_maximum_pressure())
+
 plt.show()
-
-
 
 
 
