@@ -8,6 +8,7 @@ import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+from matplotlib.lines import Line2D
 import sqlite3
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
@@ -831,16 +832,42 @@ class LtIsotherm:
         self.apm = np.array(args[4].split(";")).astype(np.float)
         self.pressure = np.array(args[5].split(";")).astype(np.float)
 
+        self.day = None
+        self.type = None
+        self.station = None
+        self.number = None
+        self.speed = None
+
+        self.process_name()
+
     def __str__(self):
         return self.name+" LtIsotherm Object"
 
-    def get_day(self):
-        string = self.name.split("_")
-        if len(string[1]) == 4:
-            day = string[1][2:]
+    def __repr__(self):
+        return self.name + " LtIsotherm Object"
+
+    def get_day(self, string):
+
+        if len(string) == 4:
+            day = string[2:]
+        else:
+            raise ValueError("Invalid day string length at spectrum "+self.name)
+
         day = int(day)
         day = day-2
         return day
+
+    def process_name(self):
+        temp = self.name.split("_")
+        self.day = self.get_day(temp[1])
+        self.type = temp[3].lower()
+        self.station = temp[2]
+        self.number = temp[4]
+
+        try:
+            self.speed = temp[5]
+        except IndexError:
+            print(self.name+ " has not a defined compression speed!")
 
     def drop_ascii(self):
 
@@ -864,13 +891,6 @@ class LtIsotherm:
         return np.diff(self.pressure)/np.diff(self.area)
 
 
-
-
-
-
-
-
-
 class LtManager:
 
     def __init__(self, database, table="lt_gasex"):
@@ -879,6 +899,12 @@ class LtManager:
         self.cursor = database.cursor()
         self.table = table
         self.isotherms = []
+        self.days = None
+        self.ordered_days = {}
+
+        self.get_all_isotherms()
+        self.join_days_isotherms()
+        self.order_by_sample()
 
     def get_all_isotherms(self):
 
@@ -889,16 +915,101 @@ class LtManager:
             lt = LtIsotherm(i[1], i[2], i[4], i[5], i[6], i[7])
             self.isotherms.append(lt)
 
+    def get_days(self):
+        days = []
+        for isotherm in self.isotherms:
+            if isotherm.day not in days:
+                days.append(isotherm.day)
+        return days
+
+    def join_days_isotherms(self):
+
+        days = self.get_days()
+        self.days = {i: [j for j in self.isotherms if j.day == i] for i in days}
+
+    def order_by_sample(self):
+
+        for item in self.days:
+            stations = []
+
+            for isotherm in self.days[item]:
+                if isotherm.station not in stations:
+                    stations.append(isotherm.station)
+
+            self.ordered_days[item] = {i: [j for j in self.days[item] if j.station == i] for i in stations}
+
+        for day in self.ordered_days:
+            for station in self.ordered_days[day]:
+
+                types = []
+                for isotherm in self.ordered_days[day][station]:
+                    if isotherm.type not in types:
+                        types.append(isotherm.type)
+                self.ordered_days[day][station] = {i: [j for j in self.ordered_days[day][station] if j.type == i] for i in types}
+
+
+
+def scatter_maxpressure_day(isothermlist):
+    for isotherm in isothermlist:
+
+        if isotherm.type == "p":
+            color = "red"
+        else:
+            color = "blue"
+        if "1" in isotherm.station:
+            marker = "o"
+        elif "2" in isotherm.station:
+            marker = "x"
+        elif "3" in isotherm.station:
+            marker = "*"
+        else:
+            marker = "8"
+        plt.scatter(isotherm.day, isotherm.get_maximum_pressure(), color=color, s=40, marker=marker )
+
+    plt.xlabel("days of cruise")
+    plt.ylabel("maximum pressure/ mNm$^{-1}$")
+    plt.grid()
+    #legend_elements = [Line2D([0], [0], marker='o', color='r', label='glass plate', markerfacecolor='g', markersize=40)]
+    #plt.legend(handles=legend_elements)
+    plt.show()
+
+def plot_vs_time(isothermlist):
+    for i in isothermlist:
+        plt.plot(i.time, i.pressure)
+
+    plt.xlabel("time")
+    plt.ylabel("maximum pressure/ mNm$^{-1}$")
+    plt.grid()
+    plt.show()
+
 
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
-S.lt_manager.get_all_isotherms()
+q = S.lt_manager
+print(q.ordered_days)
+"""
+for day in S.lt_manager.days:
+    for station in S.lt_manager.days[day]:
+        for typ in S.lt_manager.days[day][station]:
+           t = S.lt_manager.days[day][station][typ]
+           t.sort(key=lambda x: x.get_maximum_pressure(), reverse=True)
+           to_plot.append(t[0])
+"""
 
-for i in S.lt_manager.isotherms:
-    print(f'maximum pressure: {i.get_maximum_pressure()} with {i.name}')
-    plt.scatter(i.get_day(), i.get_maximum_pressure())
 
-plt.show()
+
+
+#plot_vs_time(to_plot)
+
+
+
+
+
+
+
+
+
+
 
 
 
