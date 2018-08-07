@@ -838,6 +838,8 @@ class LtIsotherm:
         self.number = None
         self.speed = None
 
+        self.partners = []
+
         self.process_name()
 
     def __str__(self):
@@ -890,6 +892,17 @@ class LtIsotherm:
     def derive_pressure(self):
         return np.diff(self.pressure)/np.diff(self.area)
 
+    def same_sample(self, other):
+        if self.create_sample_hash() == other.create_sample_hash():
+            return True
+        else:
+            return False
+
+    def create_sample_hash(self):
+        return str(self.day)+self.station+self.type+str(self.number)
+
+
+
 
 class LtManager:
 
@@ -905,6 +918,7 @@ class LtManager:
         self.get_all_isotherms()
         self.join_days_isotherms()
         self.order_by_sample()
+        self.join_same_measurement()
 
     def get_all_isotherms(self):
 
@@ -947,6 +961,12 @@ class LtManager:
                         types.append(isotherm.type)
                 self.ordered_days[day][station] = {i: [j for j in self.ordered_days[day][station] if j.type == i] for i in types}
 
+    def join_same_measurement(self):
+        for i, isotherm in enumerate(self.isotherms):
+            print(i)
+            for isotherm2 in self.isotherms[i+1:]:
+                if isotherm.same_sample(isotherm2) and isotherm2 not in isotherm.partners:
+                    isotherm.partners.append(isotherm2)
 
 
 def scatter_maxpressure_day(isothermlist):
@@ -973,6 +993,7 @@ def scatter_maxpressure_day(isothermlist):
     #plt.legend(handles=legend_elements)
     plt.show()
 
+
 def plot_vs_time(isothermlist):
     for i in isothermlist:
         plt.plot(i.time, i.pressure)
@@ -983,10 +1004,47 @@ def plot_vs_time(isothermlist):
     plt.show()
 
 
+def plot_per_sample(isothermlist):
+
+    hashes = []
+    for isotherm in isothermlist:
+
+        if isotherm.create_sample_hash() not in hashes:
+            hashes.append(isotherm.create_sample_hash())
+            leg = isotherm.name
+            plt.plot(isotherm.time, isotherm.pressure, label=leg)
+
+
+            for partner in isotherm.partners:
+                leg = partner.name
+                plt.plot(partner.time, partner.pressure, label=leg)
+
+            plt.xlabel("time/ s")
+            plt.ylabel("maximum pressure/ mNm$^{-1}$")
+            plt.title(str(isotherm.day)+" "+isotherm.station+" "+isotherm.type+" "+str(isotherm.number))
+            plt.grid()
+            plt.legend()
+            plt.savefig(isotherm.create_sample_hash()+".png")
+            plt.cla()
+
+        else:
+            print("Already processed!")
+
+
+
+
+
+
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
 q = S.lt_manager
-print(q.ordered_days)
+
+plot_per_sample(q.isotherms)
+
+
+
+
+
 """
 for day in S.lt_manager.days:
     for station in S.lt_manager.days[day]:
