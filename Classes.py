@@ -963,7 +963,7 @@ class LtManager:
 
     def join_same_measurement(self):
         for i, isotherm in enumerate(self.isotherms):
-            print(i)
+
             for isotherm2 in self.isotherms[i+1:]:
                 if isotherm.same_sample(isotherm2) and isotherm2 not in isotherm.partners:
                     isotherm.partners.append(isotherm2)
@@ -985,6 +985,8 @@ def scatter_maxpressure_day(isothermlist):
         else:
             marker = "8"
         plt.scatter(isotherm.day, isotherm.get_maximum_pressure(), color=color, s=40, marker=marker )
+        plt.text(isotherm.day+0.1, isotherm.get_maximum_pressure()+0.1, isotherm.station+isotherm.type, fontsize=7)
+        #plt.text(isotherm.day+0.2, isotherm.get_maximum_pressure()+0.1, isotherm.name, fontsize=7)
 
     plt.xlabel("days of cruise")
     plt.ylabel("maximum pressure/ mNm$^{-1}$")
@@ -1039,7 +1041,22 @@ S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
 q = S.lt_manager
 
-plot_per_sample(q.isotherms)
+collection = []
+
+for day in q.ordered_days:
+    for sample in q.ordered_days[day]:
+        spectra = q.ordered_days[day][sample]
+        for speclist in spectra.values():
+            temp = speclist
+            temp.sort(key=lambda x: x.get_maximum_pressure(), reverse=True)
+            collection.append(temp[0])
+
+
+
+
+#plot_per_sample(q.isotherms)
+scatter_maxpressure_day(collection)
+print(len(collection))
 
 
 
