@@ -16,8 +16,6 @@ import numpy as np
 rcParams['mathtext.default'] = 'regular'
 
 
-
-
 class MyMplCanvas(FigureCanvas):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
 
