@@ -1,5 +1,4 @@
-# import functions as fun
-from new_gui import run_app
+from new_gui import run_app, run_lt_app
 import os
 import shutil
 import csv
@@ -901,6 +900,36 @@ class LtIsotherm:
     def create_sample_hash(self):
         return str(self.day)+self.station+self.type+str(self.number)
 
+    def create_pointlist(self, x_array):
+
+        output = []
+        for i, (a, b) in enumerate(zip(x_array, self.pressure)):
+            output.append((a, b, i))
+        return output
+
+    def get_slice(self, x_array, lower, upper):
+
+        x_out = x_array[lower:upper+1]
+        y_out = self.pressure[lower:upper+1]
+        return x_out, y_out
+
+    def calculate_elasticity(self):
+
+        xdata = self.area[::-1]
+        ydata = self.pressure[::-1]
+        out = []
+
+        for i in range(len(self.pressure)-1):
+            p = abs(ydata[i+1] - ydata[i])
+            a = abs((xdata[i+1] - xdata[i]))
+            A = (xdata[i+1] - xdata[i])/2
+
+            out.append(p/a*A)
+
+        return np.array(out[::-1])
+
+
+
 
 
 
@@ -967,6 +996,9 @@ class LtManager:
             for isotherm2 in self.isotherms[i+1:]:
                 if isotherm.same_sample(isotherm2) and isotherm2 not in isotherm.partners:
                     isotherm.partners.append(isotherm2)
+
+    #def plot(self, session_id):
+        #run_lt_app(self.isotherms, session_id)
 
 
 def scatter_maxpressure_day(isothermlist):
@@ -1055,8 +1087,8 @@ for day in q.ordered_days:
 
 
 #plot_per_sample(q.isotherms)
-scatter_maxpressure_day(collection)
-print(len(collection))
+test = collection[1:2]
+run_lt_app(test, 1)
 
 
 

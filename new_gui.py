@@ -1,18 +1,24 @@
 from plotgui import Ui_MainWindow
+from ltgui import Ui_MainWindow as LtW
 
 import time
 import sys
 import matplotlib
+import traceback
+import logging
 # Make sure that we are using QT5
 matplotlib.use('Qt5Agg')
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 from numpy import arange, sin, pi
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib import rcParams
 import numpy as np
+from scipy.optimize import curve_fit
+
 rcParams['mathtext.default'] = 'regular'
 
 
@@ -42,6 +48,19 @@ class MyMplCanvas(FigureCanvas):
 
     def compute_initial_figure(self):
         pass
+
+    def draw_peakline(self, coordinates, color="blue"):
+
+        #self.axes.cla()
+        self.axes.axvline(coordinates[0], color=color)
+        self.draw()
+        print(coordinates[0])
+
+    def refresh(self):
+        self.draw()
+
+    def clear(self):
+        self.axes.cla()
 
 
 class MyStaticMplCanvas(MyMplCanvas):
@@ -78,23 +97,24 @@ class MyStaticMplCanvas(MyMplCanvas):
                        linestyle='dotted', markersize=2, marker="o")
         self.axes.legend()
 
-    def refresh(self):
-        self.draw()
 
-    def clear(self):
-        self.axes.cla()
 
     def onclick(self, event):
         print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
               ('double' if event.dblclick else 'single', event.button,
                event.x, event.y, event.xdata, event.ydata))
 
-    def draw_peakline(self, coordinates, color="blue"):
 
-        #self.axes.cla()
-        self.axes.axvline(coordinates[0], color=color)
-        self.draw()
-        print(coordinates[0])
+class LtCanvas(MyMplCanvas):
+
+    def init_axes(self,title="default"):
+        self.axes.grid()
+        self.axes.set_title(title)
+        self.axes.set_xlabel("time/ s")
+        self.axes.set_ylabel("surface pressure/ mNm$^{-1}$")
+
+    def plot_dataset(self, x_dataset, y_dataset, label):
+        self.axes.plot(x_dataset, y_dataset, label=label)
 
 
 class UiWindow(QtWidgets.QMainWindow, Ui_MainWindow):
@@ -113,6 +133,20 @@ class UiWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setWindowTitle("Manifestum 1.0 Plot Gui")
         self.setWindowIcon(QtGui.QIcon("logo.png"))
         self.plotLabelLineEdit.setText("Default")
+
+
+class LtWindow(QtWidgets.QMainWindow, LtW):
+
+    def __init__(self):
+        QtWidgets.QMainWindow.__init__(self)
+        self.setupUi(self)
+        l = QtWidgets.QVBoxLayout(self.plotframe)
+        self.sc = LtCanvas(self.plotframe)
+        self.toolbar = NavigationToolbar(self.sc, self)
+        l.addWidget(self.sc)
+        l.addWidget(self.toolbar)
+
+        self.sc.init_axes()
 
 
 class UiManager:
@@ -271,7 +305,6 @@ class UiManager:
 
         elif self.modus == "next" and event.button == 3:
 
-
             self.pick(event)
             self.rightborder = (event.xdata, event.ydata)
 
@@ -384,12 +417,207 @@ class UiManager:
         return index
 
 
+class LtUiManager:
+
+    def __init__(self, window, isotherm_list, session_id):
+
+        self.mode_dic = {
+            "apm":"area per molecule/ $\AA^{2}$ ",
+            "time":"time/ s",
+            "area":"area/ cm$^{-2}$"
+        }
+
+        self.window = window # type: LtW
+        self.isotherm_list = isotherm_list
+        self.session_id = session_id
+        self.mode = time
+        self.modus = "normal"
+        self.borders = []
+
+        cid = self.window.sc.mpl_connect('button_press_event', self.mouse_handler)
+
+        self.window.pbsave.clicked.connect(self.export)
+        self.window.pbapply.clicked.connect(self.apply)
+        self.window.pbselect.clicked.connect(self.select_borders)
+
+        self.apply()
+        self.window.show()
+
+    def get_closest_index(self, array_datapoints, check):
+
+        d = 1000000000000
+        index = None
+        for point in array_datapoints:
+
+            d_temp = np.sqrt((check[0] - point[0]) ** 2 + (check[1] - point[1]) ** 2)
+            if d_temp < d:
+                d = d_temp
+                index = point[2]
+
+        return index
+
+    def export(self):
+
+        text = self.window.teout.toPlainText()
+
+        with open(self.session_id + ".txt", "a") as outfile:
+            outfile.write("Notes export:\n")
+            outfile.write(text)
+            outfile.write("\n" + "*" * 80 + "\n")
+
+    def clear(self):
+        self.window.teout.clear()
+
+    def apply(self):
+        self.mode = self.window.ycb.currentText()
+
+        if self.mode == "area per molecule":
+            self.mode = "apm"
+
+        if self.mode == "total area":
+            self.mode = "area"
+
+        self.plot_handler()
+
+    def plot_handler(self):
+
+        self.window.sc.clear()
+        self.window.sc.init_axes()
+
+        for isotherm in self.isotherm_list:
+            self.window.sc.plot_dataset(getattr(isotherm, self.mode), isotherm.pressure, isotherm.name)
+
+        try:
+            if self.window.cbshow.isChecked() and self.mode == "area":
+                self.window.sc.plot_dataset(isotherm.area[:-1], isotherm.calculate_elasticity(), label="elastic")
+        except Exception as e:
+            logging.error(traceback.format_exc())
+
+        self.window.sc.axes.set_xlabel(self.mode_dic[self.mode])
+        self.window.sc.axes.legend()
+        self.window.sc.refresh()
+
+
+
+    def mouse_handler(self, event):
+
+        if self.modus == "normal":
+            if event.button == 3 and self.window.cbpick.isChecked():
+                self.pick(event)
+
+        elif self.modus == "left":
+
+            if event.button == 3:
+
+                self.borders.append((event.xdata, event.ydata))
+                self.pick(event)
+                self.modus = "right"
+
+        elif self.modus == "right":
+
+            if event.button == 3:
+                self.borders.append((event.xdata, event.ydata))
+                self.pick(event)
+                self.fit()
+                self.borders = []
+                self.mode = "normal"
+
+    def pick(self, event):
+            x = event.xdata
+            y = event.ydata
+
+            if self.modus == "normal":
+             x_ = f'x_data: {x:.2f}'
+             y_ = f'y_data: {y:.2f}'
+
+             self.window.teout.insertPlainText(x_+" "+y_+"\n")
+             self.window.sc.draw_peakline((x, y))
+
+            else:
+                self.window.sc.draw_peakline((x, y), color="red")
+
+    def select_borders(self):
+        if self.modus == "normal":
+            self.modus = "left"
+
+    def extract_indices(self):
+
+        if len(self.isotherm_list) != 1:
+            raise ValueError("Operation not defined for more than one isotherm")
+
+        else:
+            x_data = getattr(self.isotherm_list[0], self.mode)
+            values = self.isotherm_list[0].create_pointlist(x_data)
+
+
+            index_left = self.get_closest_index(values, self.borders[0])
+            index_right = self.get_closest_index(values, self.borders[1])
+
+            return (index_left, index_right)
+
+    def extract_slice(self):
+
+        indices = self.extract_indices()
+        iso = self.isotherm_list[0]
+        xdata = getattr(iso, self.mode)
+        sliced = iso.get_slice(xdata, indices[0], indices[1])
+
+        return sliced
+
+    def fit(self):
+
+        data = self.extract_slice()
+        amplitude = data[1][0]
+
+        fit_function = fit_function_wrapper(amplitude)
+        fit_function2 = fit_function_wrapper2(amplitude)
+
+
+
+        try:
+         popt1, pcov = curve_fit(fit_function, data[0], data[1], p0=(1e-2, 0))
+         popt2, pcov = curve_fit(fit_function2, data[0], data[1], p0=(1e-2, 4, 1e-4, 5, 2))
+         plt.plot(data[0], data[1])
+         plt.plot(data[0], fit_function(data[0], *popt1), label="fitted")
+         plt.plot(data[0], fit_function2(data[0], *popt2), label="fitted diexponential")
+
+         eq1 = f'${amplitude}*e^{{-{popt1[0]:.6f}*x}}$'
+         #plt.text(200, 12, eq1)
+         plt.legend()
+         plt.show()
+         self.window.teout.insertPlainText(f'rate constant: {popt1[0]:.6f}\n')
+        except Exception as e:
+            logging.error(traceback.format_exc())
+
+
+def fit_function_wrapper(a):
+
+    def fit_function(x, b, c):
+        return a*np.exp(-b*x)+ c
+
+    return fit_function
+
+
+def fit_function_wrapper2(a):
+
+    def fit_function(x, b, c, d, e, f):
+        return a*np.exp(-b*x)+ c + f*np.exp(-d*x)+e
+
+    return fit_function
+
+
 def run_app(speclist, session_id):
     qApp = QtWidgets.QApplication(sys.argv)
     ui = UiWindow()
-    M = UiManager(ui,speclist, session_id)
+    M = UiManager(ui, speclist, session_id)
     sys.exit(qApp.exec_())
 
+
+def run_lt_app(isotherm_list, session_id):
+    qApp = QtWidgets.QApplication(sys.argv)
+    L = LtWindow()
+    M = LtUiManager(L, isotherm_list, session_id)
+    sys.exit(qApp.exec_())
 
 
 #run_app([])
