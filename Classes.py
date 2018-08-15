@@ -928,6 +928,9 @@ class LtIsotherm:
 
         return np.array(out[::-1])
 
+    def smooth(self):
+        return savgol_filter(self.pressure, 9, 5)
+
 
 
 
@@ -1087,7 +1090,7 @@ for day in q.ordered_days:
 
 
 #plot_per_sample(q.isotherms)
-test = collection[1:2]
+test = collection[3:4]
 run_lt_app(test, 1)
 
 
