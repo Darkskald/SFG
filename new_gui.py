@@ -497,8 +497,6 @@ class LtUiManager:
         self.window.sc.axes.legend()
         self.window.sc.refresh()
 
-
-
     def mouse_handler(self, event):
 
         if self.modus == "normal":
@@ -520,7 +518,7 @@ class LtUiManager:
                 self.pick(event)
                 self.fit()
                 self.borders = []
-                self.mode = "normal"
+                self.modus = "normal"
 
     def pick(self, event):
             x = event.xdata
@@ -569,41 +567,48 @@ class LtUiManager:
         data = self.extract_slice()
         amplitude = data[1][0]
 
-        fit_function = fit_function_wrapper(amplitude)
-        fit_function2 = fit_function_wrapper2(amplitude)
+
+
+        fit_function = fit_function_mono
+        fit_function2 = fit_function_di
 
 
 
         try:
-         popt1, pcov = curve_fit(fit_function, data[0], data[1], p0=(1e-2, 0))
-         popt2, pcov = curve_fit(fit_function2, data[0], data[1], p0=(1e-2, 4, 1e-4, 5, 2))
-         plt.plot(data[0], data[1])
-         plt.plot(data[0], fit_function(data[0], *popt1), label="fitted")
-         plt.plot(data[0], fit_function2(data[0], *popt2), label="fitted diexponential")
+         offset = data[0][0]
+         xdata = data[0]
 
-         eq1 = f'${amplitude}*e^{{-{popt1[0]:.6f}*x}}$'
-         #plt.text(200, 12, eq1)
-         plt.legend()
+
+
+         popt1, pcov = curve_fit(fit_function, xdata, data[1],p0=(60, 1/307, 7))
+         popt2, pcov = curve_fit(fit_function2, xdata, data[1], p0=(1, 1e-2, 1, 1e-2, 1, 1))
+
+
+         plt.plot(xdata, data[1])
+         plt.scatter(testx, testy)
+
+
+         mono_label = f'${popt1[0]:.2f}*e^{{-{popt1[1]:.6f}*x}}+{popt1[2]:.4f}$'
+         di_label = f'$({popt1[0]:.2f}*e^{{-{popt2[1]:.6f}*x}}+{popt2[2]:.4f})+({popt2[3]:.2f}*e^{{-{popt2[4]:.6f}*x}}+{popt2[5]:.4f})$'
+
+         plt.plot(xdata, fit_function(data[0], *popt1), label=mono_label)
+         plt.plot(xdata, fit_function2(data[0], *popt2), label=di_label)
+         plt.plot(testx, fit_function(testx, *pre_opt), label="pre")
+
+
+         plt.legend(prop={'size':7})
          plt.show()
          self.window.teout.insertPlainText(f'rate constant: {popt1[0]:.6f}\n')
         except Exception as e:
             logging.error(traceback.format_exc())
 
 
-def fit_function_wrapper(a):
-
-    def fit_function(x, b, c):
-        return a*np.exp(-b*x)+ c
-
-    return fit_function
+def fit_function_mono(x, a, b, c):
+    return a*np.exp(-b*x)+ c
 
 
-def fit_function_wrapper2(a):
-
-    def fit_function(x, b, c, d, e, f):
-        return a*np.exp(-b*x)+ c + f*np.exp(-d*x)+e
-
-    return fit_function
+def fit_function_di(x, a, b, c, d, e, f):
+    return a*np.exp(-b*x)+ c + f*np.exp(-d*x)+e
 
 
 def run_app(speclist, session_id):
