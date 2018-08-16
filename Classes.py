@@ -34,7 +34,7 @@ class SfgSpectrum:
         self.peaks = self.detailed_analysis()
 
     def __repr__(self):
-        return self.name.full_name[:-4] + "              " + str(self.yield_spectral_range())
+        return self.name.full_name[:-4] + "   " + str(self.yield_spectral_range())
 
     def __str__(self):
         """Printable representation of the SFG object"""
@@ -314,6 +314,10 @@ class SfgSpectrum:
 
     def root(self):
         return np.sqrt(self.normalized_intensity)
+
+    def get_sample_hash(self):
+        return self.name.date+self.name.surfactant+self.name.sensitizer+self.name.surfactant_spread_volume\
+               +str(self.name.sample_number)+self.name.comment
 
 
 # noinspection PyMissingConstructor
@@ -817,6 +821,22 @@ class SessionControlManager:
 
         self.lt_manager = LtManager(self.db)
 
+    def match_same_measurements(self):
+        """Returns a dictionary containing the sample hash as keys and a list of all the SFG measurements that were
+        performed with this sample"""
+
+        out = {}
+        for spectrum in self.subset:
+
+            if spectrum.get_sample_hash() not in out:
+                out[spectrum.get_sample_hash()] = []
+                out[spectrum.get_sample_hash()].append(spectrum)
+
+            else:
+                out[spectrum.get_sample_hash()].append(spectrum)
+
+        return out
+
 
 class LtIsotherm:
 
@@ -1076,24 +1096,19 @@ S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
 q = S.lt_manager
 
-collection = []
+S.get("su BX12")
+d = S.match_same_measurements()
 
-for day in q.ordered_days:
-    for sample in q.ordered_days[day]:
-        spectra = q.ordered_days[day][sample]
-        for speclist in spectra.values():
-            temp = speclist
-            temp.sort(key=lambda x: x.get_maximum_pressure(), reverse=True)
-            collection.append(temp[0])
+for speclist in d.values():
 
+    if len(speclist) > 3:
 
+        for spectrum in speclist:
+            plt.plot(spectrum.wavenumbers, spectrum.normalized_intensity, label= spectrum.name.full_name)
 
-
-#plot_per_sample(q.isotherms)
-test = collection[3:4]
-run_lt_app(test, 1)
-
-
+        plt.legend()
+        plt.savefig(speclist[0].get_sample_hash()+".png")
+        plt.cla()
 
 
 
