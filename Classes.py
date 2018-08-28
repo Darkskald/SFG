@@ -1149,7 +1149,7 @@ ax1.set_xlabel("day of cruise")
 ax1.set_ylabel("average surface pressure/ mN/m")
 ax2 = ax1.twinx()
 ax2.set_ylabel("positive samples/ percent")
-ax1.set_title("Surfacant occurence in GasEx 1 (June '18), measured by Langmuir Trough")
+ax1.set_title("Surfacant occurence in GasEx 1 (June '18), \nmeasured by Langmuir Trough")
 ax1.grid(True)
 day_percent = []
 for daylist in q.days.values():
@@ -1170,9 +1170,21 @@ for daylist in q.days.values():
     average/=len(daylist)
     ratio = (positive/len(daylist))*100
     day_percent.append((isotherm.day, ratio, len(daylist)))
-    ax1.scatter(isotherm.day, average, color="red")
+    p=ax1.scatter(isotherm.day, average, color="green", s=72)
 
-ax2.bar([a[0] for a in day_percent],[a[1] for a in day_percent], alpha=0.45)
+
+#ax1.legend(handles=legend_elements, scatterpoints=1).draggable()
+rects = ax2.bar([a[0] for a in day_percent],[a[1] for a in day_percent], alpha=0.45)
+
+for rect, day in zip(rects, day_percent):
+    height = rect.get_height()
+    width = rect.get_width()
+    ax2.text(rect.get_x()+0.4*width, rect.get_y()+height*0.4, str((day[2])), color="blue")
+
+
+ax2.axhline(50, color="red", alpha=0.4, antialiased=True,linewidth=2)
+ax1.legend((p,), ["average surface pressure"], scatterpoints=1)
+ax2.set_yticks([0, 25, 50, 75, 100])
 plt.show()
 
 
