@@ -1019,6 +1019,57 @@ class LtManager:
     #def plot(self, session_id):
         #run_lt_app(self.isotherms, session_id)
 
+class Station:
+
+    def __init__(self, name):
+
+        self.name = name
+        self.date, self.id = self.name.split("-")
+        self.sample_names = []
+        self.sfg_spectra = []
+        self.lt_isotherms = []
+        self.sample_stats = {}
+
+    def count_per_type(self):
+
+        positive_plate = 0
+        positive_screen = 0
+        plate_av = 0
+        screen_av = 0
+        total_screen = 0
+        total_plate = 0
+
+
+
+        for isotherm in self.lt_isotherms: # type: LtIsotherm
+
+            p_max = isotherm.get_maximum_pressure()
+
+            if isotherm.type == "p":
+
+                if p_max > 2:
+                    positive_plate += 1
+
+                total_plate += 1
+                plate_av += p_max
+
+            elif isotherm.type[0] == "s":
+
+                if p_max > 2:
+                    positive_screen += 1
+
+                total_screen += 1
+                screen_av += p_max
+
+            screen_av /= total_screen
+            plate_av /= total_plate
+
+
+
+
+
+
+
 
 def scatter_maxpressure_day(isothermlist):
     for isotherm in isothermlist:
@@ -1149,27 +1200,31 @@ ax1.set_xlabel("day of cruise")
 ax1.set_ylabel("average surface pressure/ mN/m")
 ax2 = ax1.twinx()
 ax2.set_ylabel("positive samples/ percent")
-ax1.set_title("Surfacant occurence in GasEx 1 (June '18), \nmeasured by Langmuir Trough")
+ax1.set_title("Surfactant occurence in GasEx 1 (June '18), \nmeasured by Langmuir Trough")
 ax1.grid(True)
 day_percent = []
 for daylist in q.days.values():
+
     average = 0
     positive = 0
     negative = 0
+    s = set([i.create_sample_hash() for i in daylist])
+    count=(len(s))
 
     for isotherm in daylist:
-        max_pres = isotherm.get_maximum_pressure()
-        average += max_pres
+            print(isotherm.type)
+            max_pres = isotherm.get_maximum_pressure()
+            average += max_pres
 
-        if max_pres < 2:
-            negative += 1
-        elif max_pres > 2 < 70:
-            positive += 1
-            print(max_pres)
+            if max_pres < 2:
+                negative += 1
+            elif max_pres > 2 < 70:
+                positive += 1
+                print(max_pres)
 
     average/=len(daylist)
     ratio = (positive/len(daylist))*100
-    day_percent.append((isotherm.day, ratio, len(daylist)))
+    day_percent.append((isotherm.day, ratio, count))
     p=ax1.scatter(isotherm.day, average, color="green", s=72)
 
 
