@@ -952,10 +952,6 @@ class LtIsotherm:
         return savgol_filter(self.pressure, 9, 5)
 
 
-
-
-
-
 class LtManager:
 
     def __init__(self, database, table="lt_gasex"):
@@ -1040,7 +1036,8 @@ def scatter_maxpressure_day(isothermlist):
         else:
             marker = "8"
         plt.scatter(isotherm.day, isotherm.get_maximum_pressure(), color=color, s=40, marker=marker )
-        plt.text(isotherm.day+0.1, isotherm.get_maximum_pressure()+0.1, isotherm.station+isotherm.type, fontsize=7)
+        plt.text(isotherm.day+0.1, isotherm.get_maximum_pressure()+0.1, isotherm.station+isotherm.type+isotherm.number,
+                 fontsize=7)
         #plt.text(isotherm.day+0.2, isotherm.get_maximum_pressure()+0.1, isotherm.name, fontsize=7)
 
     plt.xlabel("days of cruise")
@@ -1088,39 +1085,102 @@ def plot_per_sample(isothermlist):
             print("Already processed!")
 
 
+def sfg_pub_plot(speclist, title="default"):
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
+    ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
+
+    inc = 0.25/len(speclist)
+    counter = 0
+    for spectrum in speclist:
+        eff_alpha = 0.75+inc*counter
+        ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
+                alpha=eff_alpha, label=spectrum.name.full_name)
+        counter +=1
+
+    size = fig.get_size_inches()
+    ratio = size[0]/size[1]
+    fig.set_size_inches(3.2*ratio, 3.2)
+    fig.tight_layout()
+    return fig
+
+
+def finalize_figure(fig, title="test2"):
+    size = fig.get_size_inches()
+    ratio = size[0] / size[1]
+    fig.set_size_inches(3.2 * ratio, 3.2)
+    fig.tight_layout()
+    fig.savefig(title + ".pdf", dpi=600)
 
 
 
 
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
-q = S.lt_manager
-
-S.get("su BX12")
-d = S.match_same_measurements()
-
-for speclist in d.values():
-
-    if len(speclist) > 3:
-
-        for spectrum in speclist:
-            plt.plot(spectrum.wavenumbers, spectrum.normalized_intensity, label= spectrum.name.full_name)
-
-        plt.legend()
-        plt.savefig(speclist[0].get_sample_hash()+".png")
-        plt.cla()
+q = S.lt_manager # type: LtManager
 
 
+#S.get("su BX12")
+#d = S.match_same_measurements()
+#sfg_pub_plot(S.subset[0:1])
 
-"""
-for day in S.lt_manager.days:
-    for station in S.lt_manager.days[day]:
-        for typ in S.lt_manager.days[day][station]:
-           t = S.lt_manager.days[day][station][typ]
-           t.sort(key=lambda x: x.get_maximum_pressure(), reverse=True)
-           to_plot.append(t[0])
-"""
+# sfg_pub_plot(S.subset)
+# counter = 0
+# for speclist in d.values():
+#
+#     if len(speclist) > 1:
+#
+#         sfg_pub_plot(speclist, title=str(counter))
+#         plt.cla()
+#         counter += 1
+# for day in S.lt_manager.days:
+#     for station in S.lt_manager.ordered_days[day]:
+#         for typ in S.lt_manager.ordered_days[day][station]:
+#            t = S.lt_manager.ordered_days[day][station][typ]
+#            t.sort(key=lambda x: x.get_maximum_pressure(), reverse=True)
+#            to_plot.append(t[0])
+#            print(t[0])
 
+to_plot = []
+fix, ax1 = plt.subplots()
+ax1.set_xlabel("day of cruise")
+ax1.set_ylabel("average surface pressure/ mN/m")
+ax2 = ax1.twinx()
+ax2.set_ylabel("positive samples/ percent")
+ax1.set_title("Surfacant occurence in GasEx 1 (June '18), measured by Langmuir Trough")
+ax1.grid(True)
+day_percent = []
+for daylist in q.days.values():
+    average = 0
+    positive = 0
+    negative = 0
+
+    for isotherm in daylist:
+        max_pres = isotherm.get_maximum_pressure()
+        average += max_pres
+
+        if max_pres < 2:
+            negative += 1
+        elif max_pres > 2 < 70:
+            positive += 1
+            print(max_pres)
+
+    average/=len(daylist)
+    ratio = (positive/len(daylist))*100
+    day_percent.append((isotherm.day, ratio, len(daylist)))
+    ax1.scatter(isotherm.day, average, color="red")
+
+ax2.bar([a[0] for a in day_percent],[a[1] for a in day_percent], alpha=0.45)
+plt.show()
+
+
+
+
+
+
+#scatter_maxpressure_day(to_plot)
 
 
 
