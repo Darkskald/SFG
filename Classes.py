@@ -645,6 +645,10 @@ class Analyzer:
 
 class SessionControlManager:
 
+    """Successor of the IpyInterpreter. A class to access all experimental data, search data by certain match criteria
+    and produce plots efficiently. Designed to work with a sqllite database containing the spectral raw data. Especially
+    useful from interactive python environments (eg IPy)."""
+
     def __init__(self, database, id):
 
         self.db = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
@@ -654,6 +658,7 @@ class SessionControlManager:
         self.Surfactants = {}
         self.Sensitizers = {}
         self.Makros = {}
+        self.stations = None
         self.get_senssurf_names()
 
         self.lt_manager = None
@@ -837,8 +842,32 @@ class SessionControlManager:
 
         return out
 
+    def collect_stations(self):
+        stations = []
+        for isotherm in self.lt_manager.isotherms:
+
+            temp = isotherm.long_station
+            if temp not in stations:
+                stations.append(Station(temp))
+        self.stations = {s.name: s for s in stations}
+
+    def match_to_stations(self):
+
+        for isotherm in self.lt_manager.isotherms:
+
+            self.stations[isotherm.long_station].lt_isotherms.append(isotherm)
+
+    def get_station_numbers(self):
+
+        stations = [i for i in self.stations.values()]
+        stations.sort()
+        for i,s in enumerate(stations):
+            s.station_number = i+1
+
 
 class LtIsotherm:
+    """A class to represent experimantal Langmuir trough isotherms, handling time, area, area per molecule and
+    surface pressure"""
 
     def __init__(self, *args):
 
@@ -852,8 +881,10 @@ class LtIsotherm:
         self.pressure = np.array(args[5].split(";")).astype(np.float)
 
         self.day = None
+        self.long_day = None
         self.type = None
         self.station = None
+        self.long_station = None
         self.number = None
         self.speed = None
 
@@ -866,6 +897,10 @@ class LtIsotherm:
 
     def __repr__(self):
         return self.name + " LtIsotherm Object"
+
+    def __lt__(self, other):
+        if self.get_maximum_pressure() < other.get_maximum_pressure():
+            return True
 
     def get_day(self, string):
 
@@ -881,9 +916,11 @@ class LtIsotherm:
     def process_name(self):
         temp = self.name.split("_")
         self.day = self.get_day(temp[1])
+        self.long_day = temp[1]
         self.type = temp[3].lower()
         self.station = temp[2]
         self.number = temp[4]
+        self.long_station = self.long_day+"_"+self.station
 
         try:
             self.speed = temp[5]
@@ -953,6 +990,7 @@ class LtIsotherm:
 
 
 class LtManager:
+    """A class to perform operations on a set of LtIsotherm objects"""
 
     def __init__(self, database, table="lt_gasex"):
 
@@ -1019,56 +1057,134 @@ class LtManager:
     #def plot(self, session_id):
         #run_lt_app(self.isotherms, session_id)
 
+
 class Station:
+    """A class carrying all information and data for a given cruise station"""
 
     def __init__(self, name):
 
         self.name = name
-        self.date, self.id = self.name.split("-")
-        self.sample_names = []
+        self.date, self.id = self.name.split("_")
+        self.cruise_day = int(self.date[2:])-2
         self.sfg_spectra = []
         self.lt_isotherms = []
-        self.sample_stats = {}
+        self.station_number = None
+        self.lt_joined = {}
+        self.stats = {
+            "positive_plate": 0,
+            "positive_screen": 0,
+            "total_screen": 0,
+            "total_plate": 0,
+            "screen_av": 0,
+            "plate_av": 0,
+            "total" : 0,
+            "percent_plate": 0,
+            "percent_screen": 0,
+            "total_percent" : 0,
+            "total_av" : 0,
+        }
+
+    def __lt__(self, other):
+
+        daytag = int(self.name.split("_")[0][2:])
+        monthtag = int(self.name.split("_")[0][0:2])
+        stationtag = int(self.id[1])
+
+        daytag2 = int(other.name.split("_")[0][2:])
+        monthtag2 = int(other.name.split("_")[0][0:2])
+        stationtag2 = int(other.id[1])
+
+        outbool = None
+
+        if monthtag <= monthtag2:
+
+            if daytag == daytag2:
+                if stationtag < stationtag2:
+                    outbool = True
+
+            if daytag < daytag2:
+                outbool = True
+
+            else:
+                outbool = False
+        else:
+            outbool = False
+        return  outbool
+
+    def __rpr__(self):
+        return f'Station {self.id[1]} on date {self.date}'
+
+    def __str__(self):
+        return f'Station {self.id[1]} on date {self.date}'
 
     def count_per_type(self):
 
-        positive_plate = 0
-        positive_screen = 0
-        plate_av = 0
-        screen_av = 0
-        total_screen = 0
-        total_plate = 0
+        isos = [i[0] for i in self.lt_joined.values()]
 
-
-
-        for isotherm in self.lt_isotherms: # type: LtIsotherm
+        for isotherm in isos: # type: LtIsotherm
 
             p_max = isotherm.get_maximum_pressure()
 
             if isotherm.type == "p":
 
-                if p_max > 2:
-                    positive_plate += 1
+                if 72 > p_max > 2:
+                    self.stats["positive_plate"] += 1
 
-                total_plate += 1
-                plate_av += p_max
+                self.stats["total_plate"] += 1
+                self.stats["plate_av"] += p_max
 
             elif isotherm.type[0] == "s":
 
-                if p_max > 2:
-                    positive_screen += 1
+                if 72 > p_max > 2:
+                    self.stats["positive_screen"] += 1
 
-                total_screen += 1
-                screen_av += p_max
+                self.stats["total_screen"] += 1
+                self.stats["screen_av"] += p_max
 
-            screen_av /= total_screen
-            plate_av /= total_plate
+        self.stats["total"] = (self.stats["total_screen"] + self.stats["total_plate"])
 
+        try:
+            self.stats["total_av"] = (self.stats["screen_av"]+self.stats["plate_av"])/self.stats["total"]
+        except ZeroDivisionError:
+            pass
+        try:
+            self.stats["screen_av"] /= self.stats["total_screen"]
+        except ZeroDivisionError:
+            pass
+        try:
+            self.stats["plate_av"] /= self.stats["total_plate"]
+        except ZeroDivisionError:
+            pass
+        try:
+            self.stats["percent_screen"] = self.stats["positive_screen"]/self.stats["total_screen"]*100
+        except ZeroDivisionError:
+            pass
+        try:
+            self.stats["percent_plate"] = self.stats["positive_plate"] / self.stats["total_plate"] * 100
+        except ZeroDivisionError:
+            pass
+        try:
+            self.stats["total_percent"] = (self.stats["positive_screen"]+self.stats["positive_plate"])/self.stats["total"]*100
+        except ZeroDivisionError:
+            pass
 
+    def join_samples(self):
 
+        for isotherm in self.lt_isotherms:
 
+            if isotherm.create_sample_hash() not in self.lt_joined:
+                self.lt_joined[isotherm.create_sample_hash()] = [isotherm]
+            else:
+                self.lt_joined[isotherm.create_sample_hash()].append(isotherm)
 
+        for isolist in self.lt_joined.values():
+            isolist.sort(reverse=True)
 
+    def print_stats(self):
+
+        for item in self.stats:
+            s = f'{item} : {self.stats[item]}\n'
+            print(s)
 
 
 def scatter_maxpressure_day(isothermlist):
@@ -1136,7 +1252,8 @@ def plot_per_sample(isothermlist):
             print("Already processed!")
 
 
-def sfg_pub_plot(speclist, title="default"):
+def sfg_pub_plot(speclist, title="default", normalized="false"):
+    """Produces a pre-formatted SFG plot from a list of SFG spectrum objects"""
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -1147,8 +1264,12 @@ def sfg_pub_plot(speclist, title="default"):
     counter = 0
     for spectrum in speclist:
         eff_alpha = 0.75+inc*counter
-        ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
-                alpha=eff_alpha, label=spectrum.name.full_name)
+        if normalized == "false":
+            ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
+                    alpha=eff_alpha, label=spectrum.name.full_name)
+        elif normalized == "true":
+            ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="o", markersize=3,
+                    alpha=eff_alpha, label=spectrum.name.full_name)
         counter +=1
 
     size = fig.get_size_inches()
@@ -1157,8 +1278,34 @@ def sfg_pub_plot(speclist, title="default"):
     fig.tight_layout()
     return fig
 
+def sfg_stack_plot(speclist):
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
+    ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
+    ax.set_yticks([])
+    ax.set_yticklabels([])
+
+    inc = 0.25 / len(speclist)
+    counter = 0
+    offset = 0
+    for spectrum in speclist:
+        eff_alpha = 0.75 + inc * counter
+        ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest()+offset, linewidth=1.5, marker="o", markersize=3,
+                alpha=eff_alpha, label=spectrum.name.full_name)
+        counter += 1
+        offset += 0.2
+
+    size = fig.get_size_inches()
+    ratio = size[0] / size[1]
+    fig.set_size_inches(3.2 * ratio, 3.2)
+    fig.tight_layout()
+    return fig
+
+
 
 def finalize_figure(fig, title="test2"):
+    """Makes figures publication-ready and exports them as pdf. Takes the title for the output file as argument"""
     size = fig.get_size_inches()
     ratio = size[0] / size[1]
     fig.set_size_inches(3.2 * ratio, 3.2)
@@ -1166,92 +1313,72 @@ def finalize_figure(fig, title="test2"):
     fig.savefig(title + ".pdf", dpi=600)
 
 
+def lt_plot_stats(S):
+    """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
+    isotherms"""
+    S.collect_stations()
+    S.match_to_stations()
+    S.get_station_numbers()
+
+    for s in S.stations.values():
+        s.join_samples()
+        s.count_per_type()
+
+    fig, ax1 = plt.subplots()
+    ax1.set_xlabel("station number")
+    ax1.set_ylabel("average surface pressure/ mN/m")
+
+    ax2 = ax1.twinx()
+
+    days = [i for i in range(1, 15)]
+    ax3 = ax1.twiny()
+    ax3.set_xlabel("day of cruise")
+    ax3.xaxis.set_ticks_position("bottom")
+    ax3.xaxis.set_label_position("bottom")
+    ax3.spines["bottom"].set_position(("axes", -0.25))
+
+    ax2.set_ylabel("positive samples/ percent")
+    ax1.set_title("Surfactant occurence in GasEx 1 (June '18), \nmeasured by Langmuir Trough\n\n\n")
+    ax1.grid(True)
+
+    p_percentages = []
+    s_percentages = []
+    t_percentages = []
+
+    for s in S.stations.values():
+        station = s.station_number
+        av_s = s.stats["screen_av"]
+        av_p = s.stats["plate_av"]
+        av_t = s.stats["total_av"]
+        ax1.scatter(station, av_p, color="green")
+        ax1.scatter(station, av_s, color="blue")
+
+        ax3.scatter(s.cruise_day, av_p, s=0)
+        # ax1.scatter(station, av_t, color="red")
+        s_percentages.append([station, s.stats["percent_screen"]])
+        p_percentages.append([station, s.stats["percent_plate"]])
+        t_percentages.append([station, s.stats["total_percent"]])
+
+    rects1 = ax2.bar([a[0] - 0.2 for a in p_percentages], [a[1] for a in p_percentages], alpha=0.45, width=0.2,
+                     color="g", label="plate")
+    rects2 = ax2.bar([a[0] for a in s_percentages], [a[1] for a in s_percentages], alpha=0.45, width=0.2, color="b",
+                     label="screen")
+    rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, width=0.2,
+                     color="r", label="total")
+
+    ax2.legend()
+    plt.tight_layout()
+    plt.show()
+
+
 
 
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
-q = S.lt_manager # type: LtManager
+S.collect_stations()
+S.match_to_stations()
+S.get_station_numbers()
 
-
-#S.get("su BX12")
-#d = S.match_same_measurements()
-#sfg_pub_plot(S.subset[0:1])
-
-# sfg_pub_plot(S.subset)
-# counter = 0
-# for speclist in d.values():
-#
-#     if len(speclist) > 1:
-#
-#         sfg_pub_plot(speclist, title=str(counter))
-#         plt.cla()
-#         counter += 1
-# for day in S.lt_manager.days:
-#     for station in S.lt_manager.ordered_days[day]:
-#         for typ in S.lt_manager.ordered_days[day][station]:
-#            t = S.lt_manager.ordered_days[day][station][typ]
-#            t.sort(key=lambda x: x.get_maximum_pressure(), reverse=True)
-#            to_plot.append(t[0])
-#            print(t[0])
-
-to_plot = []
-fix, ax1 = plt.subplots()
-ax1.set_xlabel("day of cruise")
-ax1.set_ylabel("average surface pressure/ mN/m")
-ax2 = ax1.twinx()
-ax2.set_ylabel("positive samples/ percent")
-ax1.set_title("Surfactant occurence in GasEx 1 (June '18), \nmeasured by Langmuir Trough")
-ax1.grid(True)
-day_percent = []
-for daylist in q.days.values():
-
-    average = 0
-    positive = 0
-    negative = 0
-    s = set([i.create_sample_hash() for i in daylist])
-    count=(len(s))
-
-    for isotherm in daylist:
-            print(isotherm.type)
-            max_pres = isotherm.get_maximum_pressure()
-            average += max_pres
-
-            if max_pres < 2:
-                negative += 1
-            elif max_pres > 2 < 70:
-                positive += 1
-                print(max_pres)
-
-    average/=len(daylist)
-    ratio = (positive/len(daylist))*100
-    day_percent.append((isotherm.day, ratio, count))
-    p=ax1.scatter(isotherm.day, average, color="green", s=72)
-
-
-#ax1.legend(handles=legend_elements, scatterpoints=1).draggable()
-rects = ax2.bar([a[0] for a in day_percent],[a[1] for a in day_percent], alpha=0.45)
-
-for rect, day in zip(rects, day_percent):
-    height = rect.get_height()
-    width = rect.get_width()
-    ax2.text(rect.get_x()+0.4*width, rect.get_y()+height*0.4, str((day[2])), color="blue")
-
-
-ax2.axhline(50, color="red", alpha=0.4, antialiased=True,linewidth=2)
-ax1.legend((p,), ["average surface pressure"], scatterpoints=1)
-ax2.set_yticks([0, 25, 50, 75, 100])
-plt.show()
-
-
-
-
-
-
-#scatter_maxpressure_day(to_plot)
-
-
-
-#plot_vs_time(to_plot)
 
 
 

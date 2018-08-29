@@ -59,3 +59,50 @@ p = np.absolute(p + p2) ** 2
 plt.plot(testarray, p ** 2)
 
 plt.show()
+
+#bar plot safe
+to_plot = []
+fix, ax1 = plt.subplots()
+ax1.set_xlabel("day of cruise")
+ax1.set_ylabel("average surface pressure/ mN/m")
+ax2 = ax1.twinx()
+ax2.set_ylabel("positive samples/ percent")
+ax1.set_title("Surfactant occurence in GasEx 1 (June '18), \nmeasured by Langmuir Trough")
+ax1.grid(True)
+day_percent = []
+for daylist in q.days.values():
+
+    average = 0
+    positive = 0
+    negative = 0
+    s = set([i.create_sample_hash() for i in daylist])
+    count=(len(s))
+
+    for isotherm in daylist:
+            max_pres = isotherm.get_maximum_pressure()
+            average += max_pres
+
+            if max_pres < 2:
+                negative += 1
+            elif max_pres > 2 < 70:
+                positive += 1
+
+    average/=len(daylist)
+    ratio = (positive/len(daylist))*100
+    day_percent.append((isotherm.day, ratio, count))
+    p=ax1.scatter(isotherm.day, average, color="green", s=72)
+
+
+#ax1.legend(handles=legend_elements, scatterpoints=1).draggable()
+rects = ax2.bar([a[0] for a in day_percent],[a[1] for a in day_percent], alpha=0.45)
+
+for rect, day in zip(rects, day_percent):
+    height = rect.get_height()
+    width = rect.get_width()
+    ax2.text(rect.get_x()+0.4*width, rect.get_y()+height*0.4, str((day[2])), color="blue")
+
+
+ax2.axhline(50, color="red", alpha=0.4, antialiased=True,linewidth=2)
+ax1.legend((p,), ["average surface pressure"], scatterpoints=1)
+ax2.set_yticks([0, 25, 50, 75, 100])
+plt.show()
