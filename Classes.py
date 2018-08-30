@@ -1,9 +1,14 @@
+#module-internal imports
 from new_gui import run_app, run_lt_app
+
+#standard utilities
 import os
 import shutil
 import csv
 import time
 import datetime
+
+#scientific libraries
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -22,8 +27,10 @@ rcParams['mathtext.default'] = 'regular'
 
 
 class SfgSpectrum:
+    """The SFG spectrum class is the foundation of all analysis and plotting tools. It contains a class
+    SystematicName (or a derived class) which carries most of the metainformation. Besides holding the
+    experimental data, it gives access to a variety of functions like normalization, peak picking etc."""
     # magic methods
-
     def __init__(self, wavenumbers, intensity, ir_intensity, vis_intensity, SystematicName):
         self.wavenumbers = wavenumbers
         self.raw_intensity = intensity
@@ -320,8 +327,11 @@ class SfgSpectrum:
                +str(self.name.sample_number)+self.name.comment
 
 
-# noinspection PyMissingConstructor
+
 class AddedSpectrum(SfgSpectrum):
+    """The result of the addition of two SFG spectra constructed by averaging over datapoints which are shared
+    by the spectra. Note: If only one of the two spectra has the datapoint, it will be in the result spectrum with
+    the same intensity value like in the original"""
     def __init__(self, wn_intenstup, name):
         self.wavenumbers = wn_intenstup[0]
         self.normalized_intensity = wn_intenstup[1]
@@ -389,8 +399,9 @@ class AddedSpectrum(SfgSpectrum):
             return Added
 
 
-# noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck
 class SystematicName:
+    """A class extracting metainformation from the string filename and storing it in rather self-explanatory
+    variables.(eg date of measurement, type of surfactant...)"""
 
     def __init__(self, namestring, creation_time="unknown"):
 
@@ -539,6 +550,8 @@ class SystematicName:
 
 
 class SystematicGasExName(SystematicName):
+    """Special modification of the systematic name in order to fit the requirements for the GasEx
+    cruise samples from June and September 2018"""
 
     def __init__(self, namestring, creation_time="unknown"):
 
@@ -575,9 +588,9 @@ class AddedName(SystematicName):
 
 
 class Analyzer:
-    """This class takes, what a surprise, a list of SFG spectra as constructor argument. Its purpose
+    """This class takes, a list of SFG spectra as constructor argument. Its purpose
     is to perform analytical tasks with the spectral data, e.g. compare peaks, integral, datapoints
-    and will be extendet to handle statistics in the future"""
+    and will be extended to handle statistics in the future"""
 
     def __init__(self, speclist):
         self.speclist = speclist
@@ -675,6 +688,8 @@ class SessionControlManager:
     and produce plots efficiently. Designed to work with a sqllite database containing the spectral raw data. Especially
     useful from interactive python environments (eg IPy)."""
 
+    # setup methods
+    # todo: sort the functions under categories, now it is a mess!
     def __init__(self, database, id):
 
         self.db = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
@@ -699,6 +714,7 @@ class SessionControlManager:
         self.gasex_included = False
 
     def get_senssurf_names(self):
+        """Loads allowed names of surfactants and sensitizers from the control file"""
 
         with open("name_info/Surfactants.txt", "r") as infile:
             for line in infile:
@@ -716,6 +732,7 @@ class SessionControlManager:
                 self.Makros[collect[0]] = collect[1].strip()
 
     def retranslate_name(self, stri):
+        """Extracts name information from the string, returning the full name of the substance abbreviation"""
 
         if stri in self.Surfactants:
             return self.Surfactants[stri]
@@ -726,7 +743,12 @@ class SessionControlManager:
         else:
             print("Retranslation failed. Unknown expression.")
 
+    # database methods
+
     def fetch_single(self, number, condition3=None, condition4=None, default_data=True):
+        """Fetches the data of a single SFG spectrum from the database. Returns an SfgSpectrum object. The
+        conditional parameters allow a selection of the spectrum according to specified properties. The
+        default_data kwarg controlls which database the spectrum should be extracted from."""
 
         if default_data == True:
             database = self.table
@@ -759,12 +781,9 @@ class SessionControlManager:
 
         return spec
 
-    def clean(self):
-
-        self.cur.close()
-        self.db.close()
-
     def general_fetch(self, condition_1, condition_2, default_data=True):
+        """A function to fetch spectra from the database according to specified match criteria.
+        The default_data kwarg controlls the datatable that is used."""
 
         if default_data == True:
             database = "sfg_database"
@@ -781,7 +800,7 @@ class SessionControlManager:
             self.subset.append(self.fetch_single(id))
 
     def fetch_gasex_sfg(self):
-        #todo: after calling this function, refinement operations have to include the other database as well
+        """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
         command = "SELECT * from " + self.gasex_table
         self.cur.execute(command)
         for item in self.cur.fetchall():
@@ -792,6 +811,9 @@ class SessionControlManager:
         self.gasex_included = True
 
     def general_refine(self, condition1, condition2, default_data=True):
+        """Refinement of the actual subset by applying further match criteria. This is the
+        actual implementation of the get method abstracting away the database access routine from the
+        user."""
         temp = []
         temp_id = []
 
@@ -811,17 +833,23 @@ class SessionControlManager:
         self.subset_ids = temp_id
 
     def plot(self):
+        """Runs an external PyQt application plotting all current spectra in the subset. The external
+        app gives access to further manual analysis functionality"""
         run_app(self.subset, self.session_id)
 
     def show(self):
+        """Prints a list of the spectra of the current subset including their subset index by which they
+        can be accessed easily"""
         for i,spectrum in enumerate(self.subset):
             print(str(i)+" "+str(spectrum))
 
     def clear(self):
+        """Deletes all spectra from the current subset"""
         self.subset = []
         self.subset_ids = []
 
     def get(self, flagstring, ref=False):
+        """Fetches spectra according to the desired properties and adds them to the subset"""
         t = self.flagstring_split(flagstring)
 
         if t[0] == "su" or t[0] == "se":
@@ -838,6 +866,7 @@ class SessionControlManager:
             self.general_fetch(t[0], "\""+t[1]+".sfg"+"\"")
 
     def ref(self, flagstring):
+        """Refines the current subset by applying further match criteria"""
         self.get(flagstring, ref=True)
 
     def flagstring_split(self, flagstring):
@@ -847,6 +876,7 @@ class SessionControlManager:
         return f
 
     def rec(self):
+        """A recover function that resets the subset to the state before the last refinement or keep call"""
         self.subset = self.recover
         self.subset_ids = self.recover_ids
 
@@ -878,6 +908,9 @@ class SessionControlManager:
         self.subset_ids = new_indexlist
 
     def set_lt_manager(self):
+        """Creates a LtManager object to give access to analysis tools for Langmuir trough isotherms besides
+        the built-in SFG functionality. It can be seen as an add-in to the SessionControlManager to extend
+        his capabilities."""
 
         self.lt_manager = LtManager(self.db)
 
@@ -898,6 +931,10 @@ class SessionControlManager:
         return out
 
     def collect_stations(self):
+        """Creates Station objects from the station information of the currently available isotherms and
+        spectra. This helps to keep track of the set of samples taken within one GasEx sampling station"""
+        # todo: include SFG stations here as well as in the match to station function
+        # todo: include error handling (LtManager defined?)
         stations = []
         for isotherm in self.lt_manager.isotherms:
 
@@ -907,6 +944,9 @@ class SessionControlManager:
         self.stations = {s.name: s for s in stations}
 
     def match_to_stations(self):
+        """Matches the LtIsotherms in the LtManager to the generated station list. The
+        stations attribute of the SessionControllManager is a dictionary with the station names
+        as keys and a list with LtIsotherms matching the station as value"""
 
         for isotherm in self.lt_manager.isotherms:
 
@@ -918,6 +958,7 @@ class SessionControlManager:
                     self.stations[spectrum.name.station].sfg_spectra.append(spectrum)
 
     def get_station_numbers(self):
+        """Traverse the stations and assign them a number in chronological order (1-n)"""
 
         stations = [i for i in self.stations.values()]
         stations.sort()
@@ -926,7 +967,7 @@ class SessionControlManager:
 
 
 class LtIsotherm:
-    """A class to represent experimantal Langmuir trough isotherms, handling time, area, area per molecule and
+    """A class to represent experimental Langmuir trough isotherms, handling time, area, area per molecule and
     surface pressure"""
 
     def __init__(self, *args):
@@ -963,7 +1004,7 @@ class LtIsotherm:
             return True
 
     def get_day(self, string):
-
+        """Extract the day from the isotherm name. LT_0611_r1_p_1_#1 would yield 11 as day (the 11th of June)"""
         if len(string) == 4:
             day = string[2:]
         else:
@@ -974,6 +1015,7 @@ class LtIsotherm:
         return day
 
     def process_name(self):
+        """Function to extract metainformation from the filename"""
         temp = self.name.split("_")
         self.day = self.get_day(temp[1])
         self.long_day = temp[1]
@@ -988,6 +1030,8 @@ class LtIsotherm:
             print(self.name+ " has not a defined compression speed!")
 
     def drop_ascii(self):
+        """Drops an ascii file with semikolon-separated data in the form time;area;surface pressure. Intention
+        is easy interfacing with external software like Excel or Origin"""
 
         with open(self.name+".out", "w") as outfile:
 
@@ -995,7 +1039,8 @@ class LtIsotherm:
                 outfile.write(str(a)+";"+str(b)+";"+str(c)+"\n")
 
     def get_maximum_pressure(self, shrinked=None):
-
+        """Returns the maximum measured surface pressure. Note: This property is uesd for the less-then
+        operator implementation of this class!"""
         if shrinked == None:
             return np.max(self.pressure)
         else:
@@ -1006,18 +1051,28 @@ class LtIsotherm:
                 raise TypeError("Can not calc maximum for this operand")
 
     def derive_pressure(self):
+        """Calculates the difference quotient of the surface pressure with respect to the area.
+        Useful for calculation of surface elasticity"""
         return np.diff(self.pressure)/np.diff(self.area)
 
     def same_sample(self, other):
+        """Checks wether two isotherms belong to the same sample. This is the case if the same sample
+        is measured several times in a row. Returns a bool."""
         if self.create_sample_hash() == other.create_sample_hash():
             return True
         else:
             return False
 
     def create_sample_hash(self):
+        """Creates a string which identifies the sample by the day, station and type. All isotherms
+        from the same station taken by the same method (plate or screen or CTD) will therefore yield
+        the same sample_hash. This is usually used to match samples together"""
         return str(self.day)+self.station+self.type+str(self.number)
 
     def create_pointlist(self, x_array):
+        """Returns a list containing the index, the x_array (usually area or time) and the surface pressure.
+        This is used for example by the GUI functions to find the closest datapoint to a mouse-defined position
+        in the plot"""
 
         output = []
         for i, (a, b) in enumerate(zip(x_array, self.pressure)):
@@ -1025,12 +1080,15 @@ class LtIsotherm:
         return output
 
     def get_slice(self, x_array, lower, upper):
+        """Returns a slice of the x_array (usually time or area) defined by the lower and upper integer
+        index."""
 
         x_out = x_array[lower:upper+1]
         y_out = self.pressure[lower:upper+1]
         return x_out, y_out
 
     def calculate_elasticity(self):
+        """Returns the surface elasticity of the isotherm"""
 
         xdata = self.area[::-1]
         ydata = self.pressure[::-1]
@@ -1046,11 +1104,13 @@ class LtIsotherm:
         return np.array(out[::-1])
 
     def smooth(self):
+        """Performs a smooth operation of the measured pressure involving a Savitzky-Golay-filter"""
         return savgol_filter(self.pressure, 9, 5)
 
 
 class LtManager:
-    """A class to perform operations on a set of LtIsotherm objects"""
+    """A class to perform operations on a set of LtIsotherm objects. It is an extension to the SessionControllManager
+    to extend his features with isotherm handling. It relies on sqlite databases as well."""
 
     def __init__(self, database, table="lt_gasex"):
 
@@ -1067,7 +1127,7 @@ class LtManager:
         self.join_same_measurement()
 
     def get_all_isotherms(self):
-
+        """Fetches all isotherm data from the database and transforms them to LtIsotherm objects."""
         command="SELECT * from "+self.table
         self.cursor.execute(command)
         result = self.cursor.fetchall()
@@ -1076,6 +1136,7 @@ class LtManager:
             self.isotherms.append(lt)
 
     def get_days(self):
+        """Extract the days on which the samples were taking from the isotherms."""
         days = []
         for isotherm in self.isotherms:
             if isotherm.day not in days:
@@ -1083,11 +1144,15 @@ class LtManager:
         return days
 
     def join_days_isotherms(self):
+        """Matches the isotherms to the days of measurement, storing this mapping as a dictionary
+        in the days attribute."""
 
         days = self.get_days()
         self.days = {i: [j for j in self.isotherms if j.day == i] for i in days}
 
     def order_by_sample(self):
+        """Matches isotherms to a certain sample, ensuring that all consecutive measurements of
+        the same sample are stored together."""
 
         for item in self.days:
             stations = []
@@ -1108,18 +1173,19 @@ class LtManager:
                 self.ordered_days[day][station] = {i: [j for j in self.ordered_days[day][station] if j.type == i] for i in types}
 
     def join_same_measurement(self):
+        """Stores information about the other measurements of a single sample in the isotherms partner
+        attribute."""
         for i, isotherm in enumerate(self.isotherms):
 
             for isotherm2 in self.isotherms[i+1:]:
                 if isotherm.same_sample(isotherm2) and isotherm2 not in isotherm.partners:
                     isotherm.partners.append(isotherm2)
 
-    #def plot(self, session_id):
-        #run_lt_app(self.isotherms, session_id)
+
 
 
 class Station:
-    """A class carrying all information and data for a given cruise station"""
+    """A class carrying all information and data for a given cruise station, especially SFG and isotherms"""
 
     def __init__(self, name):
 
@@ -1145,6 +1211,7 @@ class Station:
         }
 
     def __lt__(self, other):
+        """Determines which of two stations took place earlier."""
 
         daytag = int(self.name.split("_")[0][2:])
         monthtag = int(self.name.split("_")[0][0:2])
@@ -1178,6 +1245,12 @@ class Station:
         return f'Station {self.id[1]} on date {self.date}'
 
     def count_per_type(self):
+        """Counts the occurence of plate and screen samples as well as how many of those are positive
+        with respect to surfactants (high surface pressure in Langmuir trough measurement). Stores all the
+        statistical information in the stats dictionary."""
+
+        # todo: handle CTD samples!
+        # todo: implement a similar sample for SFG
 
         isos = [i[0] for i in self.lt_joined.values()]
 
@@ -1229,6 +1302,8 @@ class Station:
             pass
 
     def join_samples(self):
+        """Joins Langmuir trough measurements of the same sample. Much more comprehensive than
+        the approach in the LtManager."""
 
         for isotherm in self.lt_isotherms:
 
@@ -1241,13 +1316,17 @@ class Station:
             isolist.sort(reverse=True)
 
     def print_stats(self):
+        """Formatted output of the stations stats, calculated from the LtIsotherms belonging to the
+        station."""
 
         for item in self.stats:
             s = f'{item} : {self.stats[item]}\n'
             print(s)
 
-
+# top-level plot functions
 def scatter_maxpressure_day(isothermlist):
+    """Create a scatter plot (day of cruise vs. maximum surface pressure) of the LtIsotherms
+    provided in the isothermlist."""
     for isotherm in isothermlist:
 
         if isotherm.type == "p":
@@ -1276,6 +1355,7 @@ def scatter_maxpressure_day(isothermlist):
 
 
 def plot_vs_time(isothermlist):
+    """Plots surface pressure vs time for each of the LtIsotherms provided in isothermlist."""
     for i in isothermlist:
         plt.plot(i.time, i.pressure)
 
@@ -1286,6 +1366,9 @@ def plot_vs_time(isothermlist):
 
 
 def plot_per_sample(isothermlist):
+
+    """Matches the items provided in the list of LtIsotherms according to their samples and exports all
+     plots of a sample as pdf."""
 
     hashes = []
     for isotherm in isothermlist:
@@ -1340,6 +1423,7 @@ def sfg_pub_plot(speclist, title="default", normalized="false"):
 
 
 def sfg_stack_plot(speclist):
+    """Stacks the provided SfgSpectrum objects after normalizing them to 1 internally."""
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     ax.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
@@ -1365,6 +1449,7 @@ def sfg_stack_plot(speclist):
 
 
 def sfg_doublestack_plot(speclist1, speclist2):
+    """Two stacked-by-offset plots, one on the bottom, on on the top of the figure."""
 
     fig = plt.figure()
     ax = fig.add_subplot(111)

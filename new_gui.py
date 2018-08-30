@@ -106,6 +106,7 @@ class MyStaticMplCanvas(MyMplCanvas):
 
 
 class LtCanvas(MyMplCanvas):
+    """The graphical represantion of the LtIsotherm plot to be embedded in the Qt window."""
 
     def init_axes(self,title="default"):
         self.axes.grid()
@@ -118,6 +119,7 @@ class LtCanvas(MyMplCanvas):
 
 
 class UiWindow(QtWidgets.QMainWindow, Ui_MainWindow):
+    """The window to handle SFG plots."""
 
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self)
@@ -136,6 +138,7 @@ class UiWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
 class LtWindow(QtWidgets.QMainWindow, LtW):
+    """The GUI to handle Langmuir trough isotherms."""
 
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self)
