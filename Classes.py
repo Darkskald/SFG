@@ -400,7 +400,6 @@ class SystematicName:
             with open(self.refpath+"Surfactants.txt") as outfile:
                 pass
         except FileNotFoundError:
-            print("change dir")
             self.refpath = "../name_info/"
 
         self.creation_time = creation_time
@@ -539,6 +538,33 @@ class SystematicName:
         return (year, month, day)
 
 
+class SystematicGasExName(SystematicName):
+
+    def __init__(self, namestring, creation_time="unknown"):
+
+        self.full_name = namestring
+        self.name = self.full_name[:-4]
+        self.creation_time = creation_time
+
+        temp = self.name.split("_")
+
+        if len(temp) > 3:
+            self.date = temp[0]
+            self.station = temp[1]+"_"+temp[2]
+            self.type = temp[3]
+            try:
+                self.number = temp[4]
+
+            except IndexError:
+                self.number = 1
+
+
+        else:
+            self.name.date = temp[0]
+            self.station = temp[1] + "_" + temp[2]
+            self.type = temp[3][0]
+
+
 class AddedName(SystematicName):
     """This class is derived from the SfgSpectrum and represents the result of the addition of Sfg intensities."""
     def __init__(self,names,sensitizers,surfactants):
@@ -654,6 +680,7 @@ class SessionControlManager:
         self.db = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
         self.cur = self.db.cursor()
         self.table = "sfg_database"
+        self.gasex_table = "sfg_gasex"
         self.session_id = id
         self.Surfactants = {}
         self.Sensitizers = {}
@@ -669,6 +696,7 @@ class SessionControlManager:
 
         self.recover_ids = []
         self.recover = []
+        self.gasex_included = False
 
     def get_senssurf_names(self):
 
@@ -698,9 +726,14 @@ class SessionControlManager:
         else:
             print("Retranslation failed. Unknown expression.")
 
-    def fetch_single(self, number, condition3=None, condition4=None):
+    def fetch_single(self, number, condition3=None, condition4=None, default_data=True):
 
-        command = "SELECT * FROM "+self.table+" WHERE ROWID="+str(number)
+        if default_data == True:
+            database = self.table
+        else:
+            database = self.gasex_table
+
+        command = "SELECT * FROM "+database+" WHERE ROWID="+str(number)
 
         if condition3 is not None:
             command += " AND "+str(condition3)+"="+str(condition4)
@@ -711,7 +744,12 @@ class SessionControlManager:
 
         creationtime = result[2]
 
-        sysname = SystematicName(result[1], creationtime)
+        if default_data == True or "DPPC" in result[1]:
+            sysname = SystematicName(result[1], creationtime)
+
+        else:
+            sysname = SystematicGasExName(result[1], creationtime)
+
         wavenumber = np.array(result[-7].split(";")).astype(np.float)
         sfg = np.array(result[-6].split(";")).astype(np.float)
         ir = np.array(result[-5].split(";")).astype(np.float)
@@ -726,7 +764,14 @@ class SessionControlManager:
         self.cur.close()
         self.db.close()
 
-    def general_fetch(self, condition_1, condition_2, database="sfg_database"):
+    def general_fetch(self, condition_1, condition_2, default_data=True):
+
+        if default_data == True:
+            database = "sfg_database"
+
+        else:
+            database ="sfg_gasex"
+
         command = "SELECT * from " + database + " WHERE "+condition_1+"="+condition_2
         self.cur.execute(command)
         keys = []
@@ -735,14 +780,25 @@ class SessionControlManager:
             self.subset_ids.append(id)
             self.subset.append(self.fetch_single(id))
 
-    def general_refine(self, condition1, condition2):
+    def fetch_gasex_sfg(self):
+        #todo: after calling this function, refinement operations have to include the other database as well
+        command = "SELECT * from " + self.gasex_table
+        self.cur.execute(command)
+        for item in self.cur.fetchall():
+            id = item[0]
+            self.subset_ids.append(id)
+            self.subset.append(self.fetch_single(id, default_data=False))
+
+        self.gasex_included = True
+
+    def general_refine(self, condition1, condition2, default_data=True):
         temp = []
         temp_id = []
 
         for id in self.subset_ids:
 
             try:
-                s = self.fetch_single(id, condition1, condition2)
+                s = self.fetch_single(id, condition1, condition2, default_data)
                 temp.append(s)
                 temp_id.append(id)
             except IndexError:
@@ -753,10 +809,6 @@ class SessionControlManager:
 
         self.subset = temp
         self.subset_ids = temp_id
-
-    def recovery(self):
-        self.subset = self.recover
-        self.subset_ids = self.recover_ids
 
     def plot(self):
         run_app(self.subset, self.session_id)
@@ -771,14 +823,19 @@ class SessionControlManager:
 
     def get(self, flagstring, ref=False):
         t = self.flagstring_split(flagstring)
-        print(t)
+
         if t[0] == "su" or t[0] == "se":
             condition1 = self.retranslate_name(t[0])
             condition2 = "\""+self.retranslate_name(t[1])+"\""
             if ref is False:
                 self.general_fetch(condition1, condition2)
+                self.general_fetch(condition1, condition2, default_data=self.gasex_included)
             if ref is True:
                 self.general_refine(condition1, condition2)
+                self.general_refine(condition1, condition2, default_data=self.gasex_included)
+
+        elif t[0] == "name":
+            self.general_fetch(t[0], "\""+t[1]+".sfg"+"\"")
 
     def ref(self, flagstring):
         self.get(flagstring, ref=True)
@@ -787,9 +844,7 @@ class SessionControlManager:
         """This function processes the given flagstring and returns a list of SFG objects
         which are passed through the Finder methods utilizing the flags and options"""
         f = flagstring.split(" ")
-        flag = f[0]
-        options = f[1]
-        return (flag, options)
+        return f
 
     def rec(self):
         self.subset = self.recover
@@ -856,6 +911,11 @@ class SessionControlManager:
         for isotherm in self.lt_manager.isotherms:
 
             self.stations[isotherm.long_station].lt_isotherms.append(isotherm)
+
+        if self.gasex_included == True:
+            for spectrum in self.subset:
+                if type(spectrum.name) == SystematicGasExName:
+                    self.stations[spectrum.name.station].sfg_spectra.append(spectrum)
 
     def get_station_numbers(self):
 
@@ -1278,6 +1338,7 @@ def sfg_pub_plot(speclist, title="default", normalized="false"):
     fig.tight_layout()
     return fig
 
+
 def sfg_stack_plot(speclist):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -1302,6 +1363,53 @@ def sfg_stack_plot(speclist):
     fig.tight_layout()
     return fig
 
+
+def sfg_doublestack_plot(speclist1, speclist2):
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax1 = fig.add_subplot(211)
+    ax2 =fig.add_subplot(212)
+    ax2.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
+    ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
+
+    ax.spines['top'].set_color('none')
+    ax.spines['bottom'].set_color('none')
+    ax.spines['left'].set_color('none')
+    ax.spines['right'].set_color('none')
+    ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
+
+    ax2.set_yticks([])
+    ax2.set_yticklabels([])
+    ax1.set_yticks([])
+    ax1.set_yticklabels([])
+
+    inc = 0.25 / len(speclist1)
+    counter = 0
+    offset = 0
+    for spectrum in speclist1:
+        eff_alpha = 0.75 + inc * counter
+        ax1.plot(spectrum.wavenumbers, spectrum.normalize_to_highest()+offset, linewidth=1.5, marker="o", markersize=3,
+                alpha=eff_alpha, label=spectrum.name.full_name)
+        counter += 1
+        offset += 0.2
+
+    inc = 0.25 / len(speclist1)
+    counter = 0
+    offset = 0
+    for spectrum in speclist2:
+        eff_alpha = 0.75 + inc * counter
+        ax2.plot(spectrum.wavenumbers, spectrum.normalize_to_highest()+offset, linewidth=1.5, marker="o", markersize=3,
+                alpha=eff_alpha, label=spectrum.name.full_name)
+        counter += 1
+        offset += 0.2
+    ax1.legend()
+    ax2.legend()
+    # size = fig.get_size_inches()
+    # ratio = size[0] / size[1]
+    # fig.set_size_inches(3.2 * ratio, 3.2)
+    # fig.tight_layout()
+    return fig
 
 
 def finalize_figure(fig, title="test2"):
@@ -1378,8 +1486,42 @@ S.set_lt_manager()
 S.collect_stations()
 S.match_to_stations()
 S.get_station_numbers()
+S.fetch_gasex_sfg()
 
+to_plot = []
 
+for spectrum in S.subset:
+    print(spectrum.name)
+    print(type(spectrum.name))
+
+f = sfg_stack_plot(to_plot)
+plt.show()
+
+# S.get("name 20180319_PA_5_x1_#1_5mM")
+# pa = S.subset[0]
+# S.clear()
+#
+# S.get("name 20180315_SA_BX12_10_x1_#2_mixedlayer1zu2mM")
+# sa_bx = S.subset[0]
+# S.clear()
+#
+# S.get("name 20180320_PA_BX12_10_x1_#1_1.5zu1.5mM")
+# pa_bx = S.subset[0]
+# S.clear()
+#
+# S.get("name 20180524_BX12_8_x2_#2_1mM")
+# bx = S.subset[0]
+# S.clear()
+#
+# S.get("name 20160316_SA_5_x1_#1_5mM")
+# sa = S.subset[0]
+# S.clear()
+#
+# stack1 = [sa, sa_bx, bx]
+# stack2 = [pa, pa_bx, bx]
+#
+# f = sfg_doublestack_plot(stack1, stack2)
+# plt.show()
 
 
 
