@@ -326,6 +326,30 @@ class SfgSpectrum:
         return self.name.date+self.name.surfactant+self.name.sensitizer+self.name.surfactant_spread_volume\
                +str(self.name.sample_number)+self.name.comment
 
+    def slice_by_borders(self, upper, lower):
+
+        diff = 10000000
+        upper_index = 0
+        lower_index = -1
+
+        for index, spectrum in enumerate(self.wavenumbers):
+
+            temp_diff = abs(upper - self.wavenumbers[index])
+            if temp_diff < diff:
+                diff = temp_diff
+                upper_index = index
+
+        diff = 10000000
+
+        for index, spectrum in enumerate(self.wavenumbers):
+
+            temp_diff = abs(lower - self.wavenumbers[index])
+            if temp_diff < diff:
+                diff = temp_diff
+                lower_index = index
+
+        return upper_index, lower_index
+
 
 
 class AddedSpectrum(SfgSpectrum):
@@ -562,8 +586,8 @@ class SystematicGasExName(SystematicName):
         temp = self.name.split("_")
 
         if len(temp) > 3:
-            self.date = temp[0]
-            self.station = temp[1]+"_"+temp[2]
+            self.measurement_date = temp[0]
+            self.station = temp[1]+"_"+temp[2][1]
             self.type = temp[3]
             try:
                 self.number = temp[4]
@@ -576,6 +600,8 @@ class SystematicGasExName(SystematicName):
             self.name.date = temp[0]
             self.station = temp[1] + "_" + temp[2]
             self.type = temp[3][0]
+
+        self.station_hash = temp[1] + "_" + temp[2][1]
 
 
 class AddedName(SystematicName):
@@ -750,7 +776,7 @@ class SessionControlManager:
         conditional parameters allow a selection of the spectrum according to specified properties. The
         default_data kwarg controlls which database the spectrum should be extracted from."""
 
-        if default_data == True:
+        if default_data is True:
             database = self.table
         else:
             database = self.gasex_table
@@ -766,16 +792,29 @@ class SessionControlManager:
 
         creationtime = result[2]
 
-        if default_data == True or "DPPC" in result[1]:
-            sysname = SystematicName(result[1], creationtime)
+        if default_data is True or "DPPC" in result[1]:
+
+            if "DPPC" not in result[1]:
+                sysname = SystematicName(result[1], creationtime)
+                wavenumber = np.array(result[-7].split(";")).astype(np.float)
+                sfg = np.array(result[-6].split(";")).astype(np.float)
+                ir = np.array(result[-5].split(";")).astype(np.float)
+                vis = np.array(result[-4].split(";")).astype(np.float)
+            else:
+                sysname = SystematicName(result[1], creationtime)
+                wavenumber = np.array(result[-4].split(";")).astype(np.float)
+                sfg = np.array(result[-3].split(";")).astype(np.float)
+                ir = np.array(result[-2].split(";")).astype(np.float)
+                vis = np.array(result[-1].split(";")).astype(np.float)
 
         else:
             sysname = SystematicGasExName(result[1], creationtime)
+            wavenumber = np.array(result[-4].split(";")).astype(np.float)
+            sfg = np.array(result[-3].split(";")).astype(np.float)
+            ir = np.array(result[-2].split(";")).astype(np.float)
+            vis = np.array(result[-1].split(";")).astype(np.float)
 
-        wavenumber = np.array(result[-7].split(";")).astype(np.float)
-        sfg = np.array(result[-6].split(";")).astype(np.float)
-        ir = np.array(result[-5].split(";")).astype(np.float)
-        vis = np.array(result[-4].split(";")).astype(np.float)
+
 
         spec = SfgSpectrum(wavenumber, sfg, ir, vis, sysname)
 
@@ -952,17 +991,23 @@ class SessionControlManager:
 
             self.stations[isotherm.long_station].lt_isotherms.append(isotherm)
 
-        if self.gasex_included == True:
-            for spectrum in self.subset:
-                if type(spectrum.name) == SystematicGasExName:
-                    self.stations[spectrum.name.station].sfg_spectra.append(spectrum)
+        # if self.gasex_included == True:
+        #     for spectrum in self.subset:
+        #         if isinstance(spectrum.name, SystematicGasExName):
+        #
+        #             try:
+        #                 self.stations[spectrum.name.station].sfg_spectra.append(spectrum)
+        #             except KeyError:
+        #                 self.stations[spectrum.name.station] = Station(spectrum.name.station)
+        #                 self.stations[spectrum.name.station].sfg_spectra.append(spectrum)
+
 
     def get_station_numbers(self):
         """Traverse the stations and assign them a number in chronological order (1-n)"""
 
         stations = [i for i in self.stations.values()]
         stations.sort()
-        for i,s in enumerate(stations):
+        for i, s in enumerate(stations):
             s.station_number = i+1
 
 
@@ -1004,7 +1049,7 @@ class LtIsotherm:
             return True
 
     def get_day(self, string):
-        """Extract the day from the isotherm name. LT_0611_r1_p_1_#1 would yield 11 as day (the 11th of June)"""
+
         if len(string) == 4:
             day = string[2:]
         else:
@@ -1023,6 +1068,7 @@ class LtIsotherm:
         self.station = temp[2]
         self.number = temp[4]
         self.long_station = self.long_day+"_"+self.station
+        self.station_hash = self.long_day+"_"+self.station[1]
 
         try:
             self.speed = temp[5]
@@ -1190,6 +1236,7 @@ class Station:
     def __init__(self, name):
 
         self.name = name
+        self.station_hash = None
         self.date, self.id = self.name.split("_")
         self.cruise_day = int(self.date[2:])-2
         self.sfg_spectra = []
@@ -1209,6 +1256,8 @@ class Station:
             "total_percent" : 0,
             "total_av" : 0,
         }
+
+        self.set_station_hash()
 
     def __lt__(self, other):
         """Determines which of two stations took place earlier."""
@@ -1243,6 +1292,10 @@ class Station:
 
     def __str__(self):
         return f'Station {self.id[1]} on date {self.date}'
+
+    def set_station_hash(self):
+        temp = self.name.split("_")
+        self.station_hash = temp[0]+"_"+temp[1][1]
 
     def count_per_type(self):
         """Counts the occurence of plate and screen samples as well as how many of those are positive
@@ -1323,7 +1376,8 @@ class Station:
             s = f'{item} : {self.stats[item]}\n'
             print(s)
 
-# top-level plot functions
+
+
 def scatter_maxpressure_day(isothermlist):
     """Create a scatter plot (day of cruise vs. maximum surface pressure) of the LtIsotherms
     provided in the isothermlist."""
@@ -1564,8 +1618,6 @@ def lt_plot_stats(S):
     plt.show()
 
 
-
-
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
 S.collect_stations()
@@ -1575,12 +1627,25 @@ S.fetch_gasex_sfg()
 
 to_plot = []
 
-for spectrum in S.subset:
-    print(spectrum.name)
-    print(type(spectrum.name))
+for isotherm in S.lt_manager.isotherms:
+    print(f'{isotherm.name}: {isotherm.station_hash}')
 
-f = sfg_stack_plot(to_plot)
-plt.show()
+for spectrum in S.subset:
+    if isinstance(spectrum.name, SystematicGasExName):
+        print(f'{spectrum.name.full_name}: {spectrum.name.station_hash}')
+
+
+for spectrum in S.subset:  # type: SfgSpectrum
+
+    if isinstance(spectrum.name, SystematicGasExName):
+        borders = spectrum.slice_by_borders(3000, 2800)
+        intensities = spectrum.raw_intensity[borders[0]:borders[1]+1]
+        max = np.max(intensities)
+        if max > 8:
+            print(spectrum.name.full_name)
+            to_plot.append(spectrum)
+
+
 
 # S.get("name 20180319_PA_5_x1_#1_5mM")
 # pa = S.subset[0]
