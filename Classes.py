@@ -84,10 +84,7 @@ class SfgSpectrum:
         if isinstance(SFG2, SfgSpectrum):
 
             names = [self.name.full_name[:-4], SFG2.name.full_name[:-4]]
-            sensitizers = [self.name.sensitizer, SFG2.name.sensitizer]
-            surfactants = [self.name.surfactant, SFG2.name.surfactant]
-
-            name = AddedName(names, sensitizers, surfactants)
+            name = AddedName(names)
             Added = AddedSpectrum((new_wavenumbers, new_intensities), name)
             return Added
 
@@ -395,10 +392,8 @@ class AddedSpectrum(SfgSpectrum):
 
         if isinstance(SFG2, SfgSpectrum):
             names = [self.name.full_name[:-4], SFG2.name.full_name[:-4]]
-            sensitizers = [self.name.sensitizer, SFG2.name.sensitizer]
-            surfactants = [self.name.surfactant, SFG2.name.surfactant]
 
-            name = AddedName(names, sensitizers, surfactants)
+            name = AddedName(names)
             Added = AddedSpectrum((new_wavenumbers, new_intensities), name)
             Added.speccounter = self.speccounter+1
             return Added
@@ -606,11 +601,8 @@ class SystematicGasExName(SystematicName):
 
 class AddedName(SystematicName):
     """This class is derived from the SfgSpectrum and represents the result of the addition of Sfg intensities."""
-    def __init__(self,names,sensitizers,surfactants):
-
+    def __init__(self,names):
         self.full_name = ("_").join(names)
-        self.sensitizer = [s for s in sensitizers]
-        self.surfactant = [s for s in surfactants]
 
 
 class Analyzer:
@@ -1255,6 +1247,9 @@ class Station:
             "screen_av": 0,
             "plate_av": 0,
             "total" : 0,
+            "std_plate": 0,
+            "std_screen": 0,
+            "std_total": 0,
             "percent_plate": 0,
             "percent_screen": 0,
             "total_percent" : 0,
@@ -1316,26 +1311,31 @@ class Station:
         # todo: implement a similar sample for SFG
 
         isos = [i[0] for i in self.lt_joined.values()]
+        plate_array = []
+        screen_array = []
 
         for isotherm in isos: # type: LtIsotherm
 
             p_max = isotherm.get_maximum_pressure()
 
-            if isotherm.type == "p":
+            if p_max < 73:
+                if isotherm.type == "p":
 
-                if 72 > p_max > 2:
-                    self.stats["positive_plate"] += 1
+                    if p_max > 2:
+                        self.stats["positive_plate"] += 1
 
-                self.stats["total_plate"] += 1
-                self.stats["plate_av"] += p_max
+                    self.stats["total_plate"] += 1
+                    self.stats["plate_av"] += p_max
+                    plate_array.append(p_max)
 
-            elif isotherm.type[0] == "s":
+                elif isotherm.type[0] == "s":
 
-                if 72 > p_max > 2:
-                    self.stats["positive_screen"] += 1
+                    if 72 > p_max > 2:
+                        self.stats["positive_screen"] += 1
 
-                self.stats["total_screen"] += 1
-                self.stats["screen_av"] += p_max
+                    self.stats["total_screen"] += 1
+                    self.stats["screen_av"] += p_max
+                    screen_array.append(p_max)
 
         self.stats["total"] = (self.stats["total_screen"] + self.stats["total_plate"])
 
@@ -1363,6 +1363,12 @@ class Station:
             self.stats["total_percent"] = (self.stats["positive_screen"]+self.stats["positive_plate"])/self.stats["total"]*100
         except ZeroDivisionError:
             pass
+        total_array = plate_array+screen_array
+
+        self.stats["std_plate"] = np.std(plate_array)
+        self.stats["std_screen"] = np.std(screen_array)
+        self.stats["std_total"] = np.std(total_array)
+
 
     def join_samples(self):
         """Joins Langmuir trough measurements of the same sample. Much more comprehensive than
@@ -1569,10 +1575,10 @@ def finalize_figure(fig, title="test2"):
     fig.tight_layout()
     fig.savefig(title + ".pdf", dpi=600)
 
-
-def lt_plot_stats(S):
+def lt_plot_stats_new(S):
     """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
     isotherms"""
+    S.fetch_gasex_sfg()
     S.collect_stations()
     S.match_to_stations()
     S.get_station_numbers()
@@ -1581,49 +1587,82 @@ def lt_plot_stats(S):
         s.join_samples()
         s.count_per_type()
 
-    fig, ax1 = plt.subplots()
+    fig, (ax1, u_ax) = plt.subplots(nrows=2, ncols=1)
     ax1.set_xlabel("station number")
     ax1.set_ylabel("average surface pressure/ mN/m")
-
     ax2 = ax1.twinx()
 
-    days = [i for i in range(1, 15)]
-    ax3 = ax1.twiny()
-    ax3.set_xlabel("day of cruise")
-    ax3.xaxis.set_ticks_position("bottom")
-    ax3.xaxis.set_label_position("bottom")
-    ax3.spines["bottom"].set_position(("axes", -0.25))
 
+    ax2.set_xlabel("day of cruise")
     ax2.set_ylabel("positive samples/ percent")
+
     ax1.set_title("Surfactant occurence in GasEx 1 (June '18), \nmeasured by Langmuir Trough\n\n\n")
     ax1.grid(True)
+
+    days = [i for i in range(1, 15)]
+    ax3 = u_ax.twiny()
+
+    ax3.xaxis.set_ticks_position("bottom")
+    ax3.xaxis.set_label_position("bottom")
+    ax3.spines["bottom"].set_position(("axes", -0.35))
+    ax3.set_xlabel("day of cruise")
+
+    u_ax.set_xlabel("station number")
+    u_ax.set_ylabel("Norm. SFG intensity/ arb.u.")
+    u_ax.grid(True)
+    u_ax.set_ylim(-0.0001, 0.0006)
+
 
     p_percentages = []
     s_percentages = []
     t_percentages = []
 
+    stations = []
+    plates = []
+    totals = []
+    screens = []
+
+    p_std = []
+    s_std = []
+    t_std = []
+
     for s in S.stations.values():
-        station = s.station_number
-        av_s = s.stats["screen_av"]
-        av_p = s.stats["plate_av"]
-        av_t = s.stats["total_av"]
-        ax1.scatter(station, av_p, color="green")
-        ax1.scatter(station, av_s, color="blue")
 
-        ax3.scatter(s.cruise_day, av_p, s=0)
-        # ax1.scatter(station, av_t, color="red")
-        s_percentages.append([station, s.stats["percent_screen"]])
-        p_percentages.append([station, s.stats["percent_plate"]])
-        t_percentages.append([station, s.stats["total_percent"]])
+        if len(s.lt_isotherms) > 0:
+            station = s.station_number
+            stations.append(station)
+            screens.append(s.stats["screen_av"])
+            plates.append(s.stats["plate_av"])
+            totals.append(s.stats["total_av"])
 
-    rects1 = ax2.bar([a[0] - 0.2 for a in p_percentages], [a[1] for a in p_percentages], alpha=0.45, width=0.2,
-                     color="g", label="plate")
-    rects2 = ax2.bar([a[0] for a in s_percentages], [a[1] for a in s_percentages], alpha=0.45, width=0.2, color="b",
-                     label="screen")
-    rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, width=0.2,
-                     color="r", label="total")
+            t_std.append(s.stats["std_total"])
+            s_std.append(s.stats["std_screen"])
+            p_std.append(s.stats["std_plate"])
+
+            ax3.scatter(s.cruise_day, s.stats["screen_av"], s=0)
+            s_percentages.append([station, s.stats["percent_screen"]])
+            p_percentages.append([station, s.stats["percent_plate"]])
+            t_percentages.append([station, s.stats["total_percent"]])
+
+        max_ins = []
+
+        for spectrum in s.sfg_spectra: # type: SfgSpectrum
+
+            station = s.station_number
+            b = spectrum.slice_by_borders(3000,2800)
+            max = np.max(spectrum.normalized_intensity[b[0]:b[1]+1])
+            max_ins.append(max)
+
+        max_ins = np.array(max_ins)
+        av = np.average(max_ins)
+        std = np.std(max_ins)
+        u_ax.errorbar(station, av, std, alpha=0.9,fmt="o", color="b", label="average",barsabove="true", capsize=5, capthick=2)
+
+    ax1.errorbar(stations, totals, yerr=t_std, fmt="o",color="r",barsabove="true", capsize=5, capthick=2)
+    rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, label="total")
 
     ax2.legend()
+    #u_ax.legend()
     plt.tight_layout()
     plt.show()
 
@@ -1659,6 +1698,8 @@ def sfg_with_lt(S):
     p_percentages = []
     s_percentages = []
     t_percentages = []
+
+
 
     for s in S.stations.values():
 
@@ -1705,7 +1746,6 @@ def sfg_with_lt(S):
 
     l1 = ["plate, SFG", "screen, SFG", "CTD, SFG"]
     h2, l2 = ax2.get_legend_handles_labels()
-    print(h2, l2)
     ax1.legend(h1 + h2, l1 + l2, loc="upper center", ncol=2).draggable()
     plt.sca(ax1)
     plt.tight_layout()
@@ -1715,8 +1755,25 @@ def sfg_with_lt(S):
 
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
+S.fetch_gasex_sfg()
+S.collect_stations()
+S.match_to_stations()
+S.get_station_numbers()
 
-sfg_with_lt(S)
+for station in S.stations.values():
+
+    try:
+        av = station.sfg_spectra[0]
+        title = station.station_hash
+
+
+        for spectrum in station.sfg_spectra[1:]:
+            av += spectrum
+    except IndexError:
+        pass
+
+    f = sfg_pub_plot([av])
+    finalize_figure(f, title=title)
 
 
 # S.get("name 20180319_PA_5_x1_#1_5mM")

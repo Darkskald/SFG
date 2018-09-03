@@ -46,6 +46,72 @@ class vibration:
         return total
 
 
+def lt_plot_stats(S):
+    """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
+    isotherms"""
+    S.collect_stations()
+    S.match_to_stations()
+    S.get_station_numbers()
+
+    for s in S.stations.values():
+        s.join_samples()
+        s.count_per_type()
+
+    fig, ax1 = plt.subplots()
+    ax1.set_xlabel("station number")
+    ax1.set_ylabel("average surface pressure/ mN/m")
+
+    ax2 = ax1.twinx()
+
+    days = [i for i in range(1, 15)]
+    ax3 = ax1.twiny()
+    ax3.set_xlabel("day of cruise")
+    ax3.xaxis.set_ticks_position("bottom")
+    ax3.xaxis.set_label_position("bottom")
+    ax3.spines["bottom"].set_position(("axes", -0.25))
+
+    ax2.set_ylabel("positive samples/ percent")
+    ax1.set_title("Surfactant occurence in GasEx 1 (June '18), \nmeasured by Langmuir Trough\n\n\n")
+    ax1.grid(True)
+
+    p_percentages = []
+    s_percentages = []
+    t_percentages = []
+
+    stations = []
+    plates = []
+    totals = []
+    screens = []
+
+    for s in S.stations.values():
+        station = s.station_number
+        av_s = s.stats["screen_av"]
+        av_p = s.stats["plate_av"]
+        av_t = s.stats["total_av"]
+
+        # ax1.scatter(station, av_p, color="green")
+        # ax1.scatter(station, av_s, color="blue")
+        ax1.errorbar(station, av_p, yerr=s.stats["std_plate"], fmt="o")
+        ax1.errorbar(station, av_s, yerr=s.stats["std_plate"], fmt="o")
+        ax1.errorbar(station, av_s, yerr=s.stats["std_total"], fmt="o")
+
+        ax3.scatter(s.cruise_day, av_p, s=0)
+        # ax1.scatter(station, av_t, color="red")
+        s_percentages.append([station, s.stats["percent_screen"]])
+        p_percentages.append([station, s.stats["percent_plate"]])
+        t_percentages.append([station, s.stats["total_percent"]])
+
+    rects1 = ax2.bar([a[0] - 0.2 for a in p_percentages], [a[1] for a in p_percentages], alpha=0.45, width=0.2,
+                     color="g", label="plate")
+    rects2 = ax2.bar([a[0] for a in s_percentages], [a[1] for a in s_percentages], alpha=0.45, width=0.2, color="b",
+                     label="screen")
+    rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, width=0.2,
+                     color="r", label="total")
+
+    ax2.legend()
+    plt.tight_layout()
+    plt.show()
+
 testarray = np.linspace(2450, 3840, 5000)
 
 v = vibration(2882., 1, 1, 0)
