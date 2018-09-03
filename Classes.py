@@ -587,7 +587,7 @@ class SystematicGasExName(SystematicName):
 
         if len(temp) > 3:
             self.measurement_date = temp[0]
-            self.station = temp[1]+"_"+temp[2][1]
+            self.station = temp[1]+"_"+temp[2]
             self.type = temp[3]
             try:
                 self.number = temp[4]
@@ -980,7 +980,7 @@ class SessionControlManager:
             temp = isotherm.long_station
             if temp not in stations:
                 stations.append(Station(temp))
-        self.stations = {s.name: s for s in stations}
+        self.stations = {s.station_hash: s for s in stations}
 
     def match_to_stations(self):
         """Matches the LtIsotherms in the LtManager to the generated station list. The
@@ -989,26 +989,30 @@ class SessionControlManager:
 
         for isotherm in self.lt_manager.isotherms:
 
-            self.stations[isotherm.long_station].lt_isotherms.append(isotherm)
+            self.stations[isotherm.station_hash].lt_isotherms.append(isotherm)
 
-        # if self.gasex_included == True:
-        #     for spectrum in self.subset:
-        #         if isinstance(spectrum.name, SystematicGasExName):
-        #
-        #             try:
-        #                 self.stations[spectrum.name.station].sfg_spectra.append(spectrum)
-        #             except KeyError:
-        #                 self.stations[spectrum.name.station] = Station(spectrum.name.station)
-        #                 self.stations[spectrum.name.station].sfg_spectra.append(spectrum)
+        if self.gasex_included == True:
+
+            for spectrum in self.subset:
+                if isinstance(spectrum.name, SystematicGasExName):
+
+                    try:
+                        self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
+                    except KeyError:
+                        self.stations[spectrum.name.station_hash] = Station(spectrum.name.station)
+                        self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
 
 
     def get_station_numbers(self):
         """Traverse the stations and assign them a number in chronological order (1-n)"""
 
         stations = [i for i in self.stations.values()]
+        for i, s in enumerate(stations):
+            print(str(i+1)+"   "+str(stations[i].name)+"\n")
         stations.sort()
         for i, s in enumerate(stations):
             s.station_number = i+1
+            print(str(i+1)+"   "+str(stations[i].name)+"\n")
 
 
 class LtIsotherm:
@@ -1278,13 +1282,14 @@ class Station:
                 if stationtag < stationtag2:
                     outbool = True
 
-            if daytag < daytag2:
+            elif daytag < daytag2:
                 outbool = True
 
             else:
                 outbool = False
         else:
             outbool = False
+
         return  outbool
 
     def __rpr__(self):
@@ -1295,7 +1300,12 @@ class Station:
 
     def set_station_hash(self):
         temp = self.name.split("_")
-        self.station_hash = temp[0]+"_"+temp[1][1]
+        try:
+            self.station_hash = temp[0]+"_"+temp[1][1]
+        except IndexError:
+            print("*"*80+"\n"+str(temp))
+            print(self.name)
+
 
     def count_per_type(self):
         """Counts the occurence of plate and screen samples as well as how many of those are positive
@@ -1618,33 +1628,95 @@ def lt_plot_stats(S):
     plt.show()
 
 
+def sfg_with_lt(S):
+    """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
+        isotherms"""
+    S.fetch_gasex_sfg()
+    S.collect_stations()
+    S.match_to_stations()
+    S.get_station_numbers()
+
+    for s in S.stations.values():
+        s.join_samples()
+        s.count_per_type()
+
+    fig, ax1 = plt.subplots()
+    ax1.set_xlabel("station number")
+    ax1.set_ylabel("norm. SFG intensity/ arb. u.")
+    ax2 = ax1.twinx()
+
+    days = [i for i in range(1, 15)]
+    ax3 = ax1.twiny()
+    ax3.set_xlabel("day of cruise")
+    ax3.xaxis.set_ticks_position("bottom")
+    ax3.xaxis.set_label_position("bottom")
+    ax3.spines["bottom"].set_position(("axes", -0.25))
+
+    ax2.set_ylabel("positive samples/ percent")
+    ax1.set_title("Surfactant occurence in GasEx 1 (June '18), \nmeasured by Langmuir Trough and SFG\n\n")
+    ax1.grid(True)
+
+    p_percentages = []
+    s_percentages = []
+    t_percentages = []
+
+    for s in S.stations.values():
+
+        station = s.station_number
+
+        for spectrum in s.sfg_spectra: # type: SfgSpectrum
+
+            b = spectrum.slice_by_borders(3000,2800)
+            max = np.max(spectrum.normalized_intensity[b[0]:b[1]+1])
+            mapping = {"p":["g","plate"],
+                       "s1":["b","screen"],
+                       "s2":["b","screen"],
+                       "s3":["b","screen"],
+                       "deep":"black",
+                       "low":"black"}
+            try:
+                ax1.scatter(station, max,alpha=0.9, color=mapping[spectrum.name.type][0], label=mapping[spectrum.name.type][1],
+                            s=60)
+            except KeyError:
+                ax1.scatter(station, max, alpha=0.9, color="black", label="CTD", s=60)
+
+
+
+        ax3.scatter(s.cruise_day, max, s=0)
+        ax1.set_ylim(0, 0.0008)
+        #ax1.legend()
+
+        s_percentages.append([station, s.stats["percent_screen"]])
+        p_percentages.append([station, s.stats["percent_plate"]])
+        t_percentages.append([station, s.stats["total_percent"]])
+
+    rects1 = ax2.bar([a[0] - 0.2 for a in p_percentages], [a[1] for a in p_percentages], alpha=0.35, width=0.2,
+                     color="g", label="plate, trough (positive)")
+    rects2 = ax2.bar([a[0] for a in s_percentages], [a[1] for a in s_percentages], alpha=0.35, width=0.2, color="b",
+                     label="screen, trough (positive)")
+    rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.35, width=0.2,
+                     color="r", label="total, trough (positive)")
+
+    #ax2.legend()
+
+    h1 = [Line2D([0],[0], marker='o', color='w', markerfacecolor='g',markersize=10),
+          Line2D([0], [0], marker='o', color='w', markerfacecolor='b',markersize=10),
+          Line2D([0], [0], marker='o', color='w', markerfacecolor='black',markersize=10)]
+
+    l1 = ["plate, SFG", "screen, SFG", "CTD, SFG"]
+    h2, l2 = ax2.get_legend_handles_labels()
+    print(h2, l2)
+    ax1.legend(h1 + h2, l1 + l2, loc="upper center", ncol=2).draggable()
+    plt.sca(ax1)
+    plt.tight_layout()
+    plt.show()
+
+
+
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
-S.collect_stations()
-S.match_to_stations()
-S.get_station_numbers()
-S.fetch_gasex_sfg()
 
-to_plot = []
-
-for isotherm in S.lt_manager.isotherms:
-    print(f'{isotherm.name}: {isotherm.station_hash}')
-
-for spectrum in S.subset:
-    if isinstance(spectrum.name, SystematicGasExName):
-        print(f'{spectrum.name.full_name}: {spectrum.name.station_hash}')
-
-
-for spectrum in S.subset:  # type: SfgSpectrum
-
-    if isinstance(spectrum.name, SystematicGasExName):
-        borders = spectrum.slice_by_borders(3000, 2800)
-        intensities = spectrum.raw_intensity[borders[0]:borders[1]+1]
-        max = np.max(intensities)
-        if max > 8:
-            print(spectrum.name.full_name)
-            to_plot.append(spectrum)
-
+sfg_with_lt(S)
 
 
 # S.get("name 20180319_PA_5_x1_#1_5mM")
