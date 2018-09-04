@@ -228,6 +228,7 @@ class SfgSpectrum:
         data_out = sorted(data_out, key=(lambda x: x[3]), reverse=True)
         return data_out
 
+
     def integrate_peak(self, x_array, y_array):
         """Numpy integration routine for numerical peak integration with the trapezoidal rule"""
         try:
@@ -236,12 +237,14 @@ class SfgSpectrum:
         except:
             return "Area  could not be calculated"
 
+
     def drop_ascii(self):
         """Create an ascii file with the wavenumbers and normalized intensities"""
         with open(self.name.full_name[:-4]+".csv" , "w") as outfile:
             writer = csv.writer(outfile, delimiter=";")
             for i in zip(self.wavenumbers,self.normalized_intensity):
                 writer.writerow((i[0],i[1]))
+
 
     def drop_tex_peaktable(self, threshold=1.5):
 
@@ -261,12 +264,14 @@ class SfgSpectrum:
 
         return tablestring
 
+
     def calc_dish_area(self, diameter=5.1):
         """A auxialiary function to calculate the area of a teflon dish in square angstroms. Diameter given in cm."""
         radius = diameter * 0.5
         area = np.pi * radius ** 2
         area = area * 10 ** 16  # conversion to square angstroms
         return area
+
 
     def calc_area_per_molecule(self):
         """The function calculates the area per molecule. The area should be given in square angstroms, the
@@ -305,6 +310,7 @@ class SfgSpectrum:
         area_per_molecule = self.calc_dish_area()/ molecules
 
         return area_per_molecule
+
 
     def yield_maximum(self):
         return np.max(self.normalized_intensity)
@@ -389,10 +395,15 @@ class SfgSpectrum:
 
         self.baseline_corrected = temp
 
+    def calculate_ch_integral(self):
 
-
-
-
+        self.correct_baseline()
+        borders = self.slice_by_borders(2900, 2800)
+        x_array = self.wavenumbers[borders[0]:borders[1]+1]
+        y_array = self.baseline_corrected[borders[0]:borders[1]+1]
+        integral = self.integrate_peak(x_array[::-1], y_array[::-1])
+        print(x_array[::-1])
+        return integral
 
 
 class AddedSpectrum(SfgSpectrum):
@@ -1270,8 +1281,6 @@ class LtManager:
                     isotherm.partners.append(isotherm2)
 
 
-
-
 class Station:
     """A class carrying all information and data for a given cruise station, especially SFG and isotherms"""
 
@@ -1438,7 +1447,6 @@ class Station:
             s = f'{item} : {self.stats[item]}\n'
             print(s)
 
-#
 
 def scatter_maxpressure_day(isothermlist):
     """Create a scatter plot (day of cruise vs. maximum surface pressure) of the LtIsotherms
@@ -1526,9 +1534,6 @@ def sfg_pub_plot(speclist, title="default", normalized="false"):
         if normalized == "false":
             ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
                     alpha=eff_alpha, label=spectrum.name.full_name)
-            ax.plot(test, baseline(test))
-            spectrum.correct_baseline()
-            ax.plot(spectrum.wavenumbers, spectrum.baseline_corrected)
         elif normalized == "true":
             ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="o", markersize=3,
                     alpha=eff_alpha, label=spectrum.name.full_name)
@@ -1810,10 +1815,25 @@ S.collect_stations()
 S.match_to_stations()
 S.get_station_numbers()
 
-specs = [i for i in S.subset if isinstance(i.name, SystematicGasExName)]
-f=sfg_pub_plot(specs[3:6])
-plt.show()
+fig, ax = plt.subplots()
 
+for station in S.stations.values():
+
+    if len(station.sfg_spectra) > 0:
+
+        temp = []
+
+    for spec in station.sfg_spectra:
+        temp.append(spec.calculate_ch_integral())
+
+
+    average = np.average(temp)
+    std = np.std(temp)
+    ax.errorbar(station.station_number, average, yerr=std,fmt="o",color="r",barsabove="true", capsize=5, capthick=2)
+    ax.set_title("2800-2950")
+
+
+plt.show()
 
 
 # S.get("name 20180319_PA_5_x1_#1_5mM")
