@@ -1526,8 +1526,8 @@ def sfg_pub_plot(speclist, title="default", normalized="false"):
         eff_alpha = 0.75+inc*counter
         baseline = spectrum.make_ch_baseline()
         if normalized == "false":
-            #ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
-                    #alpha=eff_alpha, label=spectrum.name.full_name)
+            ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
+                    alpha=eff_alpha, label=spectrum.name.full_name)
             ax.plot(test, baseline(test))
             spectrum.correct_baseline()
             ax.plot(spectrum.wavenumbers, spectrum.baseline_corrected)
