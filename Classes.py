@@ -39,6 +39,7 @@ class SfgSpectrum:
         self.name = SystematicName
         self.normalized_intensity = self.raw_intensity / (self.vis_intensity * self.ir_intensity)
         self.peaks = self.detailed_analysis()
+        self.baseline_corrected = None
 
     def __repr__(self):
         return self.name.full_name[:-4] + "   " + str(self.yield_spectral_range())
@@ -346,6 +347,51 @@ class SfgSpectrum:
                 lower_index = index
 
         return upper_index, lower_index
+
+    def make_ch_baseline(self):
+
+        left = np.nonzero(self.wavenumbers == 2750)[0][0]
+
+        l_interval = self.slice_by_borders(2800, 2750)
+        l_interval_wl = self.wavenumbers[l_interval[0]:l_interval[1] + 1]
+        l_interval = self.normalized_intensity[l_interval[0]:l_interval[1] + 1]
+
+        interval = self.slice_by_borders(2960, 2895)
+        interval_wl = self.wavenumbers[interval[0]:interval[1] + 1]
+        interval = self.normalized_intensity[interval[0]:interval[1]+1]
+
+        min_index = np.argmin(interval)
+        l_min_index = np.argmin(l_interval)
+
+
+        #av_intens = self.normalized_intensity[a1]+self.normalized_intensity[a2]+self.normalized_intensity[a3]
+        #av_wn = self.wavenumbers[a1]+self.wavenumbers[a2]+self.wavenumbers[a3]
+        #av_intens /=3
+        #av_wn /=3
+
+        slope = (interval[min_index] - l_interval[l_min_index])/(interval_wl[min_index]-l_interval_wl[l_min_index])
+        intercept = l_interval[l_min_index]-slope*l_interval_wl[l_min_index]
+
+
+
+        baseline = lambda x: slope*x+intercept
+        return baseline
+
+    def correct_baseline(self):
+
+        func = self.make_ch_baseline()
+        temp = self.normalized_intensity
+
+        for i in range(2750,2960):
+            index = np.nonzero(self.wavenumbers == i)
+            correction = func(self.wavenumbers[index])
+            temp[index] =temp[index]-correction
+
+        self.baseline_corrected = temp
+
+
+
+
 
 
 
@@ -1475,11 +1521,16 @@ def sfg_pub_plot(speclist, title="default", normalized="false"):
 
     inc = 0.25/len(speclist)
     counter = 0
+    test = np.linspace(2750, 2980, 1000)
     for spectrum in speclist:
         eff_alpha = 0.75+inc*counter
+        baseline = spectrum.make_ch_baseline()
         if normalized == "false":
-            ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
-                    alpha=eff_alpha, label=spectrum.name.full_name)
+            #ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
+                    #alpha=eff_alpha, label=spectrum.name.full_name)
+            ax.plot(test, baseline(test))
+            spectrum.correct_baseline()
+            ax.plot(spectrum.wavenumbers, spectrum.baseline_corrected)
         elif normalized == "true":
             ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="o", markersize=3,
                     alpha=eff_alpha, label=spectrum.name.full_name)
@@ -1574,6 +1625,7 @@ def finalize_figure(fig, title="test2"):
     fig.set_size_inches(3.2 * ratio, 3.2)
     fig.tight_layout()
     fig.savefig(title + ".pdf", dpi=600)
+
 
 def lt_plot_stats_new(S):
     """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
@@ -1760,20 +1812,10 @@ S.collect_stations()
 S.match_to_stations()
 S.get_station_numbers()
 
-for station in S.stations.values():
+specs = [i for i in S.subset if isinstance(i.name, SystematicGasExName)]
+f=sfg_pub_plot(specs[3:6])
+plt.show()
 
-    try:
-        av = station.sfg_spectra[0]
-        title = station.station_hash
-
-
-        for spectrum in station.sfg_spectra[1:]:
-            av += spectrum
-    except IndexError:
-        pass
-
-    f = sfg_pub_plot([av])
-    finalize_figure(f, title=title)
 
 
 # S.get("name 20180319_PA_5_x1_#1_5mM")
