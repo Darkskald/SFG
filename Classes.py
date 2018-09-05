@@ -1449,6 +1449,77 @@ class Station:
             print(s)
 
 
+class Spectrum:
+
+    def __init__(self,name, x_data, y_data):
+
+        self.name = name
+        self.x_data = x_data
+        self.y_data = ydata
+
+        self.printstring = f'Spectrum object of name {self.name}'
+
+    def __repr__(self):
+        return self.printstring
+
+    def __print__(self):
+        return self.__repr__()
+
+    def normalize(self, external=False):
+        """Normalization function, either norming the y_data to its maximum or an external factor"""
+
+        if external is False:
+            factor = np.max(self.y_data)
+            return self.y_data/factor
+
+        else:
+            return self.y_data / external
+
+    def yield_spectral_range(self):
+        """Returns the minimum and maximum and the length of the x_data of the spectrum"""
+
+
+        return min(self.x_data), max(self.x_data), len(self.x_data)
+
+    def smooth(self, points=9, order=5):
+        """Apply a smooth routine to the y_data"""
+        y = savgol_filter(self.y_data, points, order)
+        return y
+
+    def drop_ascii(self, delimiter=";"):
+        """Create an ascii file with the wavenumbers and normalized intensities"""
+        with open(self.name[:-4] + ".csv", "w") as outfile:
+            writer = csv.writer(outfile, delimiter=delimiter)
+            for i in zip(self.x_data, self.y_data):
+                writer.writerow((i[0], i[1]))
+
+    def slice_by_borders(self, upper, lower):
+
+        diff = 10000000
+        upper_index = 0
+        lower_index = -1
+
+        for index, spectrum in enumerate(self.x_data):
+
+            temp_diff = abs(upper - self.x_data[index])
+            if temp_diff < diff:
+                diff = temp_diff
+                upper_index = index
+
+        diff = 10000000
+
+        for index, spectrum in enumerate(self.x_data):
+
+            temp_diff = abs(lower - self.x_data[index])
+            if temp_diff < diff:
+                diff = temp_diff
+                lower_index = index
+
+        return upper_index, lower_index
+
+
+
+
 def scatter_maxpressure_day(isothermlist):
     """Create a scatter plot (day of cruise vs. maximum surface pressure) of the LtIsotherms
     provided in the isothermlist."""
