@@ -7,6 +7,7 @@ import shutil
 import csv
 import time
 import datetime
+import copy
 
 #scientific libraries
 import numpy as np
@@ -386,7 +387,7 @@ class SfgSpectrum:
     def correct_baseline(self):
 
         func = self.make_ch_baseline()
-        temp = self.normalized_intensity
+        temp = copy.deepcopy(self.normalized_intensity)
 
         for i in range(2750,2960):
             index = np.nonzero(self.wavenumbers == i)
@@ -398,7 +399,7 @@ class SfgSpectrum:
     def calculate_ch_integral(self):
 
         self.correct_baseline()
-        borders = self.slice_by_borders(2900, 2800)
+        borders = self.slice_by_borders(2950, 2810)
         x_array = self.wavenumbers[borders[0]:borders[1]+1]
         y_array = self.baseline_corrected[borders[0]:borders[1]+1]
         integral = self.integrate_peak(x_array[::-1], y_array[::-1])
@@ -1807,6 +1808,121 @@ def sfg_with_lt(S):
     plt.show()
 
 
+def lt_sfg_integral(S):
+    """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
+    isotherms"""
+    S.fetch_gasex_sfg()
+    S.collect_stations()
+    S.match_to_stations()
+    S.get_station_numbers()
+
+    for s in S.stations.values():
+        s.join_samples()
+        s.count_per_type()
+
+    fig, (ax1, u_ax) = plt.subplots(nrows=2, ncols=1)
+    ax1.set_xlabel("station number")
+    ax1.set_ylabel("average surface pressure/ mN/m")
+    ax2 = ax1.twinx()
+
+
+    ax2.set_xlabel("day of cruise")
+    ax2.set_ylabel("positive samples/ percent")
+
+    ax1.set_title("Surfactant occurrence in GasEx 1 (June '18)\n\n")
+    ax1.grid(True)
+
+    days = [i for i in range(1, 15)]
+    ax3 = u_ax.twiny()
+
+    ax3.xaxis.set_ticks_position("bottom")
+    ax3.xaxis.set_label_position("bottom")
+    ax3.spines["bottom"].set_position(("axes", -0.35))
+    ax3.set_xlabel("day of cruise")
+
+    u_ax.set_xlabel("station number")
+    u_ax.set_ylabel("Integrated SFG CH intensity/ arb.u.")
+    u_ax.grid(True)
+    u_ax.set_ylim(-0.00025, 0.014)
+
+
+    p_percentages = []
+    s_percentages = []
+    t_percentages = []
+
+    stations = []
+    plates = []
+    totals = []
+    screens = []
+
+    p_std = []
+    s_std = []
+    t_std = []
+
+    for s in S.stations.values():
+
+        if len(s.lt_isotherms) > 0:
+            station = s.station_number
+            stations.append(station)
+            screens.append(s.stats["screen_av"])
+            plates.append(s.stats["plate_av"])
+            totals.append(s.stats["total_av"])
+
+            t_std.append(s.stats["std_total"])
+            s_std.append(s.stats["std_screen"])
+            p_std.append(s.stats["std_plate"])
+
+            ax3.scatter(s.cruise_day, s.stats["screen_av"], s=0)
+            s_percentages.append([station, s.stats["percent_screen"]])
+            p_percentages.append([station, s.stats["percent_plate"]])
+            t_percentages.append([station, s.stats["total_percent"]])
+
+        max_ins = []
+
+        if len(s.sfg_spectra) > 0:
+
+            temp = []
+
+            for spec in s.sfg_spectra:
+                temp.append(spec.calculate_ch_integral())
+
+            average = np.average(temp)
+            std = np.std(temp)
+            u_ax.errorbar(s.station_number, average, yerr=std, fmt="o", color="b", barsabove="true", capsize=5,
+                          capthick=2)
+
+    ax1.errorbar(stations, totals, yerr=t_std, fmt="o",color="r",barsabove="true", capsize=5, capthick=2)
+    rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, label="positive")
+
+    ax2.legend()
+    #u_ax.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+def baseline_demo(spectrum:SfgSpectrum):
+
+    spectrum.correct_baseline()
+
+    test = np.linspace(2750,3050,10000)
+    func = spectrum.make_ch_baseline()
+    borders = spectrum.slice_by_borders(2950, 2810)
+
+    f, axarr = plt.subplots(2, sharex=True)
+    axarr[0].plot(spectrum.wavenumbers, spectrum.normalized_intensity,label=spectrum.name.full_name, linewidth=1.5, marker="o", markersize=3)
+    axarr[0].plot(test, func(test), color="r", label="Baseline")
+    axarr[0].set_xlabel("Wavenumber/ cm$^{-1}$")
+    axarr[0].set_ylabel("Norm. SFG intensity/ arb. u.")
+    axarr[0].set_title("Demonstration of the automatic baseline subtraction and integration")
+    axarr[0].legend()
+
+    axarr[1].plot(spectrum.wavenumbers, spectrum.baseline_corrected,label=spectrum.name.full_name, linewidth=1.5, marker="o", markersize=3)
+    axarr[1].fill_between(spectrum.wavenumbers[borders[0]:borders[1]+1], spectrum.baseline_corrected[borders[0]:borders[1]+1])
+    axarr[1].set_xlabel("Wavenumber/ cm$^{-1}$")
+    axarr[1].set_ylabel("Norm. SFG intensity/ arb. u.")
+    axarr[1].legend()
+
+    plt.show()
 
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
@@ -1815,25 +1931,8 @@ S.collect_stations()
 S.match_to_stations()
 S.get_station_numbers()
 
-fig, ax = plt.subplots()
-
-for station in S.stations.values():
-
-    if len(station.sfg_spectra) > 0:
-
-        temp = []
-
-    for spec in station.sfg_spectra:
-        temp.append(spec.calculate_ch_integral())
-
-
-    average = np.average(temp)
-    std = np.std(temp)
-    ax.errorbar(station.station_number, average, yerr=std,fmt="o",color="r",barsabove="true", capsize=5, capthick=2)
-    ax.set_title("2800-2950")
-
-
-plt.show()
+spec = S.subset[9]
+baseline_demo(spec)
 
 
 # S.get("name 20180319_PA_5_x1_#1_5mM")
