@@ -7,7 +7,7 @@ import csv
 
 
 class Importer:
-    """The importer class is responbsible for writing all kind of experimental raw data to the sqlite database.
+    """The importer class is responsible for writing all kind of experimental raw data to the sqlite database.
     It is designed to be stored in the same folder like all experimental raw data which can be separate from all
     the other classes in this project. This ensures that the every-day working routines only need the database file
     but not tons of raw data subfolders and files of different types"""
@@ -172,6 +172,80 @@ class Importer:
         db.commit()
         db.close()
 
+    @staticmethod
+    def write_spectra(database, target_folder):
+
+        for file in os.listdir(target_folder):
+
+            path = target_folder + "/" + file
+
+            if target_folder in ("IR", "Raman"):
+                data = Importer.fetch_iraman_data(path)
+                x_data = "wavenumbers"
+
+                if target_folder == "Raman":
+                    y_data = "intensity"
+
+                elif target_folder == "IR":
+                    y_data = "transmission"
+
+
+            elif target_folder == "UV":
+                data = Importer.fetch_uv_dat(path)
+                x_data = "wavelength"
+                y_data = "absorbance"
+
+            command = \
+                f"""
+                INSERT INTO {database}
+                (
+                name,
+                {x_data},
+                {y_data},
+                )
+                VALUES(?,?,?);
+                """
+            try:
+
+                cur.execute(command, (file, data[0], data[1]))
+            except sqlite3.IntegrityError as e:
+                print("Spectrum already in database!")
+
+    db.commit()
+    db.close()
+
+
+
+
+    @staticmethod
+    def fetch_iraman_data(filename):
+
+        with open(filename, "r") as infile:
+            # function can handle IR files as well as Raman files
+            c = csv.reader(infile, delimiter="\t")
+            wavenumbers = []
+            intensities = []
+            for line in c:
+                wavenumbers.append(line[0])
+                intensities.append(line[1])
+            return wavenumbers, intensities
+
+    @staticmethod
+    def fetch_uv_dat(filename):
+
+        with open(filename, "r") as infile:
+            next(infile)
+            next(infile)
+            c = csv.reader(infile, delimiter="\t")
+            wavelength = []
+            intensity = []
+            for line in c:
+                l = line[0].split(",")
+                if len(l) == 2:
+                    wavelength.append(float(l[0]))
+                    intensity.append(float(l[1]))
+        return wavelength, intensity
+
 
 class DataCollector:
     """Extracts the data from raw SFG files."""
@@ -283,6 +357,37 @@ class SqlWizard:
                 CONSTRAINT unique_name UNIQUE(name)
                 );
             """
+        command4 = \
+            """
+            CREATE TABLE IF NOT EXISTS ir (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                wavenumbers TEXT,
+                transmission TEXT,
+                CONSTRAINT unique_name UNIQUE(name)
+                );
+            """
+        command5 = \
+            """
+            CREATE TABLE IF NOT EXISTS raman (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            wavenumbers TEXT,
+            intensity TEXT,
+            CONSTRAINT unique_name UNIQUE(name)
+            );
+             """
+        command6 = \
+            """
+            CREATE TABLE IF NOT EXISTS uv (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            wavelength TEXT,
+            absorbance TEXT,
+            CONSTRAINT unique_name UNIQUE(name)
+            );
+             """
+
 
 
         db = sqlite3.connect("sfg.db")
@@ -291,6 +396,9 @@ class SqlWizard:
         cur.execute(command)
         cur.execute(command2)
         cur.execute(command3)
+        cur.execute(command4)
+        cur.execute(command5)
+        cur.execute(command6)
         db.commit()
         db.close()
 
