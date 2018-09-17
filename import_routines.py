@@ -28,8 +28,10 @@ class Importer:
 
             if "FL" in folder:
                 daytag = (folder.split("FL"))[0].strip()
-            elif "TT" in daytag:
+            elif "TT" in folder:
                 daytag = (folder.split("TT"))[0].strip()
+            elif "KL" in folder:
+                daytag = (folder.split("KL"))[0].strip()
 
             # now creating the day_information_file
             day_info_file = daytag + ".dif"
@@ -174,6 +176,8 @@ class Importer:
 
     @staticmethod
     def write_spectra(database, target_folder):
+        db = sqlite3.connect("sfg.db")
+        cur = db.cursor()
 
         for file in os.listdir(target_folder):
 
@@ -201,21 +205,19 @@ class Importer:
                 (
                 name,
                 {x_data},
-                {y_data},
+                {y_data}
                 )
                 VALUES(?,?,?);
                 """
             try:
 
-                cur.execute(command, (file, data[0], data[1]))
+                cur.execute(command, (str(file), str(data[0]), str(data[1])))
+
             except sqlite3.IntegrityError as e:
                 print("Spectrum already in database!")
 
-    db.commit()
-    db.close()
-
-
-
+        db.commit()
+        db.close()
 
     @staticmethod
     def fetch_iraman_data(filename):
@@ -234,8 +236,11 @@ class Importer:
     def fetch_uv_dat(filename):
 
         with open(filename, "r") as infile:
-            next(infile)
-            next(infile)
+            try:
+                next(infile)
+                next(infile)
+            except:
+                pass
             c = csv.reader(infile, delimiter="\t")
             wavelength = []
             intensity = []
@@ -304,6 +309,8 @@ class SqlWizard:
                 self.add_spectrum(spectrum)
             elif flag == "gasex":
                 self.add_gasex_spectrum(spectrum)
+            elif flag == "kristian":
+                self.add_kristian_spectrum(spectrum)
 
     def create_database(self):
 
@@ -388,6 +395,20 @@ class SqlWizard:
             );
              """
 
+        command7 = \
+            """
+                    CREATE TABLE IF NOT EXISTS sfg_kristian (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT,
+                        measured_time TIMESTAMP,
+                        measurer TEXT,
+                        wavenumbers TEXT,
+                        sfg TEXT,
+                        ir TEXT,
+                        vis TEXT,
+                        CONSTRAINT unique_name UNIQUE(name)
+                        );
+                    """
 
 
         db = sqlite3.connect("sfg.db")
@@ -399,6 +420,8 @@ class SqlWizard:
         cur.execute(command4)
         cur.execute(command5)
         cur.execute(command6)
+        cur.execute(command7)
+
         db.commit()
         db.close()
 
@@ -461,6 +484,41 @@ class SqlWizard:
         command =\
         """
         INSERT INTO sfg_gasex
+        (
+        name,
+        measured_time,
+        wavenumbers,
+        sfg,
+        ir,
+        vis
+        )
+        VALUES(?,?,?,?,?,?);
+        """
+        try:
+            cur.execute(command, (name, time, wavenumbers, sfg, ir, vis))
+        except sqlite3.IntegrityError as e:
+            print("Spectrum already in database!")
+        db.commit()
+        db.close()
+
+    def add_kristian_spectrum(self, spectrum):
+
+        s = spectrum  # type: SfgSpectrum
+        fname = s.name # type: SystematicName
+
+        name = fname.full_name
+        time = fname.creation_time
+        wavenumbers = ";".join(s.wavenumbers.astype(str))
+        sfg = ";".join(s.raw_intensity.astype(str))
+        ir = ";".join(s.ir_intensity.astype(str))
+        vis = ";".join(s.vis_intensity.astype(str))
+
+        db = sqlite3.connect("sfg.db")
+        cur = db.cursor()
+
+        command =\
+        """
+        INSERT INTO sfg_kristian
         (
         name,
         measured_time,
@@ -918,7 +976,20 @@ class SystematicName:
 
         return (year, month, day)
 
+#import all "regular" sfg specta
 Importer().generate_sql("regular")
+
+
+#import gasex data
 I = Importer("gasex", "gasex_out")
 I.generate_sql("gasex")
 I.write_lt_to_sql("gasex_lt")
+
+#import Kristians data
+I = Importer("KristianBE","KristianBE_out")
+I.generate_sql("kristian")
+
+#import IR,Raman,UV
+Importer.write_spectra("ir","IR")
+Importer.write_spectra("raman","Raman")
+Importer.write_spectra("uv","UV")
