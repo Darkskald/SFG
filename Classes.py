@@ -787,7 +787,9 @@ class SessionControlManager:
 
         self.recover_ids = []
         self.recover = []
+
         self.gasex_included = False
+        self.kristian_included = False
 
     def get_senssurf_names(self):
         """Loads allowed names of surfactants and sensitizers from the control file"""
@@ -888,7 +890,7 @@ class SessionControlManager:
             self.subset_ids.append(id)
             self.subset.append(self.fetch_single(id))
 
-    def fetch_gasex_sfg(self):
+    def fetch_gasex_sfg(self, kristian=False):
         """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
         command = "SELECT * from " + self.gasex_table
         self.cur.execute(command)
@@ -898,6 +900,15 @@ class SessionControlManager:
             self.subset.append(self.fetch_single(id, default_data=False))
 
         self.gasex_included = True
+
+        if kristian == True:
+            command = "SELECT * from " + "sfg_kristian"
+            self.cur.execute(command)
+            for item in self.cur.fetchall():
+                id = item[0]
+                self.subset_ids.append(id)
+                self.subset.append(self.fetch_single(id, default_data=False))
+            self.kristian_included = True
 
     def general_refine(self, condition1, condition2, default_data=True):
         """Refinement of the actual subset by applying further match criteria. This is the
@@ -1051,7 +1062,6 @@ class SessionControlManager:
                     except KeyError:
                         self.stations[spectrum.name.station_hash] = Station(spectrum.name.station)
                         self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
-
 
     def get_station_numbers(self):
         """Traverse the stations and assign them a number in chronological order (1-n)"""
