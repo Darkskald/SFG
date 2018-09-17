@@ -350,6 +350,101 @@ class FileFetcher:
         os.chdir(initial_wd)
 
 
+class Analyzer:
+    """This class takes, a list of SFG spectra as constructor argument. Its purpose
+    is to perform analytical tasks with the spectral data, e.g. compare peaks, integral, datapoints
+    and will be extended to handle statistics in the future"""
+
+    def __init__(self, speclist):
+        self.speclist = speclist
+
+    def count_peak_abundance(self, number):
+        peaklist = []
+
+        for spectrum in self.speclist:
+            temp = spectrum.yield_peaklist()
+            if len(temp) > number:
+                temp = temp[:number]
+            for peak in temp:
+                peaklist.append(peak)
+
+        abundance = {}
+
+        for peak in peaklist:
+
+            if peak not in abundance:
+                abundance[peak] = 1
+            else:
+                abundance[peak] += 1
+
+        #calculate total number
+
+        for key in abundance:
+            abundance[key] /= len(self.speclist)
+
+        return abundance
+
+    def write_analysis(self):
+        for spectrum in self.speclist:
+            with open(spectrum.name.full_name+".ana", "w") as outfile:
+                outfile.write("*"*80+"\n")
+                outfile.write("Analytics output: "+"\n")
+                tup = spectrum.detailed_analysis()
+                counter = 1
+                for peak in tup:
+                    outfile.write("Peak "+str(counter)+":\n")
+                    outfile.write("Wavenumber: " + str(peak[0]))
+                    outfile.write("\nIntensity: "+str(peak[3]))
+                    outfile.write("\nLeft border: "+str(peak[1]))
+                    outfile.write("\nRight border: "+str(peak[2]))
+                    outfile.write("\nIntegral: "+str(peak[7])+"\n")
+                    outfile.write("-"*80+"\n")
+                    counter += 1
+
+    def intensity_vs_surfcoverage(self):
+
+        out= []
+        for spectrum in self.speclist:
+            maxi = 0
+            temp = spectrum.detailed_analysis()
+
+            for peak in temp:
+                if maxi < peak[3]:
+                    maxi = peak[3]
+
+            out.append((spectrum.calc_area_per_molecule(), maxi))
+
+        return out
+
+    def average_peak(self, number):
+
+        out = []
+
+        for i in range(number):
+            wavenumber = []
+            intensity = []
+            counter = 0
+
+            for spec in self.speclist:
+                try:
+                    peaks = spec.detailed_analysis()[i]
+                except IndexError:
+                    break
+
+                wavenumber.append(peaks[0])
+                intensity.append(peaks[3])
+
+                counter += 1
+                #print("found for Peak"+str(i)+":" + str(peaks[0]), str(peaks[3]))
+
+            wavenumber = np.average(np.array(wavenumber))
+            intensity = np.average(np.array(intensity))
+
+            out.append((wavenumber, intensity))
+
+        return out
+
+
 
 def simple_analysis():
     Substances = {}

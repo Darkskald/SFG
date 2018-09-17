@@ -229,7 +229,6 @@ class SfgSpectrum:
         data_out = sorted(data_out, key=(lambda x: x[3]), reverse=True)
         return data_out
 
-
     def integrate_peak(self, x_array, y_array):
         """Numpy integration routine for numerical peak integration with the trapezoidal rule"""
         try:
@@ -238,14 +237,12 @@ class SfgSpectrum:
         except:
             return "Area  could not be calculated"
 
-
     def drop_ascii(self):
         """Create an ascii file with the wavenumbers and normalized intensities"""
         with open(self.name.full_name[:-4]+".csv" , "w") as outfile:
             writer = csv.writer(outfile, delimiter=";")
             for i in zip(self.wavenumbers,self.normalized_intensity):
                 writer.writerow((i[0],i[1]))
-
 
     def drop_tex_peaktable(self, threshold=1.5):
 
@@ -265,14 +262,12 @@ class SfgSpectrum:
 
         return tablestring
 
-
     def calc_dish_area(self, diameter=5.1):
         """A auxialiary function to calculate the area of a teflon dish in square angstroms. Diameter given in cm."""
         radius = diameter * 0.5
         area = np.pi * radius ** 2
         area = area * 10 ** 16  # conversion to square angstroms
         return area
-
 
     def calc_area_per_molecule(self):
         """The function calculates the area per molecule. The area should be given in square angstroms, the
@@ -311,7 +306,6 @@ class SfgSpectrum:
         area_per_molecule = self.calc_dish_area()/ molecules
 
         return area_per_molecule
-
 
     def yield_maximum(self):
         return np.max(self.normalized_intensity)
@@ -656,106 +650,18 @@ class SystematicGasExName(SystematicName):
 
         self.station_hash = temp[1] + "_" + temp[2][1]
 
+    def __str__(self):
+
+        return self.name
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class AddedName(SystematicName):
     """This class is derived from the SfgSpectrum and represents the result of the addition of Sfg intensities."""
     def __init__(self,names):
         self.full_name = ("_").join(names)
-
-
-class Analyzer:
-    """This class takes, a list of SFG spectra as constructor argument. Its purpose
-    is to perform analytical tasks with the spectral data, e.g. compare peaks, integral, datapoints
-    and will be extended to handle statistics in the future"""
-
-    def __init__(self, speclist):
-        self.speclist = speclist
-
-    def count_peak_abundance(self, number):
-        peaklist = []
-
-        for spectrum in self.speclist:
-            temp = spectrum.yield_peaklist()
-            if len(temp) > number:
-                temp = temp[:number]
-            for peak in temp:
-                peaklist.append(peak)
-
-        abundance = {}
-
-        for peak in peaklist:
-
-            if peak not in abundance:
-                abundance[peak] = 1
-            else:
-                abundance[peak] += 1
-
-        #calculate total number
-
-        for key in abundance:
-            abundance[key] /= len(self.speclist)
-
-        return abundance
-
-    def write_analysis(self):
-        for spectrum in self.speclist:
-            with open(spectrum.name.full_name+".ana", "w") as outfile:
-                outfile.write("*"*80+"\n")
-                outfile.write("Analytics output: "+"\n")
-                tup = spectrum.detailed_analysis()
-                counter = 1
-                for peak in tup:
-                    outfile.write("Peak "+str(counter)+":\n")
-                    outfile.write("Wavenumber: " + str(peak[0]))
-                    outfile.write("\nIntensity: "+str(peak[3]))
-                    outfile.write("\nLeft border: "+str(peak[1]))
-                    outfile.write("\nRight border: "+str(peak[2]))
-                    outfile.write("\nIntegral: "+str(peak[7])+"\n")
-                    outfile.write("-"*80+"\n")
-                    counter += 1
-
-    def intensity_vs_surfcoverage(self):
-
-        out= []
-        for spectrum in self.speclist:
-            maxi = 0
-            temp = spectrum.detailed_analysis()
-
-            for peak in temp:
-                if maxi < peak[3]:
-                    maxi = peak[3]
-
-            out.append((spectrum.calc_area_per_molecule(), maxi))
-
-        return out
-
-    def average_peak(self, number):
-
-        out = []
-
-        for i in range(number):
-            wavenumber = []
-            intensity = []
-            counter = 0
-
-            for spec in self.speclist:
-                try:
-                    peaks = spec.detailed_analysis()[i]
-                except IndexError:
-                    break
-
-                wavenumber.append(peaks[0])
-                intensity.append(peaks[3])
-
-                counter += 1
-                #print("found for Peak"+str(i)+":" + str(peaks[0]), str(peaks[3]))
-
-            wavenumber = np.average(np.array(wavenumber))
-            intensity = np.average(np.array(intensity))
-
-            out.append((wavenumber, intensity))
-
-        return out
 
 
 class SessionControlManager:
@@ -764,8 +670,6 @@ class SessionControlManager:
     and produce plots efficiently. Designed to work with a sqllite database containing the spectral raw data. Especially
     useful from interactive python environments (eg IPy)."""
 
-    # setup methods
-    # todo: sort the functions under categories, now it is a mess!
     def __init__(self, database, id):
 
         self.db = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
@@ -791,35 +695,6 @@ class SessionControlManager:
         self.gasex_included = False
         self.kristian_included = False
 
-    def get_senssurf_names(self):
-        """Loads allowed names of surfactants and sensitizers from the control file"""
-
-        with open("name_info/Surfactants.txt", "r") as infile:
-            for line in infile:
-                collect = line.split(":")
-                self.Surfactants[collect[0]] = collect[1].strip()
-
-        with open("name_info/Sensitizers.txt", "r") as infile:
-            for line in infile:
-                collect = line.split(":")
-                self.Sensitizers[collect[0]] = collect[1].strip()
-
-        with open("name_info/makros.txt", "r") as infile:
-            for line in infile:
-                collect = line.split(":")
-                self.Makros[collect[0]] = collect[1].strip()
-
-    def retranslate_name(self, stri):
-        """Extracts name information from the string, returning the full name of the substance abbreviation"""
-
-        if stri in self.Surfactants:
-            return self.Surfactants[stri]
-        elif stri in self.Sensitizers:
-            return self.Sensitizers[stri]
-        elif stri in self.Makros:
-            return self.Makros[stri]
-        else:
-            print("Retranslation failed. Unknown expression.")
 
     # database methods
 
@@ -842,6 +717,14 @@ class SessionControlManager:
 
         result = self.cur.fetchall()[0]
 
+        spec = self.construct_sfg(result)
+
+        return spec
+
+    def construct_sfg(self, query_result, default_data=True):
+        """A function to create an SFG spectrum from the result of a query in the SQL database"""
+
+        result = query_result
         creationtime = result[2]
 
         if default_data is True or "DPPC" in result[1]:
@@ -865,8 +748,6 @@ class SessionControlManager:
             sfg = np.array(result[-3].split(";")).astype(np.float)
             ir = np.array(result[-2].split(";")).astype(np.float)
             vis = np.array(result[-1].split(";")).astype(np.float)
-
-
 
         spec = SfgSpectrum(wavenumber, sfg, ir, vis, sysname)
 
@@ -932,6 +813,10 @@ class SessionControlManager:
         self.subset = temp
         self.subset_ids = temp_id
 
+
+
+    # user interaction functions
+
     def plot(self):
         """Runs an external PyQt application plotting all current spectra in the subset. The external
         app gives access to further manual analysis functionality"""
@@ -956,11 +841,18 @@ class SessionControlManager:
             condition1 = self.retranslate_name(t[0])
             condition2 = "\""+self.retranslate_name(t[1])+"\""
             if ref is False:
-                self.general_fetch(condition1, condition2)
-                self.general_fetch(condition1, condition2, default_data=self.gasex_included)
+                try:
+                    self.general_fetch(condition1, condition2)
+                    self.general_fetch(condition1, condition2, default_data=self.gasex_included)
+                except:
+                    pass
+
             if ref is True:
-                self.general_refine(condition1, condition2)
-                self.general_refine(condition1, condition2, default_data=self.gasex_included)
+                try:
+                    self.general_refine(condition1, condition2)
+                    self.general_refine(condition1, condition2, default_data=self.gasex_included)
+                except:
+                    pass
 
         elif t[0] == "name":
             self.general_fetch(t[0], "\""+t[1]+".sfg"+"\"")
@@ -969,11 +861,50 @@ class SessionControlManager:
         """Refines the current subset by applying further match criteria"""
         self.get(flagstring, ref=True)
 
-    def flagstring_split(self, flagstring):
-        """This function processes the given flagstring and returns a list of SFG objects
-        which are passed through the Finder methods utilizing the flags and options"""
-        f = flagstring.split(" ")
-        return f
+    def by_time(self, time1, time2, default_data=True, refine=False):
+        """Fetch or  refine the spectral data by time of measurement. The Number has to be given as a string, embraced
+        in '' quotation marks to pass it to the SQL query. Note this function is the only user function that directly
+        accesses the SQL database"""
+
+        if default_data == True:
+            database = "sfg_database"
+
+        else:
+            database = "sfg_gasex"
+
+        if refine == False:
+
+
+
+            command = "SELECT * from " + database + " WHERE measured_time between " + time1 + " and " + time2
+            print(command)
+            self.cur.execute(command)
+            keys = []
+            for item in self.cur.fetchall():
+                id = item[0]
+                self.subset_ids.append(id)
+                self.subset.append(self.fetch_single(id))
+        else:
+            temp = []
+            temp_id = []
+
+            for id in self.subset_ids:
+
+                try:
+                    command = "SELECT * FROM " + database + " WHERE ROWID=" + str(id)+" AND measured_time between " + time1 + " and " + time2
+                    self.cur.execute(command)
+                    result = self.cur.fetchall()[0]
+                    s = self.construct_sfg(result, default_data)
+                    temp.append(s)
+                    temp_id.append(id)
+                except IndexError:
+                    pass
+
+            self.recover = self.subset
+            self.recover_ids = self.subset_ids
+
+            self.subset = temp
+            self.subset_ids = temp_id
 
     def rec(self):
         """A recover function that resets the subset to the state before the last refinement or keep call"""
@@ -1006,6 +937,9 @@ class SessionControlManager:
 
         self.subset = new_list
         self.subset_ids = new_indexlist
+
+
+    # specific functionality for GasEx
 
     def set_lt_manager(self):
         """Creates a LtManager object to give access to analysis tools for Langmuir trough isotherms besides
@@ -1073,6 +1007,44 @@ class SessionControlManager:
         for i, s in enumerate(stations):
             s.station_number = i+1
             print(str(i+1)+"   "+str(stations[i].name)+"\n")
+
+
+    #auxiliary functions
+    def flagstring_split(self, flagstring):
+        """This function processes the given flagstring and returns a list of SFG objects
+        which are passed through the Finder methods utilizing the flags and options"""
+        f = flagstring.split(" ")
+        return f
+
+    def get_senssurf_names(self):
+        """Loads allowed names of surfactants and sensitizers from the control file"""
+
+        with open("name_info/Surfactants.txt", "r") as infile:
+            for line in infile:
+                collect = line.split(":")
+                self.Surfactants[collect[0]] = collect[1].strip()
+
+        with open("name_info/Sensitizers.txt", "r") as infile:
+            for line in infile:
+                collect = line.split(":")
+                self.Sensitizers[collect[0]] = collect[1].strip()
+
+        with open("name_info/makros.txt", "r") as infile:
+            for line in infile:
+                collect = line.split(":")
+                self.Makros[collect[0]] = collect[1].strip()
+
+    def retranslate_name(self, stri):
+        """Extracts name information from the string, returning the full name of the substance abbreviation"""
+
+        if stri in self.Surfactants:
+            return self.Surfactants[stri]
+        elif stri in self.Sensitizers:
+            return self.Sensitizers[stri]
+        elif stri in self.Makros:
+            return self.Makros[stri]
+        else:
+            print("Retranslation failed. Unknown expression.")
 
 
 class LtIsotherm:
@@ -1981,7 +1953,55 @@ def lt_sfg_integral(S):
     plt.show()
 
 
-def baseline_demo(spectrum:SfgSpectrum):
+def sfg_plot_broken_axis(speclist,lower,upper,title="default", normalized="false"):
+    """Produces a pre-formatted SFG plot from a list of SFG spectrum objects"""
+
+    fig, (ax,ax2) = plt.subplots(1, 2, sharey=True)
+    ax.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
+    ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
+
+    ax.set_xlim(lower[0], lower[1])
+    ax2.set_xlim(upper[0], upper[1])
+
+    ax.spines['right'].set_visible(False)
+    ax2.spines['left'].set_visible(False)
+    ax.yaxis.tick_left()
+    ax.tick_params(labeltop='off')  # don't put tick labels at the top
+    ax2.yaxis.tick_right()
+
+    d = .015  # how big to make the diagonal lines in axes coordinates
+    # arguments to pass plot, just so we don't keep repeating them
+    kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
+    ax.plot((1 - d, 1 + d), (-d, +d), **kwargs)
+    ax.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+
+    kwargs.update(transform=ax2.transAxes)  # switch to the bottom axes
+    ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)
+    ax2.plot((-d, +d), (-d, +d), **kwargs)
+
+
+    inc = 0.25/len(speclist)
+    counter = 0
+    for spectrum in speclist:
+        eff_alpha = 0.75+inc*counter
+        if normalized == "false":
+            ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
+                    alpha=eff_alpha, label=spectrum.name.full_name)
+            ax2.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
+                    alpha=eff_alpha, label=spectrum.name.full_name)
+        elif normalized == "true":
+            ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="o", markersize=3,
+                    alpha=eff_alpha, label=spectrum.name.full_name)
+        counter +=1
+
+    size = fig.get_size_inches()
+    ratio = size[0]/size[1]
+    fig.set_size_inches(3.2*ratio, 3.2)
+    fig.tight_layout()
+    return fig
+
+
+def baseline_demo(spectrum):
 
     spectrum.correct_baseline()
 
@@ -2007,13 +2027,14 @@ def baseline_demo(spectrum:SfgSpectrum):
 
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
-S.fetch_gasex_sfg()
-S.collect_stations()
-S.match_to_stations()
-S.get_station_numbers()
+S.get("su BX12")
+S.by_time("\'2017-11-01\'","\'2018-04-01\'",refine=True)
 
-spec = S.subset[9]
-baseline_demo(spec)
+S.subset.sort(key=lambda x: x.name.creation_time)
+for spec in S.subset:
+    print(str(spec.name.creation_time)+"\n")
+
+
 
 
 # S.get("name 20180319_PA_5_x1_#1_5mM")
