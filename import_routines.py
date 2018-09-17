@@ -179,6 +179,9 @@ class Importer:
         db = sqlite3.connect("sfg.db")
         cur = db.cursor()
 
+        db = sqlite3.connect("sfg.db")
+        cur = db.cursor()
+
         for file in os.listdir(target_folder):
 
             path = target_folder + "/" + file
