@@ -700,6 +700,7 @@ class SessionControlManager:
         self.get_senssurf_names()
 
         self.lt_manager = None
+        self.spec_manager = None
 
         #former IpyInterpreter functionality, tracking the primary key in parallel
         self.subset_ids = []
@@ -708,8 +709,7 @@ class SessionControlManager:
         self.recover_ids = []
         self.recover = []
 
-        self.active_table = "sfg_database"
-
+        self.set_spec_manager()
 
 
     # database methods
@@ -858,23 +858,16 @@ class SessionControlManager:
         """Refines the current subset by applying further match criteria"""
         self.get(flagstring, database="sfg_database", ref=True)
 
-    def by_time(self, time1, time2, default_data=True, refine=False):
+    def by_time(self, time1, time2, database, refine=False):
         """Fetch or  refine the spectral data by time of measurement. The Number has to be given as a string, embraced
         in '' quotation marks to pass it to the SQL query. Note this function is the only user function that directly
         accesses the SQL database"""
 
-        if default_data == True:
-            database = "sfg_database"
-
-        else:
-            database = "sfg_gasex"
 
         if refine == False:
 
-
-
             command = "SELECT * from " + database + " WHERE measured_time between " + time1 + " and " + time2
-            print(command)
+
             self.cur.execute(command)
             keys = []
             for item in self.cur.fetchall():
@@ -891,7 +884,7 @@ class SessionControlManager:
                     command = "SELECT * FROM " + database + " WHERE ROWID=" + str(id)+" AND measured_time between " + time1 + " and " + time2
                     self.cur.execute(command)
                     result = self.cur.fetchall()[0]
-                    s = self.construct_sfg(result, default_data)
+                    s = self.construct_sfg(result, database)
                     temp.append(s)
                     temp_id.append(id)
                 except IndexError:
@@ -1046,6 +1039,9 @@ class SessionControlManager:
             return self.Makros[stri]
         else:
             print("Retranslation failed. Unknown expression.")
+
+    def set_spec_manager(self):
+        self.spec_manager = SpectraManager(self.db)
 
 
 class LtIsotherm:
@@ -1340,7 +1336,6 @@ class Station:
             print("*"*80+"\n"+str(temp))
             print(self.name)
 
-
     def count_per_type(self):
         """Counts the occurence of plate and screen samples as well as how many of those are positive
         with respect to surfactants (high surface pressure in Langmuir trough measurement). Stores all the
@@ -1407,7 +1402,6 @@ class Station:
         self.stats["std_plate"] = np.std(plate_array)
         self.stats["std_screen"] = np.std(screen_array)
         self.stats["std_total"] = np.std(total_array)
-
 
     def join_samples(self):
         """Joins Langmuir trough measurements of the same sample. Much more comprehensive than
@@ -1499,6 +1493,23 @@ class Spectrum:
                 lower_index = index
 
         return upper_index, lower_index
+
+
+class SpectraManager:
+    """A class to handle UV, IR, and Raman specta"""
+    def __init__(self, database):
+
+        self.raman = []
+        self.ir = []
+        self.uv = []
+
+    def construct_spectrum(self, item):
+        """Constructs a spectrum object from the SQL query results"""
+        pass
+
+    def query(self, table):
+        """Extract the data from the table"""
+        pass
 
 
 
