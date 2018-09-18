@@ -27,7 +27,7 @@ from scipy import stats
 rcParams['mathtext.default'] = 'regular'
 
 
-# noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck
+# noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck 1234
 
 
 class SfgSpectrum:
