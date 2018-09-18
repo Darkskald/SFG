@@ -17,6 +17,7 @@ from matplotlib.lines import Line2D
 import sqlite3
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
+from scipy import stats
 
 #for session controll manager
 #from new_gui import run_app
@@ -349,7 +350,7 @@ class SfgSpectrum:
 
         return upper_index, lower_index
 
-    def make_ch_baseline(self):
+    def make_ch_baseline(self, average=False):
 
         left = np.nonzero(self.wavenumbers == 2750)[0][0]
 
@@ -364,16 +365,31 @@ class SfgSpectrum:
         min_index = np.argmin(interval)
         l_min_index = np.argmin(l_interval)
 
+        if average == False:
+            slope = (interval[min_index] - l_interval[l_min_index]) / (interval_wl[min_index] - l_interval_wl[l_min_index])
+            intercept = l_interval[l_min_index] - slope * l_interval_wl[l_min_index]
 
-        #av_intens = self.normalized_intensity[a1]+self.normalized_intensity[a2]+self.normalized_intensity[a3]
-        #av_wn = self.wavenumbers[a1]+self.wavenumbers[a2]+self.wavenumbers[a3]
-        #av_intens /=3
-        #av_wn /=3
+        else:
+            y2 = []
+            x2 = []
 
-        slope = (interval[min_index] - l_interval[l_min_index])/(interval_wl[min_index]-l_interval_wl[l_min_index])
-        intercept = l_interval[l_min_index]-slope*l_interval_wl[l_min_index]
+            q = np.sort(l_interval)
+
+            for i in range(6):
+                y2.append(q[i])
+                index = int((np.where(l_interval == q[i]))[0])
+                x2.append(l_interval_wl[index])
+
+            q = np.sort(interval)
+
+            for i in range(6):
+                y2.append(q[i])
+                index = int((np.where(interval == q[i]))[0])
+                x2.append(interval_wl[index])
 
 
+
+            slope, intercept, r_value, p_value, std_err = stats.linregress(x2, y2)
 
         baseline = lambda x: slope*x+intercept
         return baseline
@@ -716,8 +732,7 @@ class SessionControlManager:
         self.cur.execute(command)
 
         result = self.cur.fetchall()[0]
-
-        spec = self.construct_sfg(result)
+        spec = self.construct_sfg(result, default_data)
 
         return spec
 
@@ -727,27 +742,29 @@ class SessionControlManager:
         result = query_result
         creationtime = result[2]
 
-        if default_data is True or "DPPC" in result[1]:
+        if default_data is True:
 
-            if "DPPC" not in result[1]:
                 sysname = SystematicName(result[1], creationtime)
                 wavenumber = np.array(result[-7].split(";")).astype(np.float)
                 sfg = np.array(result[-6].split(";")).astype(np.float)
                 ir = np.array(result[-5].split(";")).astype(np.float)
                 vis = np.array(result[-4].split(";")).astype(np.float)
+
+        else:
+
+            if "DPPC" not in result[1]:
+                sysname = SystematicGasExName(result[1], creationtime)
+                wavenumber = np.array(result[-4].split(";")).astype(np.float)
+                sfg = np.array(result[-3].split(";")).astype(np.float)
+                ir = np.array(result[-2].split(";")).astype(np.float)
+                vis = np.array(result[-1].split(";")).astype(np.float)
+
             else:
                 sysname = SystematicName(result[1], creationtime)
                 wavenumber = np.array(result[-4].split(";")).astype(np.float)
                 sfg = np.array(result[-3].split(";")).astype(np.float)
                 ir = np.array(result[-2].split(";")).astype(np.float)
                 vis = np.array(result[-1].split(";")).astype(np.float)
-
-        else:
-            sysname = SystematicGasExName(result[1], creationtime)
-            wavenumber = np.array(result[-4].split(";")).astype(np.float)
-            sfg = np.array(result[-3].split(";")).astype(np.float)
-            ir = np.array(result[-2].split(";")).astype(np.float)
-            vis = np.array(result[-1].split(";")).astype(np.float)
 
         spec = SfgSpectrum(wavenumber, sfg, ir, vis, sysname)
 
@@ -765,11 +782,15 @@ class SessionControlManager:
 
         command = "SELECT * from " + database + " WHERE "+condition_1+"="+condition_2
         self.cur.execute(command)
-        keys = []
+
         for item in self.cur.fetchall():
             id = item[0]
             self.subset_ids.append(id)
-            self.subset.append(self.fetch_single(id))
+            try:
+
+                self.subset.append(self.fetch_single(id))
+            except:
+                print("Fetching spectrum failed")
 
     def fetch_gasex_sfg(self, kristian=False):
         """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
@@ -814,7 +835,6 @@ class SessionControlManager:
         self.subset_ids = temp_id
 
 
-
     # user interaction functions
 
     def plot(self):
@@ -843,14 +863,14 @@ class SessionControlManager:
             if ref is False:
                 try:
                     self.general_fetch(condition1, condition2)
-                    self.general_fetch(condition1, condition2, default_data=self.gasex_included)
+                    #self.general_fetch(condition1, condition2, default_data=self.gasex_included)
                 except:
                     pass
 
             if ref is True:
                 try:
                     self.general_refine(condition1, condition2)
-                    self.general_refine(condition1, condition2, default_data=self.gasex_included)
+                    #self.general_refine(condition1, condition2, default_data=self.gasex_included)
                 except:
                     pass
 
@@ -1953,7 +1973,7 @@ def lt_sfg_integral(S):
     plt.show()
 
 
-def sfg_plot_broken_axis(speclist,lower,upper,title="default", normalized="false"):
+def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="false"):
     """Produces a pre-formatted SFG plot from a list of SFG spectrum objects"""
 
     fig, (ax,ax2) = plt.subplots(1, 2, sharey=True)
@@ -2006,7 +2026,7 @@ def baseline_demo(spectrum):
     spectrum.correct_baseline()
 
     test = np.linspace(2750,3050,10000)
-    func = spectrum.make_ch_baseline()
+    func = spectrum.make_ch_baseline(average=True)
     borders = spectrum.slice_by_borders(2950, 2810)
 
     f, axarr = plt.subplots(2, sharex=True)
@@ -2027,12 +2047,8 @@ def baseline_demo(spectrum):
 
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
-S.get("su BX12")
-S.by_time("\'2017-11-01\'","\'2018-04-01\'",refine=True)
-
-S.subset.sort(key=lambda x: x.name.creation_time)
-for spec in S.subset:
-    print(str(spec.name.creation_time)+"\n")
+S.fetch_gasex_sfg()
+baseline_demo(S.subset[19])
 
 
 
