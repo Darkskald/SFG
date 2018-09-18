@@ -8,6 +8,8 @@ import csv
 import time
 import datetime
 import copy
+import traceback
+import logging
 
 #scientific libraries
 import numpy as np
@@ -375,14 +377,14 @@ class SfgSpectrum:
 
             q = np.sort(l_interval)
 
-            for i in range(6):
+            for i in range(3):
                 y2.append(q[i])
                 index = int((np.where(l_interval == q[i]))[0])
                 x2.append(l_interval_wl[index])
 
             q = np.sort(interval)
 
-            for i in range(6):
+            for i in range(3):
                 y2.append(q[i])
                 index = int((np.where(interval == q[i]))[0])
                 x2.append(interval_wl[index])
@@ -413,7 +415,6 @@ class SfgSpectrum:
         x_array = self.wavenumbers[borders[0]:borders[1]+1]
         y_array = self.baseline_corrected[borders[0]:borders[1]+1]
         integral = self.integrate_peak(x_array[::-1], y_array[::-1])
-        print(x_array[::-1])
         return integral
 
 
@@ -687,11 +688,10 @@ class SessionControlManager:
     useful from interactive python environments (eg IPy)."""
 
     def __init__(self, database, id):
-
+        # todo: handling of UV/Ir/Raman-Data has to be included
         self.db = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
         self.cur = self.db.cursor()
-        self.table = "sfg_database"
-        self.gasex_table = "sfg_gasex"
+
         self.session_id = id
         self.Surfactants = {}
         self.Sensitizers = {}
@@ -708,21 +708,19 @@ class SessionControlManager:
         self.recover_ids = []
         self.recover = []
 
-        self.gasex_included = False
-        self.kristian_included = False
+        self.active_table = "sfg_database"
+
 
 
     # database methods
 
-    def fetch_single(self, number, condition3=None, condition4=None, default_data=True):
+    def fetch_single(self, number, database, condition3=None, condition4=None):
         """Fetches the data of a single SFG spectrum from the database. Returns an SfgSpectrum object. The
         conditional parameters allow a selection of the spectrum according to specified properties. The
         default_data kwarg controlls which database the spectrum should be extracted from."""
 
-        if default_data is True:
-            database = self.table
-        else:
-            database = self.gasex_table
+
+        # todo: A separate table for BoknisEck data is desirable
 
         command = "SELECT * FROM "+database+" WHERE ROWID="+str(number)
 
@@ -736,13 +734,13 @@ class SessionControlManager:
 
         return spec
 
-    def construct_sfg(self, query_result, default_data=True):
+    def construct_sfg(self, query_result, database):
         """A function to create an SFG spectrum from the result of a query in the SQL database"""
 
         result = query_result
         creationtime = result[2]
 
-        if default_data is True:
+        if database == "sfg_database":
 
                 sysname = SystematicName(result[1], creationtime)
                 wavenumber = np.array(result[-7].split(";")).astype(np.float)
@@ -770,49 +768,27 @@ class SessionControlManager:
 
         return spec
 
-    def general_fetch(self, condition_1, condition_2, default_data=True):
+    def general_fetch(self, condition_1=None, condition_2=None, database="sfg_database"):
         """A function to fetch spectra from the database according to specified match criteria.
         The default_data kwarg controlls the datatable that is used."""
 
-        if default_data == True:
-            database = "sfg_database"
+        command = "SELECT * from " + database
 
-        else:
-            database ="sfg_gasex"
+        if condition_1 is not None and condition_2 is not None:
+            command += (" WHERE "+condition_1+"="+condition_2)
 
-        command = "SELECT * from " + database + " WHERE "+condition_1+"="+condition_2
         self.cur.execute(command)
 
         for item in self.cur.fetchall():
             id = item[0]
             self.subset_ids.append(id)
+
             try:
-
-                self.subset.append(self.fetch_single(id))
+                self.subset.append(self.construct_sfg(item, database))
             except:
-                print("Fetching spectrum failed")
+                logging.error(traceback.format_exc())
 
-    def fetch_gasex_sfg(self, kristian=False):
-        """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
-        command = "SELECT * from " + self.gasex_table
-        self.cur.execute(command)
-        for item in self.cur.fetchall():
-            id = item[0]
-            self.subset_ids.append(id)
-            self.subset.append(self.fetch_single(id, default_data=False))
-
-        self.gasex_included = True
-
-        if kristian == True:
-            command = "SELECT * from " + "sfg_kristian"
-            self.cur.execute(command)
-            for item in self.cur.fetchall():
-                id = item[0]
-                self.subset_ids.append(id)
-                self.subset.append(self.fetch_single(id, default_data=False))
-            self.kristian_included = True
-
-    def general_refine(self, condition1, condition2, default_data=True):
+    def general_refine(self, condition1, condition2, database):
         """Refinement of the actual subset by applying further match criteria. This is the
         actual implementation of the get method abstracting away the database access routine from the
         user."""
@@ -822,7 +798,7 @@ class SessionControlManager:
         for id in self.subset_ids:
 
             try:
-                s = self.fetch_single(id, condition1, condition2, default_data)
+                s = self.fetch_single(id, condition1, condition2, database)
                 temp.append(s)
                 temp_id.append(id)
             except IndexError:
@@ -853,24 +829,25 @@ class SessionControlManager:
         self.subset = []
         self.subset_ids = []
 
-    def get(self, flagstring, ref=False):
+    def get(self, flagstring, database="sfg_database", ref=False):
         """Fetches spectra according to the desired properties and adds them to the subset"""
         t = self.flagstring_split(flagstring)
 
         if t[0] == "su" or t[0] == "se":
             condition1 = self.retranslate_name(t[0])
             condition2 = "\""+self.retranslate_name(t[1])+"\""
+
             if ref is False:
                 try:
-                    self.general_fetch(condition1, condition2)
-                    #self.general_fetch(condition1, condition2, default_data=self.gasex_included)
+                    self.general_fetch(condition1, condition2, database=database)
+
                 except:
                     pass
 
             if ref is True:
                 try:
                     self.general_refine(condition1, condition2)
-                    #self.general_refine(condition1, condition2, default_data=self.gasex_included)
+
                 except:
                     pass
 
@@ -879,7 +856,7 @@ class SessionControlManager:
 
     def ref(self, flagstring):
         """Refines the current subset by applying further match criteria"""
-        self.get(flagstring, ref=True)
+        self.get(flagstring, database="sfg_database", ref=True)
 
     def by_time(self, time1, time2, default_data=True, refine=False):
         """Fetch or  refine the spectral data by time of measurement. The Number has to be given as a string, embraced
@@ -1027,6 +1004,10 @@ class SessionControlManager:
         for i, s in enumerate(stations):
             s.station_number = i+1
             print(str(i+1)+"   "+str(stations[i].name)+"\n")
+
+    def fetch_gasex_sfg(self):
+        """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
+        self.general_fetch(database="sfg_gasex")
 
 
     #auxiliary functions
@@ -2048,8 +2029,9 @@ def baseline_demo(spectrum):
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
 S.fetch_gasex_sfg()
-baseline_demo(S.subset[19])
 
+
+baseline_demo(S.subset[19])
 
 
 
