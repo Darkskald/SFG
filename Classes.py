@@ -352,9 +352,8 @@ class SfgSpectrum:
 
         return upper_index, lower_index
 
-    def make_ch_baseline(self, average=False):
+    def make_ch_baseline(self, average="min"):
 
-        left = np.nonzero(self.wavenumbers == 2750)[0][0]
 
         l_interval = self.slice_by_borders(2800, 2750)
         l_interval_wl = self.wavenumbers[l_interval[0]:l_interval[1] + 1]
@@ -367,11 +366,11 @@ class SfgSpectrum:
         min_index = np.argmin(interval)
         l_min_index = np.argmin(l_interval)
 
-        if average == False:
+        if average == "min":
             slope = (interval[min_index] - l_interval[l_min_index]) / (interval_wl[min_index] - l_interval_wl[l_min_index])
             intercept = l_interval[l_min_index] - slope * l_interval_wl[l_min_index]
 
-        else:
+        elif average == "min_reg":
             y2 = []
             x2 = []
 
@@ -393,25 +392,42 @@ class SfgSpectrum:
 
             slope, intercept, r_value, p_value, std_err = stats.linregress(x2, y2)
 
+        elif average == "gernot":
+            left = self.slice_by_borders(2760,2750)
+            right = self.slice_by_borders(3000, 2950)
+
+            left_x = self.wavenumbers[left[0]:left[1]+1]
+            left_y = self.normalized_intensity[left[0]:left[1]+1]
+
+
+            right_x = self.wavenumbers[right[0]:right[1] + 1]
+            right_y = self.normalized_intensity[right[0]:right[1] + 1]
+
+            slope = (np.average(right_y)-np.average(left_y))/\
+                    (np.average(right_x)-np.average(left_x))
+
+            intercept = np.average(left_y)-slope*np.average(left_x)
+
+
         baseline = lambda x: slope*x+intercept
         return baseline
 
-    def correct_baseline(self):
+    def correct_baseline(self, average="min"):
 
-        func = self.make_ch_baseline()
+        func = self.make_ch_baseline(average=average)
         temp = copy.deepcopy(self.normalized_intensity)
 
-        for i in range(2750,2960):
+        for i in range(2750,3000):
             index = np.nonzero(self.wavenumbers == i)
             correction = func(self.wavenumbers[index])
             temp[index] =temp[index]-correction
 
         self.baseline_corrected = temp
 
-    def calculate_ch_integral(self):
+    def calculate_ch_integral(self, average="min"):
 
-        self.correct_baseline()
-        borders = self.slice_by_borders(2950, 2810)
+        self.correct_baseline(average=average)
+        borders = self.slice_by_borders(3000, 2750)
         x_array = self.wavenumbers[borders[0]:borders[1]+1]
         y_array = self.baseline_corrected[borders[0]:borders[1]+1]
         integral = self.integrate_peak(x_array[::-1], y_array[::-1])
@@ -976,9 +992,7 @@ class SessionControlManager:
 
             self.stations[isotherm.station_hash].lt_isotherms.append(isotherm)
 
-        if self.gasex_included == True:
-
-            for spectrum in self.subset:
+        for spectrum in self.subset:
                 if isinstance(spectrum.name, SystematicGasExName):
 
                     try:
@@ -991,12 +1005,9 @@ class SessionControlManager:
         """Traverse the stations and assign them a number in chronological order (1-n)"""
 
         stations = [i for i in self.stations.values()]
-        for i, s in enumerate(stations):
-            print(str(i+1)+"   "+str(stations[i].name)+"\n")
         stations.sort()
         for i, s in enumerate(stations):
             s.station_number = i+1
-            print(str(i+1)+"   "+str(stations[i].name)+"\n")
 
     def fetch_gasex_sfg(self):
         """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
@@ -1004,6 +1015,7 @@ class SessionControlManager:
 
 
     #auxiliary functions
+
     def flagstring_split(self, flagstring):
         """This function processes the given flagstring and returns a list of SFG objects
         which are passed through the Finder methods utilizing the flags and options"""
@@ -1424,6 +1436,50 @@ class Station:
         for item in self.stats:
             s = f'{item} : {self.stats[item]}\n'
             print(s)
+
+    def make_average_sfg(self):
+
+        to_av = []
+        for spec in self.sfg_spectra:
+            if isinstance(spec.name, SystematicGasExName):
+                if "deep" not in spec.name.type and "low" not in spec.name.type:
+                    to_av.append(spec)
+
+        if len(to_av) != 0:
+            out = to_av[0]
+            for spec in to_av[1:]:
+                out += spec
+            out.name.full_name = self.name
+
+        else:
+            out = None
+            print(len(self.sfg_spectra))
+
+        return out
+
+    def get_overview(self, sfg=True, lt=True):
+        """A function returning a formatted string of information about the station. Can be used to
+        check wether everything was imported correctly"""
+        separator = "-"*80
+        outstring = f'Station number {self.station_number} with name {self.name} '
+        outstring += f'on {self.date[0:2]}.{self.date[2:]}.2018\n'
+        outstring += f'The station contains {len(self.sfg_spectra)} SFG measurements '
+        outstring += f' and  {len(self.lt_isotherms)} compression isotherm numbers.\n'
+
+        if sfg == True:
+            outstring += f'{separator}\n List of the SFG measurements:\n'
+            for i, spectrum in enumerate(self.sfg_spectra):
+                temp = f'{i+1}: {spectrum.name.full_name}\n'
+                outstring += temp
+
+        if lt == True:
+            outstring += f'{separator}\n List of the LT measurements:\n'
+            for i, spectrum in enumerate(self.lt_isotherms):
+                temp = f'{i+1}: {spectrum.name}\n'
+                outstring += temp
+        outstring += separator+"\n"
+
+        return outstring
 
 
 class Spectrum:
@@ -2013,13 +2069,102 @@ def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="fa
     return fig
 
 
-def baseline_demo(spectrum):
+def lt_integral_average(S):
+    """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
+    isotherms"""
+    S.fetch_gasex_sfg()
+    S.collect_stations()
+    S.match_to_stations()
+    S.get_station_numbers()
+
+    for s in S.stations.values():
+        s.join_samples()
+        s.count_per_type()
+
+    fig, (ax1, u_ax) = plt.subplots(nrows=2, ncols=1)
+    ax1.set_xlabel("station number")
+    ax1.set_ylabel("average surface pressure/ mN/m")
+    ax2 = ax1.twinx()
+
+
+    ax2.set_xlabel("day of cruise")
+    ax2.set_ylabel("positive samples/ percent")
+
+    ax1.set_title("Surfactant occurrence in GasEx 1 (June '18)\n\n")
+    ax1.grid(True)
+
+    days = [i for i in range(1, 15)]
+    ax3 = u_ax.twiny()
+
+    ax3.xaxis.set_ticks_position("bottom")
+    ax3.xaxis.set_label_position("bottom")
+    ax3.spines["bottom"].set_position(("axes", -0.35))
+    ax3.set_xlabel("day of cruise")
+
+    u_ax.set_xlabel("station number")
+    u_ax.set_ylabel("Integrated SFG CH intensity/ arb.u.")
+    u_ax.grid(True)
+    u_ax.set_ylim(-0.00025, 0.014)
+
+
+    p_percentages = []
+    s_percentages = []
+    t_percentages = []
+
+    stations = []
+    plates = []
+    totals = []
+    screens = []
+
+    p_std = []
+    s_std = []
+    t_std = []
+
+    for s in S.stations.values(): # type: Station
+
+        if len(s.lt_isotherms) > 0:
+            station = s.station_number
+            stations.append(station)
+            screens.append(s.stats["screen_av"])
+            plates.append(s.stats["plate_av"])
+            totals.append(s.stats["total_av"])
+
+            t_std.append(s.stats["std_total"])
+            s_std.append(s.stats["std_screen"])
+            p_std.append(s.stats["std_plate"])
+
+            ax3.scatter(s.cruise_day, s.stats["screen_av"], s=0)
+            s_percentages.append([station, s.stats["percent_screen"]])
+            p_percentages.append([station, s.stats["percent_plate"]])
+            t_percentages.append([station, s.stats["total_percent"]])
+
+        max_ins = []
+
+        if len(s.sfg_spectra) > 0:
+
+            av_spec = s.make_average_sfg()
+            if isinstance(av_spec, AddedSpectrum):
+                integral = av_spec.calculate_ch_integral()
+                u_ax.scatter(s.station_number, integral)
+
+
+
+    ax1.errorbar(stations, totals, yerr=t_std, fmt="o",color="r",barsabove="true", capsize=5, capthick=2)
+    rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, label="positive")
+
+    ax2.legend()
+    #u_ax.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+def baseline_demo(spectrum,name="default"):
 
     spectrum.correct_baseline()
 
     test = np.linspace(2750,3050,10000)
-    func = spectrum.make_ch_baseline(average=True)
-    borders = spectrum.slice_by_borders(2950, 2810)
+    func = spectrum.make_ch_baseline(average="gernot")
+    borders = spectrum.slice_by_borders(3000, 2750)
 
     f, axarr = plt.subplots(2, sharex=True)
     axarr[0].plot(spectrum.wavenumbers, spectrum.normalized_intensity,label=spectrum.name.full_name, linewidth=1.5, marker="o", markersize=3)
@@ -2035,14 +2180,47 @@ def baseline_demo(spectrum):
     axarr[1].set_ylabel("Norm. SFG intensity/ arb. u.")
     axarr[1].legend()
 
-    plt.show()
+    #plt.show()
+    plt.savefig(name+".png")
+
+
+def benchmark_baseline(speclist):
+
+    for spectrum in speclist: # type: SfgSpectrum
+
+        standard = spectrum.calculate_ch_integral()
+        regress = spectrum.calculate_ch_integral(average="min_reg")
+        gernot = spectrum.calculate_ch_integral(average="gernot")
+        return standard, regress, gernot
+
+
+
+
 
 S = SessionControlManager("sfg.db", "test")
 S.set_lt_manager()
 S.fetch_gasex_sfg()
+S.collect_stations()
+S.match_to_stations()
+S.get_station_numbers()
+
+for s in S.stations.values():
+    print(s.get_overview())
+# specs = []
+#
+# for s in S.stations.values(): #type: Station
+#     q = s.make_average_sfg()
+#     if isinstance(q, AddedSpectrum):
+#         specs.append(q)
+#
+#
+# counter = 0
+# for s in specs:
+#     baseline_demo(s,name=str(counter))
+#     counter += 1
 
 
-baseline_demo(S.subset[19])
+
 
 
 
