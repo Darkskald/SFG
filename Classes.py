@@ -1,7 +1,7 @@
-#module-internal imports
+# module-internal imports
 from new_gui import run_app, run_lt_app
 
-#standard utilities
+# standard utilities
 import os
 import shutil
 import csv
@@ -11,7 +11,7 @@ import copy
 import traceback
 import logging
 
-#scientific libraries
+# scientific libraries
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -21,8 +21,8 @@ from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
 from scipy import stats
 
-#for session controll manager
-#from new_gui import run_app
+# for session controll manager
+# from new_gui import run_app
 
 rcParams['mathtext.default'] = 'regular'
 
@@ -34,6 +34,7 @@ class SfgSpectrum:
     """The SFG spectrum class is the foundation of all analysis and plotting tools. It contains a class
     SystematicName (or a derived class) which carries most of the metainformation. Besides holding the
     experimental data, it gives access to a variety of functions like normalization, peak picking etc."""
+
     # magic methods
     def __init__(self, wavenumbers, intensity, ir_intensity, vis_intensity, SystematicName):
         self.wavenumbers = wavenumbers
@@ -59,6 +60,10 @@ class SfgSpectrum:
 
     def __add__(self, SFG2):
         """Definition of an addition method for SFG spectra. Returning an Added_SFG object"""
+
+        if self.wavenumbers != SFG2.wavenumbers:
+            print("Warning! SFG data do not have the same shape!")
+
         wavenumbers = self.wavenumbers
         intensity = self.normalized_intensity
 
@@ -81,7 +86,6 @@ class SfgSpectrum:
             else:
                 x = len(new_intensities) - 1
                 new_intensities[x] = (new_intensities[x] + tup[1]) * 0.5
-
 
         new_wavenumbers = np.array(new_wavenumbers)
         new_intensities = np.array(new_intensities)
@@ -112,6 +116,16 @@ class SfgSpectrum:
             Added.speccounter += SFG2.speccounter
             return Added
 
+    def __lt__(self, SFG2):
+        """Returns true if the current spectrum was measured before SFG2"""
+        return (self.name.creation_time < SFG2.name.creation_time)
+
+
+
+
+
+    # spectral data processing and analysis tools
+
     def normalize_to_highest(self, intensity="default", external_norm="none"):
         """normalize an given array to its maximum, typically the normalized or raw intensity"""
         if intensity == "default":
@@ -123,10 +137,29 @@ class SfgSpectrum:
 
         return (intensity / norm_factor)
 
+    def smooth(self, points=9, order=5):
+        """Apply a smooth routine to the normalized_intensity"""
+        y = savgol_filter(self.normalized_intensity, points, order)
+        return y
+
+    def integrate_peak(self, x_array, y_array):
+        """Numpy integration routine for numerical peak integration with the trapezoidal rule"""
+        try:
+            area = sp(y_array, x_array)
+            return area
+        except:
+            return "Area  could not be calculated"
+
+    def root(self):
+        return np.sqrt(self.normalized_intensity)
+
+    def yield_maximum(self):
+        return np.max(self.normalized_intensity)
+
     def yield_peaklist(self, mode="norm"):
 
         out = []
-        tup = self.detailed_analysis(threshold=1.5, intensity= mode)
+        tup = self.detailed_analysis(threshold=1.5, intensity=mode)
         for peak in tup:
             out.append(peak[0])
         return out
@@ -157,11 +190,6 @@ class SfgSpectrum:
         increment = [borders, stepsize]
         return increment
 
-    def smooth(self, points=9, order=5):
-        """Apply a smooth routine to the normalized_intensity"""
-        y = savgol_filter(self.normalized_intensity, points, order)
-        return y
-
     def detailed_analysis(self, threshold=2, intensity="norm"):
         """Function returning peak information (central wavenumber, flanks, integral). The threshold value characterizes
         the factor that a peak must be greater than the average intensity"""
@@ -190,7 +218,7 @@ class SfgSpectrum:
             right = 0
             center = i
             k = i - 2
-            border = np.average(slopes)*1/6
+            border = np.average(slopes) * 1 / 6
 
             # check for left border
             while slopes[k] > border and k >= 0:
@@ -201,15 +229,15 @@ class SfgSpectrum:
             k = i + 1
 
             if k >= len(slopes):
-                k = len(slopes)-1
+                k = len(slopes) - 1
             else:
-                #if traversing to the right does not find a proper peak ending
+                # if traversing to the right does not find a proper peak ending
                 try:
                     while (slopes[k] < border):
                         k += 1
                 except IndexError:
-                        k = k-1
-                        break
+                    k = k - 1
+                    break
             right = k
 
             peak_tuples.append((center, left, right))
@@ -226,26 +254,21 @@ class SfgSpectrum:
             area = self.integrate_peak(peak_slice_x, peak_slice_y)
             datapoints = len(peak_slice_x)
 
-            data_out.append((center, left, right, center_intensity, peak_slice_x, peak_slice_y, datapoints, area, indices))
+            data_out.append(
+                (center, left, right, center_intensity, peak_slice_x, peak_slice_y, datapoints, area, indices))
 
-        #sort peaks by peak intensity
+        # sort peaks by peak intensity
         data_out = sorted(data_out, key=(lambda x: x[3]), reverse=True)
         return data_out
 
-    def integrate_peak(self, x_array, y_array):
-        """Numpy integration routine for numerical peak integration with the trapezoidal rule"""
-        try:
-            area = sp(y_array, x_array)
-            return area
-        except:
-            return "Area  could not be calculated"
+    # info functions
 
     def drop_ascii(self):
         """Create an ascii file with the wavenumbers and normalized intensities"""
-        with open(self.name.full_name[:-4]+".csv" , "w") as outfile:
+        with open(self.name.full_name[:-4] + ".csv", "w") as outfile:
             writer = csv.writer(outfile, delimiter=";")
-            for i in zip(self.wavenumbers,self.normalized_intensity):
-                writer.writerow((i[0],i[1]))
+            for i in zip(self.wavenumbers, self.normalized_intensity):
+                writer.writerow((i[0], i[1]))
 
     def drop_tex_peaktable(self, threshold=1.5):
 
@@ -256,7 +279,7 @@ class SfgSpectrum:
         for peak in peaks:
             tablestring += "\subcaption*{" + "Peak " + str(counter) + "}\n"
             tablestring += "\\begin{tabular}{|c|c|c|c|c|c|}\n\hline\n"
-            tablestring += "Wavenumber & normalized intensity & area & left border & right border"+"\\\\"+"\hline\n"
+            tablestring += "Wavenumber & normalized intensity & area & left border & right border" + "\\\\" + "\hline\n"
 
             tablestring += str(peak[0]) + " & " + str(peak[3]) + " & " + str(peak[7]) + " & " + str(
                 peak[1]) + " & " + str(peak[2]) + "\\\\"
@@ -265,6 +288,90 @@ class SfgSpectrum:
 
         return tablestring
 
+    def get_sample_hash(self):
+        return self.name.date + self.name.surfactant + self.name.sensitizer + self.name.surfactant_spread_volume \
+               + str(self.name.sample_number) + self.name.comment
+
+    # CH baseline correction and integration
+
+    def make_ch_baseline(self, average="min"):
+
+        l_interval = self.slice_by_borders(2800, 2750)
+        l_interval_wl = self.wavenumbers[l_interval[0]:l_interval[1] + 1]
+        l_interval = self.normalized_intensity[l_interval[0]:l_interval[1] + 1]
+
+        interval = self.slice_by_borders(2960, 2895)
+        interval_wl = self.wavenumbers[interval[0]:interval[1] + 1]
+        interval = self.normalized_intensity[interval[0]:interval[1] + 1]
+
+        min_index = np.argmin(interval)
+        l_min_index = np.argmin(l_interval)
+
+        if average == "min":
+            slope = (interval[min_index] - l_interval[l_min_index]) / (
+                        interval_wl[min_index] - l_interval_wl[l_min_index])
+            intercept = l_interval[l_min_index] - slope * l_interval_wl[l_min_index]
+
+        elif average == "min_reg":
+            y2 = []
+            x2 = []
+
+            q = np.sort(l_interval)
+
+            for i in range(3):
+                y2.append(q[i])
+                index = int((np.where(l_interval == q[i]))[0])
+                x2.append(l_interval_wl[index])
+
+            q = np.sort(interval)
+
+            for i in range(3):
+                y2.append(q[i])
+                index = int((np.where(interval == q[i]))[0])
+                x2.append(interval_wl[index])
+
+            slope, intercept, r_value, p_value, std_err = stats.linregress(x2, y2)
+
+        elif average == "gernot":
+            left = self.slice_by_borders(2760, 2750)
+            right = self.slice_by_borders(3000, 2950)
+
+            left_x = self.wavenumbers[left[0]:left[1] + 1]
+            left_y = self.normalized_intensity[left[0]:left[1] + 1]
+
+            right_x = self.wavenumbers[right[0]:right[1] + 1]
+            right_y = self.normalized_intensity[right[0]:right[1] + 1]
+
+            slope = (np.average(right_y) - np.average(left_y)) / \
+                    (np.average(right_x) - np.average(left_x))
+
+            intercept = np.average(left_y) - slope * np.average(left_x)
+
+        baseline = lambda x: slope * x + intercept
+        return baseline
+
+    def correct_baseline(self, average="min"):
+
+        func = self.make_ch_baseline(average=average)
+        temp = copy.deepcopy(self.normalized_intensity)
+
+        for i in range(2750, 3000):
+            index = np.nonzero(self.wavenumbers == i)
+            correction = func(self.wavenumbers[index])
+            temp[index] = temp[index] - correction
+
+        self.baseline_corrected = temp
+
+    def calculate_ch_integral(self, average="min"):
+
+        self.correct_baseline(average=average)
+        borders = self.slice_by_borders(3000, 2750)
+        x_array = self.wavenumbers[borders[0]:borders[1] + 1]
+        y_array = self.baseline_corrected[borders[0]:borders[1] + 1]
+        integral = self.integrate_peak(x_array[::-1], y_array[::-1])
+        return integral
+
+    # auxiliary functions
     def calc_dish_area(self, diameter=5.1):
         """A auxialiary function to calculate the area of a teflon dish in square angstroms. Diameter given in cm."""
         radius = diameter * 0.5
@@ -278,8 +385,7 @@ class SfgSpectrum:
         if self.name.sensitizer == "-" or self.name.sensitizer in ["Benzophenone", "Humic Acid"]:
             concentration = self.name.surf_stock_concentration
             if self.name.surf_stock_concentration == "unknown":
-                concentration = input("Enter surf stock concentration of spectrum "+self.name.full_name+": \n")
-
+                concentration = input("Enter surf stock concentration of spectrum " + self.name.full_name + ": \n")
 
             volume = float(self.name.surfactant_spread_volume)
 
@@ -291,14 +397,14 @@ class SfgSpectrum:
             concentration = self.name.surf_stock_concentration
             if self.name.surf_stock_concentration == "unknown":
                 concentration = input(
-                    "Enter surf stock concentration of spectrum " + self.name.full_name+": \n")
+                    "Enter surf stock concentration of spectrum " + self.name.full_name + ": \n")
 
             volume = float(self.name.surfactant_spread_volume)
             concentration = float(concentration) * 10 ** -3  # conversion in mol per liter
             volume = volume * 10 ** -6  # conversion in liter
             amount_su = volume * concentration
 
-            sens_stock_conc = input("Enter sens stock concentration of spectrum " + self.name.full_name+": \n")
+            sens_stock_conc = input("Enter sens stock concentration of spectrum " + self.name.full_name + ": \n")
             concentration = float(sens_stock_conc) * 10 ** -3  # conversion in mol per liter
             volume = float(self.name.sensitizer_spread_volume) * 10 ** -6  # conversion in liter
             amount_se = volume * concentration
@@ -306,12 +412,9 @@ class SfgSpectrum:
             amount = amount_se + amount_su
 
         molecules = (6.022 * 10 ** 23) * amount  # number of molecules
-        area_per_molecule = self.calc_dish_area()/ molecules
+        area_per_molecule = self.calc_dish_area() / molecules
 
         return area_per_molecule
-
-    def yield_maximum(self):
-        return np.max(self.normalized_intensity)
 
     def create_pointlist(self, y_array):
 
@@ -321,14 +424,9 @@ class SfgSpectrum:
 
         return output
 
-    def root(self):
-        return np.sqrt(self.normalized_intensity)
-
-    def get_sample_hash(self):
-        return self.name.date+self.name.surfactant+self.name.sensitizer+self.name.surfactant_spread_volume\
-               +str(self.name.sample_number)+self.name.comment
-
     def slice_by_borders(self, upper, lower):
+        """Takes a high (upper) and a low (lower) reciprocal centimeter value as argument. Returns
+        the indices o the wavenumber array of the spectrum that are the borders of this intervall."""
 
         diff = 10000000
         upper_index = 0
@@ -352,92 +450,12 @@ class SfgSpectrum:
 
         return upper_index, lower_index
 
-    def make_ch_baseline(self, average="min"):
-
-
-        l_interval = self.slice_by_borders(2800, 2750)
-        l_interval_wl = self.wavenumbers[l_interval[0]:l_interval[1] + 1]
-        l_interval = self.normalized_intensity[l_interval[0]:l_interval[1] + 1]
-
-        interval = self.slice_by_borders(2960, 2895)
-        interval_wl = self.wavenumbers[interval[0]:interval[1] + 1]
-        interval = self.normalized_intensity[interval[0]:interval[1]+1]
-
-        min_index = np.argmin(interval)
-        l_min_index = np.argmin(l_interval)
-
-        if average == "min":
-            slope = (interval[min_index] - l_interval[l_min_index]) / (interval_wl[min_index] - l_interval_wl[l_min_index])
-            intercept = l_interval[l_min_index] - slope * l_interval_wl[l_min_index]
-
-        elif average == "min_reg":
-            y2 = []
-            x2 = []
-
-            q = np.sort(l_interval)
-
-            for i in range(3):
-                y2.append(q[i])
-                index = int((np.where(l_interval == q[i]))[0])
-                x2.append(l_interval_wl[index])
-
-            q = np.sort(interval)
-
-            for i in range(3):
-                y2.append(q[i])
-                index = int((np.where(interval == q[i]))[0])
-                x2.append(interval_wl[index])
-
-
-
-            slope, intercept, r_value, p_value, std_err = stats.linregress(x2, y2)
-
-        elif average == "gernot":
-            left = self.slice_by_borders(2760,2750)
-            right = self.slice_by_borders(3000, 2950)
-
-            left_x = self.wavenumbers[left[0]:left[1]+1]
-            left_y = self.normalized_intensity[left[0]:left[1]+1]
-
-
-            right_x = self.wavenumbers[right[0]:right[1] + 1]
-            right_y = self.normalized_intensity[right[0]:right[1] + 1]
-
-            slope = (np.average(right_y)-np.average(left_y))/\
-                    (np.average(right_x)-np.average(left_x))
-
-            intercept = np.average(left_y)-slope*np.average(left_x)
-
-
-        baseline = lambda x: slope*x+intercept
-        return baseline
-
-    def correct_baseline(self, average="min"):
-
-        func = self.make_ch_baseline(average=average)
-        temp = copy.deepcopy(self.normalized_intensity)
-
-        for i in range(2750,3000):
-            index = np.nonzero(self.wavenumbers == i)
-            correction = func(self.wavenumbers[index])
-            temp[index] =temp[index]-correction
-
-        self.baseline_corrected = temp
-
-    def calculate_ch_integral(self, average="min"):
-
-        self.correct_baseline(average=average)
-        borders = self.slice_by_borders(3000, 2750)
-        x_array = self.wavenumbers[borders[0]:borders[1]+1]
-        y_array = self.baseline_corrected[borders[0]:borders[1]+1]
-        integral = self.integrate_peak(x_array[::-1], y_array[::-1])
-        return integral
-
 
 class AddedSpectrum(SfgSpectrum):
     """The result of the addition of two SFG spectra constructed by averaging over datapoints which are shared
     by the spectra. Note: If only one of the two spectra has the datapoint, it will be in the result spectrum with
     the same intensity value like in the original"""
+
     def __init__(self, wn_intenstup, name):
         self.wavenumbers = wn_intenstup[0]
         self.normalized_intensity = wn_intenstup[1]
@@ -449,6 +467,10 @@ class AddedSpectrum(SfgSpectrum):
         return s
 
     def __add__(self, SFG2):
+
+        if self.wavenumbers != SFG2.wavenumbers:
+            print("Warning! SFG data do not have the same shape!")
+
         wavenumbers = self.wavenumbers
         intensity = self.normalized_intensity
 
@@ -480,11 +502,11 @@ class AddedSpectrum(SfgSpectrum):
 
             name = AddedName(names)
             Added = AddedSpectrum((new_wavenumbers, new_intensities), name)
-            Added.speccounter = self.speccounter+1
+            Added.speccounter = self.speccounter + 1
             return Added
 
         elif isinstance(SFG2, AddedSpectrum):
-            names = self.name.full_name+"_"+SFG2.name.full_name
+            names = self.name.full_name + "_" + SFG2.name.full_name
 
             sensitizers = self.name.sensitizer
             for i in SFG2.name.sensitizer:
@@ -497,7 +519,7 @@ class AddedSpectrum(SfgSpectrum):
                     surfactants.append(i)
 
             name = AddedName(names, sensitizers, surfactants)
-            Added = AddedSpectrum((new_wavenumbers, new_intensities),name)
+            Added = AddedSpectrum((new_wavenumbers, new_intensities), name)
             Added.speccounter += self.speccounter
             Added.speccounter += SFG2.speccounter
             return Added
@@ -512,7 +534,7 @@ class SystematicName:
         self.refpath = "name_info/"
 
         try:
-            with open(self.refpath+"Surfactants.txt") as outfile:
+            with open(self.refpath + "Surfactants.txt") as outfile:
                 pass
         except FileNotFoundError:
             self.refpath = "../name_info/"
@@ -522,12 +544,12 @@ class SystematicName:
         self.Surfactants = {}
         self.Sensitizers = {}
 
-        with open(self.refpath+"Surfactants.txt", "r") as infile:
+        with open(self.refpath + "Surfactants.txt", "r") as infile:
             for line in infile:
                 collect = line.split(":")
                 self.Surfactants[collect[0]] = collect[1].strip()
 
-        with open(self.refpath+"Sensitizers.txt", "r") as infile:
+        with open(self.refpath + "Sensitizers.txt", "r") as infile:
             for line in infile:
                 collect = line.split(":")
                 self.Sensitizers[collect[0]] = collect[1].strip()
@@ -600,8 +622,8 @@ class SystematicName:
 
             elif "mM" in i:
                 index = i.find("mM")
-                if self.is_number(i[index-1]):
-                    self.surf_stock_concentration = float(i[index-1])
+                if self.is_number(i[index - 1]):
+                    self.surf_stock_concentration = float(i[index - 1])
 
             else:
                 if self.comment == "none":
@@ -667,7 +689,7 @@ class SystematicGasExName(SystematicName):
 
         if len(temp) > 3:
             self.measurement_date = temp[0]
-            self.station = temp[1]+"_"+temp[2]
+            self.station = temp[1] + "_" + temp[2]
             self.type = temp[3]
             try:
                 self.number = temp[4]
@@ -693,19 +715,19 @@ class SystematicGasExName(SystematicName):
 
 class AddedName(SystematicName):
     """This class is derived from the SfgSpectrum and represents the result of the addition of Sfg intensities."""
-    def __init__(self,names):
+
+    def __init__(self, names):
         self.full_name = ("_").join(names)
 
 
 class SessionControlManager:
-
     """Successor of the IpyInterpreter. A class to access all experimental data, search data by certain match criteria
     and produce plots efficiently. Designed to work with a sqllite database containing the spectral raw data. Especially
     useful from interactive python environments (eg IPy)."""
 
     def __init__(self, database, id):
         # todo: handling of UV/Ir/Raman-Data has to be included
-        self.db = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+        self.db = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         self.cur = self.db.cursor()
 
         self.session_id = id
@@ -718,7 +740,7 @@ class SessionControlManager:
         self.lt_manager = None
         self.spec_manager = None
 
-        #former IpyInterpreter functionality, tracking the primary key in parallel
+        # former IpyInterpreter functionality, tracking the primary key in parallel
         self.subset_ids = []
         self.subset = []
 
@@ -727,7 +749,6 @@ class SessionControlManager:
 
         self.set_spec_manager()
 
-
     # database methods
 
     def fetch_single(self, number, database, condition3=None, condition4=None):
@@ -735,13 +756,12 @@ class SessionControlManager:
         conditional parameters allow a selection of the spectrum according to specified properties. The
         default_data kwarg controlls which database the spectrum should be extracted from."""
 
-
         # todo: A separate table for BoknisEck data is desirable
 
-        command = "SELECT * FROM "+database+" WHERE ROWID="+str(number)
+        command = "SELECT * FROM " + database + " WHERE ROWID=" + str(number)
 
         if condition3 is not None:
-            command += " AND "+str(condition3)+"="+str(condition4)
+            command += " AND " + str(condition3) + "=" + str(condition4)
 
         self.cur.execute(command)
 
@@ -758,11 +778,11 @@ class SessionControlManager:
 
         if database == "sfg_database":
 
-                sysname = SystematicName(result[1], creationtime)
-                wavenumber = np.array(result[-7].split(";")).astype(np.float)
-                sfg = np.array(result[-6].split(";")).astype(np.float)
-                ir = np.array(result[-5].split(";")).astype(np.float)
-                vis = np.array(result[-4].split(";")).astype(np.float)
+            sysname = SystematicName(result[1], creationtime)
+            wavenumber = np.array(result[-7].split(";")).astype(np.float)
+            sfg = np.array(result[-6].split(";")).astype(np.float)
+            ir = np.array(result[-5].split(";")).astype(np.float)
+            vis = np.array(result[-4].split(";")).astype(np.float)
 
         else:
 
@@ -791,7 +811,7 @@ class SessionControlManager:
         command = "SELECT * from " + database
 
         if condition_1 is not None and condition_2 is not None:
-            command += (" WHERE "+condition_1+"="+condition_2)
+            command += (" WHERE " + condition_1 + "=" + condition_2)
 
         self.cur.execute(command)
 
@@ -826,7 +846,6 @@ class SessionControlManager:
         self.subset = temp
         self.subset_ids = temp_id
 
-
     # user interaction functions
 
     def plot(self):
@@ -837,8 +856,8 @@ class SessionControlManager:
     def show(self):
         """Prints a list of the spectra of the current subset including their subset index by which they
         can be accessed easily"""
-        for i,spectrum in enumerate(self.subset):
-            print(str(i)+" "+str(spectrum))
+        for i, spectrum in enumerate(self.subset):
+            print(str(i) + " " + str(spectrum))
 
     def clear(self):
         """Deletes all spectra from the current subset"""
@@ -851,7 +870,7 @@ class SessionControlManager:
 
         if t[0] == "su" or t[0] == "se":
             condition1 = self.retranslate_name(t[0])
-            condition2 = "\""+self.retranslate_name(t[1])+"\""
+            condition2 = "\"" + self.retranslate_name(t[1]) + "\""
 
             if ref is False:
                 try:
@@ -868,7 +887,7 @@ class SessionControlManager:
                     pass
 
         elif t[0] == "name":
-            self.general_fetch(t[0], "\""+t[1]+".sfg"+"\"")
+            self.general_fetch(t[0], "\"" + t[1] + ".sfg" + "\"")
 
     def ref(self, flagstring):
         """Refines the current subset by applying further match criteria"""
@@ -878,7 +897,6 @@ class SessionControlManager:
         """Fetch or  refine the spectral data by time of measurement. The Number has to be given as a string, embraced
         in '' quotation marks to pass it to the SQL query. Note this function is the only user function that directly
         accesses the SQL database"""
-
 
         if refine == False:
 
@@ -897,7 +915,8 @@ class SessionControlManager:
             for id in self.subset_ids:
 
                 try:
-                    command = "SELECT * FROM " + database + " WHERE ROWID=" + str(id)+" AND measured_time between " + time1 + " and " + time2
+                    command = "SELECT * FROM " + database + " WHERE ROWID=" + str(
+                        id) + " AND measured_time between " + time1 + " and " + time2
                     self.cur.execute(command)
                     result = self.cur.fetchall()[0]
                     s = self.construct_sfg(result, database)
@@ -944,7 +963,6 @@ class SessionControlManager:
         self.subset = new_list
         self.subset_ids = new_indexlist
 
-
     # specific functionality for GasEx
 
     def set_lt_manager(self):
@@ -989,17 +1007,16 @@ class SessionControlManager:
         as keys and a list with LtIsotherms matching the station as value"""
 
         for isotherm in self.lt_manager.isotherms:
-
             self.stations[isotherm.station_hash].lt_isotherms.append(isotherm)
 
         for spectrum in self.subset:
-                if isinstance(spectrum.name, SystematicGasExName):
+            if isinstance(spectrum.name, SystematicGasExName):
 
-                    try:
-                        self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
-                    except KeyError:
-                        self.stations[spectrum.name.station_hash] = Station(spectrum.name.station)
-                        self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
+                try:
+                    self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
+                except KeyError:
+                    self.stations[spectrum.name.station_hash] = Station(spectrum.name.station)
+                    self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
 
     def get_station_numbers(self):
         """Traverse the stations and assign them a number in chronological order (1-n)"""
@@ -1007,14 +1024,58 @@ class SessionControlManager:
         stations = [i for i in self.stations.values()]
         stations.sort()
         for i, s in enumerate(stations):
-            s.station_number = i+1
+            s.station_number = i + 1
 
     def fetch_gasex_sfg(self):
         """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
         self.general_fetch(database="sfg_gasex")
 
+    def setup_for_gasex(self):
+        """Convenience function, calls all necessary functions to setup the SCM for gasex data
+        processing"""
+        self.set_lt_manager()
+        self.fetch_gasex_sfg()
+        self.collect_stations()
+        self.match_to_stations()
+        self.get_station_numbers()
 
-    #auxiliary functions
+    # handling DPPC normalization
+
+    def get_dppc_average(self, speclist):
+        """Takes a list of SfgSpecta as arguments. Returns a dictionary of dates as keys and the average SFG CH
+        integral as values."""
+
+        temp = {}
+        out = {}
+
+        for spec in speclist:  # type: SfgSpectrum
+
+            if not (isinstance(spec.name, SystematicGasExName)):
+
+                if spec.name.surfactant == "DPPC":
+
+                    try:
+                        temp[spec.name.creation_time.date()].append(spec)
+                    except KeyError:
+                        temp[spec.name.creation_time.date()] = [(spec)]
+
+        for key in temp:
+
+            intens = 0
+            counter = 0
+
+            for spec in temp[key]:
+                intens += spec.calculate_ch_integral(average="gernot")
+                print(intens)
+                print(np.max(spec.raw_intensity))
+                counter += 1
+
+            intens /= counter
+            out[key] = intens
+
+        return out
+
+    # auxiliary functions
 
     def flagstring_split(self, flagstring):
         """This function processes the given flagstring and returns a list of SFG objects
@@ -1084,7 +1145,7 @@ class LtIsotherm:
         self.process_name()
 
     def __str__(self):
-        return self.name+" LtIsotherm Object"
+        return self.name + " LtIsotherm Object"
 
     def __repr__(self):
         return self.name + " LtIsotherm Object"
@@ -1098,10 +1159,10 @@ class LtIsotherm:
         if len(string) == 4:
             day = string[2:]
         else:
-            raise ValueError("Invalid day string length at spectrum "+self.name)
+            raise ValueError("Invalid day string length at spectrum " + self.name)
 
         day = int(day)
-        day = day-2
+        day = day - 2
         return day
 
     def process_name(self):
@@ -1112,22 +1173,21 @@ class LtIsotherm:
         self.type = temp[3].lower()
         self.station = temp[2]
         self.number = temp[4]
-        self.long_station = self.long_day+"_"+self.station
-        self.station_hash = self.long_day+"_"+self.station[1]
+        self.long_station = self.long_day + "_" + self.station
+        self.station_hash = self.long_day + "_" + self.station[1]
 
         try:
             self.speed = temp[5]
         except IndexError:
-            print(self.name+ " has not a defined compression speed!")
+            print(self.name + " has not a defined compression speed!")
 
     def drop_ascii(self):
         """Drops an ascii file with semikolon-separated data in the form time;area;surface pressure. Intention
         is easy interfacing with external software like Excel or Origin"""
 
-        with open(self.name+".out", "w") as outfile:
-
-            for a,b,c in zip(self.time, self.area, self.pressure):
-                outfile.write(str(a)+";"+str(b)+";"+str(c)+"\n")
+        with open(self.name + ".out", "w") as outfile:
+            for a, b, c in zip(self.time, self.area, self.pressure):
+                outfile.write(str(a) + ";" + str(b) + ";" + str(c) + "\n")
 
     def get_maximum_pressure(self, shrinked=None):
         """Returns the maximum measured surface pressure. Note: This property is uesd for the less-then
@@ -1138,13 +1198,13 @@ class LtIsotherm:
             try:
                 return np.max(shrinked)
             except:
-                #todo specify the type of error numpy will throw
+                # todo specify the type of error numpy will throw
                 raise TypeError("Can not calc maximum for this operand")
 
     def derive_pressure(self):
         """Calculates the difference quotient of the surface pressure with respect to the area.
         Useful for calculation of surface elasticity"""
-        return np.diff(self.pressure)/np.diff(self.area)
+        return np.diff(self.pressure) / np.diff(self.area)
 
     def same_sample(self, other):
         """Checks wether two isotherms belong to the same sample. This is the case if the same sample
@@ -1158,7 +1218,7 @@ class LtIsotherm:
         """Creates a string which identifies the sample by the day, station and type. All isotherms
         from the same station taken by the same method (plate or screen or CTD) will therefore yield
         the same sample_hash. This is usually used to match samples together"""
-        return str(self.day)+self.station+self.type+str(self.number)
+        return str(self.day) + self.station + self.type + str(self.number)
 
     def create_pointlist(self, x_array):
         """Returns a list containing the index, the x_array (usually area or time) and the surface pressure.
@@ -1174,8 +1234,8 @@ class LtIsotherm:
         """Returns a slice of the x_array (usually time or area) defined by the lower and upper integer
         index."""
 
-        x_out = x_array[lower:upper+1]
-        y_out = self.pressure[lower:upper+1]
+        x_out = x_array[lower:upper + 1]
+        y_out = self.pressure[lower:upper + 1]
         return x_out, y_out
 
     def calculate_elasticity(self):
@@ -1185,12 +1245,12 @@ class LtIsotherm:
         ydata = self.pressure[::-1]
         out = []
 
-        for i in range(len(self.pressure)-1):
-            p = abs(ydata[i+1] - ydata[i])
-            a = abs((xdata[i+1] - xdata[i]))
-            A = (xdata[i+1] - xdata[i])/2
+        for i in range(len(self.pressure) - 1):
+            p = abs(ydata[i + 1] - ydata[i])
+            a = abs((xdata[i + 1] - xdata[i]))
+            A = (xdata[i + 1] - xdata[i]) / 2
 
-            out.append(p/a*A)
+            out.append(p / a * A)
 
         return np.array(out[::-1])
 
@@ -1219,7 +1279,7 @@ class LtManager:
 
     def get_all_isotherms(self):
         """Fetches all isotherm data from the database and transforms them to LtIsotherm objects."""
-        command="SELECT * from "+self.table
+        command = "SELECT * from " + self.table
         self.cursor.execute(command)
         result = self.cursor.fetchall()
         for i in result:
@@ -1261,14 +1321,15 @@ class LtManager:
                 for isotherm in self.ordered_days[day][station]:
                     if isotherm.type not in types:
                         types.append(isotherm.type)
-                self.ordered_days[day][station] = {i: [j for j in self.ordered_days[day][station] if j.type == i] for i in types}
+                self.ordered_days[day][station] = {i: [j for j in self.ordered_days[day][station] if j.type == i] for i
+                                                   in types}
 
     def join_same_measurement(self):
         """Stores information about the other measurements of a single sample in the isotherms partner
         attribute."""
         for i, isotherm in enumerate(self.isotherms):
 
-            for isotherm2 in self.isotherms[i+1:]:
+            for isotherm2 in self.isotherms[i + 1:]:
                 if isotherm.same_sample(isotherm2) and isotherm2 not in isotherm.partners:
                     isotherm.partners.append(isotherm2)
 
@@ -1281,7 +1342,7 @@ class Station:
         self.name = name
         self.station_hash = None
         self.date, self.id = self.name.split("_")
-        self.cruise_day = int(self.date[2:])-2
+        self.cruise_day = int(self.date[2:]) - 2
         self.sfg_spectra = []
         self.lt_isotherms = []
         self.station_number = None
@@ -1293,14 +1354,14 @@ class Station:
             "total_plate": 0,
             "screen_av": 0,
             "plate_av": 0,
-            "total" : 0,
+            "total": 0,
             "std_plate": 0,
             "std_screen": 0,
             "std_total": 0,
             "percent_plate": 0,
             "percent_screen": 0,
-            "total_percent" : 0,
-            "total_av" : 0,
+            "total_percent": 0,
+            "total_av": 0,
         }
 
         self.set_station_hash()
@@ -1332,7 +1393,7 @@ class Station:
         else:
             outbool = False
 
-        return  outbool
+        return outbool
 
     def __rpr__(self):
         return f'Station {self.id[1]} on date {self.date}'
@@ -1343,9 +1404,9 @@ class Station:
     def set_station_hash(self):
         temp = self.name.split("_")
         try:
-            self.station_hash = temp[0]+"_"+temp[1][1]
+            self.station_hash = temp[0] + "_" + temp[1][1]
         except IndexError:
-            print("*"*80+"\n"+str(temp))
+            print("*" * 80 + "\n" + str(temp))
             print(self.name)
 
     def count_per_type(self):
@@ -1360,7 +1421,7 @@ class Station:
         plate_array = []
         screen_array = []
 
-        for isotherm in isos: # type: LtIsotherm
+        for isotherm in isos:  # type: LtIsotherm
 
             p_max = isotherm.get_maximum_pressure()
 
@@ -1386,7 +1447,7 @@ class Station:
         self.stats["total"] = (self.stats["total_screen"] + self.stats["total_plate"])
 
         try:
-            self.stats["total_av"] = (self.stats["screen_av"]+self.stats["plate_av"])/self.stats["total"]
+            self.stats["total_av"] = (self.stats["screen_av"] + self.stats["plate_av"]) / self.stats["total"]
         except ZeroDivisionError:
             pass
         try:
@@ -1398,7 +1459,7 @@ class Station:
         except ZeroDivisionError:
             pass
         try:
-            self.stats["percent_screen"] = self.stats["positive_screen"]/self.stats["total_screen"]*100
+            self.stats["percent_screen"] = self.stats["positive_screen"] / self.stats["total_screen"] * 100
         except ZeroDivisionError:
             pass
         try:
@@ -1406,10 +1467,11 @@ class Station:
         except ZeroDivisionError:
             pass
         try:
-            self.stats["total_percent"] = (self.stats["positive_screen"]+self.stats["positive_plate"])/self.stats["total"]*100
+            self.stats["total_percent"] = (self.stats["positive_screen"] + self.stats["positive_plate"]) / self.stats[
+                "total"] * 100
         except ZeroDivisionError:
             pass
-        total_array = plate_array+screen_array
+        total_array = plate_array + screen_array
 
         self.stats["std_plate"] = np.std(plate_array)
         self.stats["std_screen"] = np.std(screen_array)
@@ -1460,7 +1522,7 @@ class Station:
     def get_overview(self, sfg=True, lt=True):
         """A function returning a formatted string of information about the station. Can be used to
         check wether everything was imported correctly"""
-        separator = "-"*80
+        separator = "-" * 80
         outstring = f'Station number {self.station_number} with name {self.name} '
         outstring += f'on {self.date[0:2]}.{self.date[2:]}.2018\n'
         outstring += f'The station contains {len(self.sfg_spectra)} SFG measurements '
@@ -1477,14 +1539,14 @@ class Station:
             for i, spectrum in enumerate(self.lt_isotherms):
                 temp = f'{i+1}: {spectrum.name}\n'
                 outstring += temp
-        outstring += separator+"\n"
+        outstring += separator + "\n"
 
         return outstring
 
 
 class Spectrum:
 
-    def __init__(self,name, x_data, y_data):
+    def __init__(self, name, x_data, y_data):
 
         self.name = name
         self.x_data = x_data
@@ -1503,14 +1565,13 @@ class Spectrum:
 
         if external is False:
             factor = np.max(self.y_data)
-            return self.y_data/factor
+            return self.y_data / factor
 
         else:
             return self.y_data / external
 
     def yield_spectral_range(self):
         """Returns the minimum and maximum and the length of the x_data of the spectrum"""
-
 
         return min(self.x_data), max(self.x_data), len(self.x_data)
 
@@ -1553,8 +1614,8 @@ class Spectrum:
 
 class SpectraManager:
     """A class to handle UV, IR, and Raman specta"""
-    def __init__(self, database):
 
+    def __init__(self, database):
         self.raman = []
         self.ir = []
         self.uv = []
@@ -1568,7 +1629,7 @@ class SpectraManager:
         pass
 
 
-
+# plotting functions
 
 def scatter_maxpressure_day(isothermlist):
     """Create a scatter plot (day of cruise vs. maximum surface pressure) of the LtIsotherms
@@ -1587,16 +1648,17 @@ def scatter_maxpressure_day(isothermlist):
             marker = "*"
         else:
             marker = "8"
-        plt.scatter(isotherm.day, isotherm.get_maximum_pressure(), color=color, s=40, marker=marker )
-        plt.text(isotherm.day+0.1, isotherm.get_maximum_pressure()+0.1, isotherm.station+isotherm.type+isotherm.number,
+        plt.scatter(isotherm.day, isotherm.get_maximum_pressure(), color=color, s=40, marker=marker)
+        plt.text(isotherm.day + 0.1, isotherm.get_maximum_pressure() + 0.1,
+                 isotherm.station + isotherm.type + isotherm.number,
                  fontsize=7)
-        #plt.text(isotherm.day+0.2, isotherm.get_maximum_pressure()+0.1, isotherm.name, fontsize=7)
+        # plt.text(isotherm.day+0.2, isotherm.get_maximum_pressure()+0.1, isotherm.name, fontsize=7)
 
     plt.xlabel("days of cruise")
     plt.ylabel("maximum pressure/ mNm$^{-1}$")
     plt.grid()
-    #legend_elements = [Line2D([0], [0], marker='o', color='r', label='glass plate', markerfacecolor='g', markersize=40)]
-    #plt.legend(handles=legend_elements)
+    # legend_elements = [Line2D([0], [0], marker='o', color='r', label='glass plate', markerfacecolor='g', markersize=40)]
+    # plt.legend(handles=legend_elements)
     plt.show()
 
 
@@ -1612,7 +1674,6 @@ def plot_vs_time(isothermlist):
 
 
 def plot_per_sample(isothermlist):
-
     """Matches the items provided in the list of LtIsotherms according to their samples and exports all
      plots of a sample as pdf."""
 
@@ -1624,17 +1685,16 @@ def plot_per_sample(isothermlist):
             leg = isotherm.name
             plt.plot(isotherm.time, isotherm.pressure, label=leg)
 
-
             for partner in isotherm.partners:
                 leg = partner.name
                 plt.plot(partner.time, partner.pressure, label=leg)
 
             plt.xlabel("time/ s")
             plt.ylabel("maximum pressure/ mNm$^{-1}$")
-            plt.title(str(isotherm.day)+" "+isotherm.station+" "+isotherm.type+" "+str(isotherm.number))
+            plt.title(str(isotherm.day) + " " + isotherm.station + " " + isotherm.type + " " + str(isotherm.number))
             plt.grid()
             plt.legend()
-            plt.savefig(isotherm.create_sample_hash()+".png")
+            plt.savefig(isotherm.create_sample_hash() + ".png")
             plt.cla()
 
         else:
@@ -1649,21 +1709,21 @@ def sfg_pub_plot(speclist, title="default", normalized="false"):
     ax.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
     ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
 
-    inc = 0.25/len(speclist)
+    inc = 0.25 / len(speclist)
     counter = 0
     for spectrum in speclist:
-        eff_alpha = 0.75+inc*counter
+        eff_alpha = 0.75 + inc * counter
         if normalized == "false":
             ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
                     alpha=eff_alpha, label=spectrum.name.full_name)
         elif normalized == "true":
             ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="o", markersize=3,
                     alpha=eff_alpha, label=spectrum.name.full_name)
-        counter +=1
+        counter += 1
 
     size = fig.get_size_inches()
-    ratio = size[0]/size[1]
-    fig.set_size_inches(3.2*ratio, 3.2)
+    ratio = size[0] / size[1]
+    fig.set_size_inches(3.2 * ratio, 3.2)
     fig.tight_layout()
     return fig
 
@@ -1682,7 +1742,7 @@ def sfg_stack_plot(speclist):
     offset = 0
     for spectrum in speclist:
         eff_alpha = 0.75 + inc * counter
-        ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest()+offset, linewidth=1.5, marker="o", markersize=3,
+        ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, linewidth=1.5, marker="o", markersize=3,
                 alpha=eff_alpha, label=spectrum.name.full_name)
         counter += 1
         offset += 0.2
@@ -1700,7 +1760,7 @@ def sfg_doublestack_plot(speclist1, speclist2):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax1 = fig.add_subplot(211)
-    ax2 =fig.add_subplot(212)
+    ax2 = fig.add_subplot(212)
     ax2.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
     ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
 
@@ -1720,8 +1780,9 @@ def sfg_doublestack_plot(speclist1, speclist2):
     offset = 0
     for spectrum in speclist1:
         eff_alpha = 0.75 + inc * counter
-        ax1.plot(spectrum.wavenumbers, spectrum.normalize_to_highest()+offset, linewidth=1.5, marker="o", markersize=3,
-                alpha=eff_alpha, label=spectrum.name.full_name)
+        ax1.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, linewidth=1.5, marker="o",
+                 markersize=3,
+                 alpha=eff_alpha, label=spectrum.name.full_name)
         counter += 1
         offset += 0.2
 
@@ -1730,8 +1791,9 @@ def sfg_doublestack_plot(speclist1, speclist2):
     offset = 0
     for spectrum in speclist2:
         eff_alpha = 0.75 + inc * counter
-        ax2.plot(spectrum.wavenumbers, spectrum.normalize_to_highest()+offset, linewidth=1.5, marker="o", markersize=3,
-                alpha=eff_alpha, label=spectrum.name.full_name)
+        ax2.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, linewidth=1.5, marker="o",
+                 markersize=3,
+                 alpha=eff_alpha, label=spectrum.name.full_name)
         counter += 1
         offset += 0.2
     ax1.legend()
@@ -1755,10 +1817,7 @@ def finalize_figure(fig, title="test2"):
 def lt_plot_stats_new(S):
     """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
     isotherms"""
-    S.fetch_gasex_sfg()
-    S.collect_stations()
-    S.match_to_stations()
-    S.get_station_numbers()
+    S.setup_for_gasex()
 
     for s in S.stations.values():
         s.join_samples()
@@ -1768,7 +1827,6 @@ def lt_plot_stats_new(S):
     ax1.set_xlabel("station number")
     ax1.set_ylabel("average surface pressure/ mN/m")
     ax2 = ax1.twinx()
-
 
     ax2.set_xlabel("day of cruise")
     ax2.set_ylabel("positive samples/ percent")
@@ -1788,7 +1846,6 @@ def lt_plot_stats_new(S):
     u_ax.set_ylabel("Norm. SFG intensity/ arb.u.")
     u_ax.grid(True)
     u_ax.set_ylim(-0.0001, 0.0006)
-
 
     p_percentages = []
     s_percentages = []
@@ -1823,23 +1880,24 @@ def lt_plot_stats_new(S):
 
         max_ins = []
 
-        for spectrum in s.sfg_spectra: # type: SfgSpectrum
+        for spectrum in s.sfg_spectra:  # type: SfgSpectrum
 
             station = s.station_number
-            b = spectrum.slice_by_borders(3000,2800)
-            max = np.max(spectrum.normalized_intensity[b[0]:b[1]+1])
+            b = spectrum.slice_by_borders(3000, 2800)
+            max = np.max(spectrum.normalized_intensity[b[0]:b[1] + 1])
             max_ins.append(max)
 
         max_ins = np.array(max_ins)
         av = np.average(max_ins)
         std = np.std(max_ins)
-        u_ax.errorbar(station, av, std, alpha=0.9,fmt="o", color="b", label="average",barsabove="true", capsize=5, capthick=2)
+        u_ax.errorbar(station, av, std, alpha=0.9, fmt="o", color="b", label="average", barsabove="true", capsize=5,
+                      capthick=2)
 
-    ax1.errorbar(stations, totals, yerr=t_std, fmt="o",color="r",barsabove="true", capsize=5, capthick=2)
+    ax1.errorbar(stations, totals, yerr=t_std, fmt="o", color="r", barsabove="true", capsize=5, capthick=2)
     rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, label="total")
 
     ax2.legend()
-    #u_ax.legend()
+    # u_ax.legend()
     plt.tight_layout()
     plt.show()
 
@@ -1847,10 +1905,7 @@ def lt_plot_stats_new(S):
 def sfg_with_lt(S):
     """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
         isotherms"""
-    S.fetch_gasex_sfg()
-    S.collect_stations()
-    S.match_to_stations()
-    S.get_station_numbers()
+    S.setup_for_gasex()
 
     for s in S.stations.values():
         s.join_samples()
@@ -1876,33 +1931,30 @@ def sfg_with_lt(S):
     s_percentages = []
     t_percentages = []
 
-
-
     for s in S.stations.values():
 
         station = s.station_number
 
-        for spectrum in s.sfg_spectra: # type: SfgSpectrum
+        for spectrum in s.sfg_spectra:  # type: SfgSpectrum
 
-            b = spectrum.slice_by_borders(3000,2800)
-            max = np.max(spectrum.normalized_intensity[b[0]:b[1]+1])
-            mapping = {"p":["g","plate"],
-                       "s1":["b","screen"],
-                       "s2":["b","screen"],
-                       "s3":["b","screen"],
-                       "deep":"black",
-                       "low":"black"}
+            b = spectrum.slice_by_borders(3000, 2800)
+            max = np.max(spectrum.normalized_intensity[b[0]:b[1] + 1])
+            mapping = {"p": ["g", "plate"],
+                       "s1": ["b", "screen"],
+                       "s2": ["b", "screen"],
+                       "s3": ["b", "screen"],
+                       "deep": "black",
+                       "low": "black"}
             try:
-                ax1.scatter(station, max,alpha=0.9, color=mapping[spectrum.name.type][0], label=mapping[spectrum.name.type][1],
+                ax1.scatter(station, max, alpha=0.9, color=mapping[spectrum.name.type][0],
+                            label=mapping[spectrum.name.type][1],
                             s=60)
             except KeyError:
                 ax1.scatter(station, max, alpha=0.9, color="black", label="CTD", s=60)
 
-
-
         ax3.scatter(s.cruise_day, max, s=0)
         ax1.set_ylim(0, 0.0008)
-        #ax1.legend()
+        # ax1.legend()
 
         s_percentages.append([station, s.stats["percent_screen"]])
         p_percentages.append([station, s.stats["percent_plate"]])
@@ -1915,11 +1967,11 @@ def sfg_with_lt(S):
     rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.35, width=0.2,
                      color="r", label="total, trough (positive)")
 
-    #ax2.legend()
+    # ax2.legend()
 
-    h1 = [Line2D([0],[0], marker='o', color='w', markerfacecolor='g',markersize=10),
-          Line2D([0], [0], marker='o', color='w', markerfacecolor='b',markersize=10),
-          Line2D([0], [0], marker='o', color='w', markerfacecolor='black',markersize=10)]
+    h1 = [Line2D([0], [0], marker='o', color='w', markerfacecolor='g', markersize=10),
+          Line2D([0], [0], marker='o', color='w', markerfacecolor='b', markersize=10),
+          Line2D([0], [0], marker='o', color='w', markerfacecolor='black', markersize=10)]
 
     l1 = ["plate, SFG", "screen, SFG", "CTD, SFG"]
     h2, l2 = ax2.get_legend_handles_labels()
@@ -1932,10 +1984,8 @@ def sfg_with_lt(S):
 def lt_sfg_integral(S):
     """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
     isotherms"""
-    S.fetch_gasex_sfg()
-    S.collect_stations()
-    S.match_to_stations()
-    S.get_station_numbers()
+
+    S.setup_for_gasex()
 
     for s in S.stations.values():
         s.join_samples()
@@ -1945,7 +1995,6 @@ def lt_sfg_integral(S):
     ax1.set_xlabel("station number")
     ax1.set_ylabel("average surface pressure/ mN/m")
     ax2 = ax1.twinx()
-
 
     ax2.set_xlabel("day of cruise")
     ax2.set_ylabel("positive samples/ percent")
@@ -1965,7 +2014,6 @@ def lt_sfg_integral(S):
     u_ax.set_ylabel("Integrated SFG CH intensity/ arb.u.")
     u_ax.grid(True)
     u_ax.set_ylim(-0.00025, 0.014)
-
 
     p_percentages = []
     s_percentages = []
@@ -2012,11 +2060,11 @@ def lt_sfg_integral(S):
             u_ax.errorbar(s.station_number, average, yerr=std, fmt="o", color="b", barsabove="true", capsize=5,
                           capthick=2)
 
-    ax1.errorbar(stations, totals, yerr=t_std, fmt="o",color="r",barsabove="true", capsize=5, capthick=2)
+    ax1.errorbar(stations, totals, yerr=t_std, fmt="o", color="r", barsabove="true", capsize=5, capthick=2)
     rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, label="positive")
 
     ax2.legend()
-    #u_ax.legend()
+    # u_ax.legend()
     plt.tight_layout()
     plt.show()
 
@@ -2024,7 +2072,7 @@ def lt_sfg_integral(S):
 def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="false"):
     """Produces a pre-formatted SFG plot from a list of SFG spectrum objects"""
 
-    fig, (ax,ax2) = plt.subplots(1, 2, sharey=True)
+    fig, (ax, ax2) = plt.subplots(1, 2, sharey=True)
     ax.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
     ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
 
@@ -2047,24 +2095,23 @@ def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="fa
     ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)
     ax2.plot((-d, +d), (-d, +d), **kwargs)
 
-
-    inc = 0.25/len(speclist)
+    inc = 0.25 / len(speclist)
     counter = 0
     for spectrum in speclist:
-        eff_alpha = 0.75+inc*counter
+        eff_alpha = 0.75 + inc * counter
         if normalized == "false":
             ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
                     alpha=eff_alpha, label=spectrum.name.full_name)
             ax2.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
-                    alpha=eff_alpha, label=spectrum.name.full_name)
+                     alpha=eff_alpha, label=spectrum.name.full_name)
         elif normalized == "true":
             ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="o", markersize=3,
                     alpha=eff_alpha, label=spectrum.name.full_name)
-        counter +=1
+        counter += 1
 
     size = fig.get_size_inches()
-    ratio = size[0]/size[1]
-    fig.set_size_inches(3.2*ratio, 3.2)
+    ratio = size[0] / size[1]
+    fig.set_size_inches(3.2 * ratio, 3.2)
     fig.tight_layout()
     return fig
 
@@ -2072,10 +2119,7 @@ def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="fa
 def lt_integral_average(S):
     """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
     isotherms"""
-    S.fetch_gasex_sfg()
-    S.collect_stations()
-    S.match_to_stations()
-    S.get_station_numbers()
+    S.setup_for_gasex()
 
     for s in S.stations.values():
         s.join_samples()
@@ -2085,7 +2129,6 @@ def lt_integral_average(S):
     ax1.set_xlabel("station number")
     ax1.set_ylabel("average surface pressure/ mN/m")
     ax2 = ax1.twinx()
-
 
     ax2.set_xlabel("day of cruise")
     ax2.set_ylabel("positive samples/ percent")
@@ -2106,7 +2149,6 @@ def lt_integral_average(S):
     u_ax.grid(True)
     u_ax.set_ylim(-0.00025, 0.014)
 
-
     p_percentages = []
     s_percentages = []
     t_percentages = []
@@ -2120,7 +2162,7 @@ def lt_integral_average(S):
     s_std = []
     t_std = []
 
-    for s in S.stations.values(): # type: Station
+    for s in S.stations.values():  # type: Station
 
         if len(s.lt_isotherms) > 0:
             station = s.station_number
@@ -2147,46 +2189,45 @@ def lt_integral_average(S):
                 integral = av_spec.calculate_ch_integral()
                 u_ax.scatter(s.station_number, integral)
 
-
-
-    ax1.errorbar(stations, totals, yerr=t_std, fmt="o",color="r",barsabove="true", capsize=5, capthick=2)
+    ax1.errorbar(stations, totals, yerr=t_std, fmt="o", color="r", barsabove="true", capsize=5, capthick=2)
     rects2 = ax2.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, label="positive")
 
     ax2.legend()
-    #u_ax.legend()
+    # u_ax.legend()
     plt.tight_layout()
     plt.show()
 
 
-def baseline_demo(spectrum,name="default"):
-
+def baseline_demo(spectrum, name="default"):
     spectrum.correct_baseline()
 
-    test = np.linspace(2750,3050,10000)
+    test = np.linspace(2750, 3050, 10000)
     func = spectrum.make_ch_baseline(average="gernot")
     borders = spectrum.slice_by_borders(3000, 2750)
 
     f, axarr = plt.subplots(2, sharex=True)
-    axarr[0].plot(spectrum.wavenumbers, spectrum.normalized_intensity,label=spectrum.name.full_name, linewidth=1.5, marker="o", markersize=3)
+    axarr[0].plot(spectrum.wavenumbers, spectrum.normalized_intensity, label=spectrum.name.full_name, linewidth=1.5,
+                  marker="o", markersize=3)
     axarr[0].plot(test, func(test), color="r", label="Baseline")
     axarr[0].set_xlabel("Wavenumber/ cm$^{-1}$")
     axarr[0].set_ylabel("Norm. SFG intensity/ arb. u.")
     axarr[0].set_title("Demonstration of the automatic baseline subtraction and integration")
     axarr[0].legend()
 
-    axarr[1].plot(spectrum.wavenumbers, spectrum.baseline_corrected,label=spectrum.name.full_name, linewidth=1.5, marker="o", markersize=3)
-    axarr[1].fill_between(spectrum.wavenumbers[borders[0]:borders[1]+1], spectrum.baseline_corrected[borders[0]:borders[1]+1])
+    axarr[1].plot(spectrum.wavenumbers, spectrum.baseline_corrected, label=spectrum.name.full_name, linewidth=1.5,
+                  marker="o", markersize=3)
+    axarr[1].fill_between(spectrum.wavenumbers[borders[0]:borders[1] + 1],
+                          spectrum.baseline_corrected[borders[0]:borders[1] + 1])
     axarr[1].set_xlabel("Wavenumber/ cm$^{-1}$")
     axarr[1].set_ylabel("Norm. SFG intensity/ arb. u.")
     axarr[1].legend()
 
-    #plt.show()
-    plt.savefig(name+".png")
+    # plt.show()
+    plt.savefig(name + ".png")
 
 
 def benchmark_baseline(speclist):
-
-    for spectrum in speclist: # type: SfgSpectrum
+    for spectrum in speclist:  # type: SfgSpectrum
 
         standard = spectrum.calculate_ch_integral()
         regress = spectrum.calculate_ch_integral(average="min_reg")
@@ -2194,18 +2235,16 @@ def benchmark_baseline(speclist):
         return standard, regress, gernot
 
 
-
-
-
 S = SessionControlManager("sfg.db", "test")
-S.set_lt_manager()
-S.fetch_gasex_sfg()
-S.collect_stations()
-S.match_to_stations()
-S.get_station_numbers()
 
-for s in S.stations.values():
-    print(s.get_overview())
+# testcode section
+
+
+
+# S.get("su DPPC")
+S.setup_for_gasex()
+S.get_dppc_average(S.subset)
+
 # specs = []
 #
 # for s in S.stations.values(): #type: Station
@@ -2218,10 +2257,6 @@ for s in S.stations.values():
 # for s in specs:
 #     baseline_demo(s,name=str(counter))
 #     counter += 1
-
-
-
-
 
 
 # S.get("name 20180319_PA_5_x1_#1_5mM")
@@ -2249,17 +2284,3 @@ for s in S.stations.values():
 #
 # f = sfg_doublestack_plot(stack1, stack2)
 # plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
