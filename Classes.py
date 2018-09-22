@@ -120,10 +120,6 @@ class SfgSpectrum:
         """Returns true if the current spectrum was measured before SFG2"""
         return (self.name.creation_time < SFG2.name.creation_time)
 
-
-
-
-
     # spectral data processing and analysis tools
 
     def normalize_to_highest(self, intensity="default", external_norm="none"):
@@ -356,7 +352,7 @@ class SfgSpectrum:
         temp = copy.deepcopy(self.normalized_intensity)
 
         for i in range(2750, 3000):
-            index = np.nonzero(self.wavenumbers == i)
+            index = np.where(self.wavenumbers == i)
             correction = func(self.wavenumbers[index])
             temp[index] = temp[index] - correction
 
@@ -1047,17 +1043,19 @@ class SessionControlManager:
 
         temp = {}
         out = {}
-
+        #todo: erase the error which arises if the spectrum is not measured till 3000 cm
         for spec in speclist:  # type: SfgSpectrum
 
             if not (isinstance(spec.name, SystematicGasExName)):
 
                 if spec.name.surfactant == "DPPC":
 
-                    try:
-                        temp[spec.name.creation_time.date()].append(spec)
-                    except KeyError:
-                        temp[spec.name.creation_time.date()] = [(spec)]
+                    if np.max(spec.wavenumbers >= 3000):
+
+                        try:
+                            temp[spec.name.creation_time.date()].append(spec)
+                        except KeyError:
+                            temp[spec.name.creation_time.date()] = [(spec)]
 
         for key in temp:
 
@@ -1066,13 +1064,14 @@ class SessionControlManager:
 
             for spec in temp[key]:
                 intens += spec.calculate_ch_integral(average="gernot")
-                print(intens)
-                print(np.max(spec.raw_intensity))
+                plt.scatter(spec.yield_maximum(), spec.calculate_ch_integral())
                 counter += 1
 
             intens /= counter
             out[key] = intens
-
+        plt.xlabel("maximum intensity")
+        plt.ylabel("CH Integral")
+        plt.show()
         return out
 
     # auxiliary functions
