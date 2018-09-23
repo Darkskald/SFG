@@ -1074,7 +1074,7 @@ class SessionControlManager:
         plt.show()
         return out
 
-    # auxiliary functions
+    # auxiliary functions 123
 
     def flagstring_split(self, flagstring):
         """This function processes the given flagstring and returns a list of SFG objects
