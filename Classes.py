@@ -61,7 +61,7 @@ class SfgSpectrum:
     def __add__(self, SFG2):
         """Definition of an addition method for SFG spectra. Returning an Added_SFG object"""
 
-        if self.wavenumbers != SFG2.wavenumbers:
+        if self.wavenumbers.all() != SFG2.wavenumbers.all():
             print("Warning! SFG data do not have the same shape!")
 
         wavenumbers = self.wavenumbers
@@ -464,7 +464,7 @@ class AddedSpectrum(SfgSpectrum):
 
     def __add__(self, SFG2):
 
-        if self.wavenumbers != SFG2.wavenumbers:
+        if self.wavenumbers.all() != SFG2.wavenumbers.all():
             print("Warning! SFG data do not have the same shape!")
 
         wavenumbers = self.wavenumbers
@@ -743,7 +743,10 @@ class SessionControlManager:
         self.recover_ids = []
         self.recover = []
 
+        self.dppc_ints = None
+
         self.set_spec_manager()
+
 
     # database methods
 
@@ -1034,17 +1037,20 @@ class SessionControlManager:
         self.collect_stations()
         self.match_to_stations()
         self.get_station_numbers()
+        self.dppc_ints = self.get_dppc_average()
+        for s in self.stations.values():
+            s.join_samples()
+            s.count_per_type()
 
     # handling DPPC normalization
-
-    def get_dppc_average(self, speclist):
-        """Takes a list of SfgSpecta as arguments. Returns a dictionary of dates as keys and the average SFG CH
+    def get_dppc_average(self):
+        """Takes a list of SfgSpectra as arguments. Returns a dictionary of dates as keys and the average SFG CH
         integral as values."""
 
         temp = {}
         out = {}
         #todo: erase the error which arises if the spectrum is not measured till 3000 cm
-        for spec in speclist:  # type: SfgSpectrum
+        for spec in self.subset:  # type: SfgSpectrum
 
             if not (isinstance(spec.name, SystematicGasExName)):
 
@@ -1055,7 +1061,9 @@ class SessionControlManager:
                         try:
                             temp[spec.name.creation_time.date()].append(spec)
                         except KeyError:
-                            temp[spec.name.creation_time.date()] = [(spec)]
+                            temp[spec.name.creation_time.date()] = [spec]
+
+
 
         for key in temp:
 
@@ -1063,15 +1071,12 @@ class SessionControlManager:
             counter = 0
 
             for spec in temp[key]:
-                intens += spec.calculate_ch_integral(average="gernot")
-                plt.scatter(spec.yield_maximum(), spec.calculate_ch_integral())
+                intens += spec.calculate_ch_integral()
                 counter += 1
 
             intens /= counter
             out[key] = intens
-        plt.xlabel("maximum intensity")
-        plt.ylabel("CH Integral")
-        plt.show()
+
         return out
 
     # auxiliary functions 123
@@ -1362,6 +1367,7 @@ class Station:
             "total_percent": 0,
             "total_av": 0,
         }
+        self.isotherm_count = None
 
         self.set_station_hash()
 
@@ -1490,6 +1496,8 @@ class Station:
         for isolist in self.lt_joined.values():
             isolist.sort(reverse=True)
 
+        self.isotherm_count = len(self.lt_joined)
+
     def print_stats(self):
         """Formatted output of the stations stats, calculated from the LtIsotherms belonging to the
         station."""
@@ -1498,7 +1506,7 @@ class Station:
             s = f'{item} : {self.stats[item]}\n'
             print(s)
 
-    def make_average_sfg(self):
+    def make_average_sfg(self, dppc=False):
 
         to_av = []
         for spec in self.sfg_spectra:
@@ -1506,15 +1514,33 @@ class Station:
                 if "deep" not in spec.name.type and "low" not in spec.name.type:
                     to_av.append(spec)
 
-        if len(to_av) != 0:
-            out = to_av[0]
-            for spec in to_av[1:]:
-                out += spec
-            out.name.full_name = self.name
+        if dppc == False:
+
+            if len(to_av) != 0:
+                out = to_av[0]
+                for spec in to_av[1:]:
+                    out += spec
+                out.name.full_name = self.name
+                out = out.calculate_ch_integral(average="gernot")
+
+            else:
+                out = None
+
+
 
         else:
-            out = None
-            print(len(self.sfg_spectra))
+            if len(to_av) != 0:
+                dates = dppc
+                temp= []
+
+                for spec in to_av: # type: SfgSpectrum
+                    dppc_integral = dates[spec.name.creation_time.date()]
+                    ch_integral = spec.calculate_ch_integral(average="gernot")
+                    temp.append(np.sqrt((ch_integral/dppc_integral)))
+
+                out = np.average(temp), np.std(temp)
+            else:
+                out = None
 
         return out
 
@@ -2068,6 +2094,66 @@ def lt_sfg_integral(S):
     plt.show()
 
 
+def lt_sfg_integral_dppc(S):
+    """Takes Session controll manager as argument. Performs the bar/max surface pressure plot plot for the LT
+    isotherms"""
+
+    S.setup_for_gasex()
+    figure, plots = plt.subplots(3, 1)
+    t_percentages = []
+
+
+
+    ltplot = plots[0]
+    ltplot.set_title("Surfactant occurrence in GasEx 1 (June '18)\n\n")
+    ltplot.set_ylabel("average surface pressure/ mN/m")
+    ltplot.xaxis.set_ticklabels([])
+
+    bars = ltplot.twinx()
+    bars.set_ylabel("positive samples/ percent")
+
+    sfg = plots[1]
+    sfg.set_ylim(-0.00025, 0.014)
+    sfg.set_ylabel("Integrated SFG CH intensity/ arb.u.")
+    sfg.xaxis.set_ticklabels([])
+
+    dppc = plots[2]
+    dppc.set_ylabel("surface coverage/ %")
+    dppc.set_xlabel("station number")
+    base = dppc.twiny()
+    base.xaxis.set_ticks_position("bottom")
+    base.xaxis.set_label_position("bottom")
+    base.spines["bottom"].set_position(("axes", -0.25))
+    base.set_xlabel("day of cruise")
+
+    for station in S.stations.values(): # type: Station
+
+        if station.cruise_day < 13:
+            base.scatter(station.cruise_day, station.stats["total_av"], s=0)
+
+
+        if len(station.lt_isotherms) > 0:
+            ltplot.scatter(station.station_number, station.stats["total_av"], color="green")
+            ltplot.text(station.station_number+0.15,station.stats["total_av"]+0.15, str(station.isotherm_count))
+            t_percentages.append([station.station_number, station.stats["total_percent"]])
+
+
+
+        if len(station.sfg_spectra) > 0:
+            if station.make_average_sfg() is not None:
+                sfg.scatter(station.station_number, station.make_average_sfg(), color="blue")
+
+            if station.make_average_sfg(dppc=S.dppc_ints) is not None:
+                dppc.scatter(station.station_number, station.make_average_sfg(dppc=S.dppc_ints)[0]*100, color="red")
+
+    bars.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, label="positive")
+    plt.show()
+
+
+
+
+
+
 def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="false"):
     """Produces a pre-formatted SFG plot from a list of SFG spectrum objects"""
 
@@ -2201,7 +2287,7 @@ def baseline_demo(spectrum, name="default"):
     spectrum.correct_baseline()
 
     test = np.linspace(2750, 3050, 10000)
-    func = spectrum.make_ch_baseline(average="gernot")
+    func = spectrum.make_ch_baseline()
     borders = spectrum.slice_by_borders(3000, 2750)
 
     f, axarr = plt.subplots(2, sharex=True)
@@ -2221,8 +2307,8 @@ def baseline_demo(spectrum, name="default"):
     axarr[1].set_ylabel("Norm. SFG intensity/ arb. u.")
     axarr[1].legend()
 
-    # plt.show()
-    plt.savefig(name + ".png")
+    plt.show()
+    #plt.savefig(name + ".png")
 
 
 def benchmark_baseline(speclist):
@@ -2241,45 +2327,4 @@ S = SessionControlManager("sfg.db", "test")
 
 
 # S.get("su DPPC")
-S.setup_for_gasex()
-S.get_dppc_average(S.subset)
-
-# specs = []
-#
-# for s in S.stations.values(): #type: Station
-#     q = s.make_average_sfg()
-#     if isinstance(q, AddedSpectrum):
-#         specs.append(q)
-#
-#
-# counter = 0
-# for s in specs:
-#     baseline_demo(s,name=str(counter))
-#     counter += 1
-
-
-# S.get("name 20180319_PA_5_x1_#1_5mM")
-# pa = S.subset[0]
-# S.clear()
-#
-# S.get("name 20180315_SA_BX12_10_x1_#2_mixedlayer1zu2mM")
-# sa_bx = S.subset[0]
-# S.clear()
-#
-# S.get("name 20180320_PA_BX12_10_x1_#1_1.5zu1.5mM")
-# pa_bx = S.subset[0]
-# S.clear()
-#
-# S.get("name 20180524_BX12_8_x2_#2_1mM")
-# bx = S.subset[0]
-# S.clear()
-#
-# S.get("name 20160316_SA_5_x1_#1_5mM")
-# sa = S.subset[0]
-# S.clear()
-#
-# stack1 = [sa, sa_bx, bx]
-# stack2 = [pa, pa_bx, bx]
-#
-# f = sfg_doublestack_plot(stack1, stack2)
-# plt.show()
+lt_sfg_integral_dppc(S)
