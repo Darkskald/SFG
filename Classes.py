@@ -1433,7 +1433,7 @@ class Station:
             if p_max < 73:
                 if isotherm.type == "p":
 
-                    if p_max > 2:
+                    if p_max > 1.5:
                         self.stats["positive_plate"] += 1
 
                     self.stats["total_plate"] += 1
@@ -1442,7 +1442,7 @@ class Station:
 
                 elif isotherm.type[0] == "s":
 
-                    if 72 > p_max > 2:
+                    if 72 > p_max > 1.5:
                         self.stats["positive_screen"] += 1
 
                     self.stats["total_screen"] += 1
@@ -2105,26 +2105,27 @@ def lt_sfg_integral_dppc(S):
 
 
     ltplot = plots[0]
-    ltplot.set_title("Surfactant occurrence in GasEx 1 (June '18)\n\n")
-    ltplot.set_ylabel("average surface pressure/ mN/m")
+   # ltplot.set_title("Surfactant occurrence in GasEx 1 (June '18)\n\n", fontweight='bold')
+    ltplot.set_ylabel("Average surface pressure/\n mN/m")
     ltplot.xaxis.set_ticklabels([])
 
     bars = ltplot.twinx()
-    bars.set_ylabel("positive samples/ percent")
+    bars.set_ylabel("Positive samples/\n percent")
 
     sfg = plots[1]
     sfg.set_ylim(-0.00025, 0.014)
-    sfg.set_ylabel("Integrated SFG CH intensity/ arb.u.")
+    sfg.set_ylabel("Integrated SFG \nCH intensity/ arb.u.")
     sfg.xaxis.set_ticklabels([])
 
     dppc = plots[2]
-    dppc.set_ylabel("surface coverage/ %")
-    dppc.set_xlabel("station number")
-    base = dppc.twiny()
-    base.xaxis.set_ticks_position("bottom")
-    base.xaxis.set_label_position("bottom")
-    base.spines["bottom"].set_position(("axes", -0.25))
-    base.set_xlabel("day of cruise")
+    dppc.set_ylabel("Surface coverage/\n %")
+    dppc.set_xlabel("\nStation number")
+
+    base = ltplot.twiny()
+    base.xaxis.set_ticks_position("top")
+    base.xaxis.set_label_position("top")
+    #base.spines["top"].set_position(("axes", +0.7))
+    base.set_xlabel("Day of cruise\n")
 
     for station in S.stations.values(): # type: Station
 
@@ -2148,10 +2149,6 @@ def lt_sfg_integral_dppc(S):
 
     bars.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, label="positive")
     plt.show()
-
-
-
-
 
 
 def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="false"):
@@ -2320,11 +2317,32 @@ def benchmark_baseline(speclist):
         return standard, regress, gernot
 
 
-S = SessionControlManager("sfg.db", "test")
+def plot_lt_isotherm(isotherm): # type: LtIsotherm
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.set_xlabel("Total area (cm$^{-2}$)\n", fontsize=20)
+    ax.set_ylabel("Surface pressure (mN/m)\n", fontsize=20)
+    ax.set_ylim(-0.1, 2)
+    ax.plot(isotherm.area, isotherm.pressure, linewidth=3)
+    plt.show()
 
+
+
+plt.style.use('seaborn-talk')
+import matplotlib as mpl
+mpl.rcParams['axes.linewidth']= 2
+
+
+
+
+S = SessionControlManager("sfg.db", "test")
+S.setup_for_gasex()
+i = S.lt_manager.isotherms
+
+plot_lt_isotherm(i[31])
 # testcode section
 
 
 
 # S.get("su DPPC")
-lt_sfg_integral_dppc(S)
+#lt_sfg_integral_dppc(S)
