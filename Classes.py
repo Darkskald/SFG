@@ -765,7 +765,7 @@ class SessionControlManager:
         self.cur.execute(command)
 
         result = self.cur.fetchall()[0]
-        spec = self.construct_sfg(result, default_data)
+        spec = self.construct_sfg(result, database)
 
         return spec
 
@@ -833,7 +833,7 @@ class SessionControlManager:
         for id in self.subset_ids:
 
             try:
-                s = self.fetch_single(id, condition1, condition2, database)
+                s = self.fetch_single(id, database, condition1, condition2)
                 temp.append(s)
                 temp_id.append(id)
             except IndexError:
@@ -880,7 +880,7 @@ class SessionControlManager:
 
             if ref is True:
                 try:
-                    self.general_refine(condition1, condition2)
+                    self.general_refine(condition1, condition2, database)
 
                 except:
                     pass
@@ -1079,7 +1079,7 @@ class SessionControlManager:
 
         return out
 
-    # auxiliary functions 123
+    # auxiliary functions 
 
     def flagstring_split(self, flagstring):
         """This function processes the given flagstring and returns a list of SFG objects
@@ -2336,10 +2336,10 @@ mpl.rcParams['axes.linewidth']= 2
 
 
 S = SessionControlManager("sfg.db", "test")
-S.setup_for_gasex()
-i = S.lt_manager.isotherms
+S.get("su SA")
+S.ref("se BX12")
+S.show()
 
-plot_lt_isotherm(i[31])
 # testcode section
 
 
