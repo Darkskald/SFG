@@ -2336,9 +2336,9 @@ mpl.rcParams['axes.linewidth']= 2
 
 
 S = SessionControlManager("sfg.db", "test")
-S.get("su SA")
-S.ref("se BX12")
-S.show()
+S.setup_for_gasex()
+S.keep("17,18,19,20,21,22")
+S.plot()
 
 # testcode section
 
