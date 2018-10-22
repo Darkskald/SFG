@@ -1337,7 +1337,7 @@ class LtManager:
                 if isotherm.same_sample(isotherm2) and isotherm2 not in isotherm.partners:
                     isotherm.partners.append(isotherm2)
 
-
+# blubb
 class Station:
     """A class carrying all information and data for a given cruise station, especially SFG and isotherms"""
 
