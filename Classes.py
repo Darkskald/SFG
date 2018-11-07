@@ -1,5 +1,5 @@
 # module-internal imports
-from new_gui import run_app, run_lt_app
+#from new_gui import run_app, run_lt_app
 
 # standard utilities
 import os
@@ -1042,6 +1042,15 @@ class SessionControlManager:
             s.join_samples()
             s.count_per_type()
 
+    def fetch_tension_data(self):
+
+        command = f'SELECT * from gasex_surftens'
+        self.cur.execute(command)
+        for item in self.cur.fetchall():
+            print(f'{item[1]} is second row')
+            print(f'{item[2]} is thirdrow')
+
+
     # handling DPPC normalization
     def get_dppc_average(self):
         """Takes a list of SfgSpectra as arguments. Returns a dictionary of dates as keys and the average SFG CH
@@ -1119,6 +1128,7 @@ class SessionControlManager:
 
     def set_spec_manager(self):
         self.spec_manager = SpectraManager(self.db)
+
 
 
 class LtIsotherm:
@@ -1277,6 +1287,7 @@ class LtManager:
         self.ordered_days = {}
 
         self.get_all_isotherms()
+        #todo : the functions below have to be replaced by the sample/station hash system
         self.join_days_isotherms()
         self.order_by_sample()
         self.join_same_measurement()
@@ -1337,7 +1348,7 @@ class LtManager:
                 if isotherm.same_sample(isotherm2) and isotherm2 not in isotherm.partners:
                     isotherm.partners.append(isotherm2)
 
-# blubb
+
 class Station:
     """A class carrying all information and data for a given cruise station, especially SFG and isotherms"""
 
@@ -2337,12 +2348,7 @@ mpl.rcParams['axes.linewidth']= 2
 
 S = SessionControlManager("sfg.db", "test")
 S.setup_for_gasex()
-S.keep("17,18,19,20,21,22")
-S.plot()
-
-# testcode section
-
-
+S.fetch_tension_data()
 
 # S.get("su DPPC")
 #lt_sfg_integral_dppc(S)
