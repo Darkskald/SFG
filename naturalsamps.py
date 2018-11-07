@@ -2,8 +2,18 @@ from Classes import SfgSpectrum, LtIsotherm
 
 
 class Sample:
+
     def __init__(self, sample_hash):
-        pass
+
+        self.sample_hash = sample_hash
+        self.station_hash = None # todo:
+        self.date = None # odo: has to be a datetime.date object
+        self.lt_isotherms = [] #list of corresponding Isotherms
+        self.sfg_spectra = [] #list of sfg spectra
+
+        self.ch_integral = None
+        self.max_pressure = None
+        self.surface_tension = None
 
     def __repr__(self):
         pass
@@ -253,10 +263,134 @@ class Cruise:
 
 
 class SmlSfgSpectrum(SfgSpectrum):
-    pass
+
+    def get_sample_hash(self):
+        return self.name.date + self.name.surfactant + self.name.sensitizer + self.name.surfactant_spread_volume \
+               + str(self.name.sample_number) + self.name.comment
+
+    # CH baseline correction and integration
+
+    def make_ch_baseline(self, average="min"):
+
+        l_interval = self.slice_by_borders(2800, 2750)
+        l_interval_wl = self.wavenumbers[l_interval[0]:l_interval[1] + 1]
+        l_interval = self.normalized_intensity[l_interval[0]:l_interval[1] + 1]
+
+        interval = self.slice_by_borders(2960, 2895)
+        interval_wl = self.wavenumbers[interval[0]:interval[1] + 1]
+        interval = self.normalized_intensity[interval[0]:interval[1] + 1]
+
+        min_index = np.argmin(interval)
+        l_min_index = np.argmin(l_interval)
+
+        if average == "min":
+            slope = (interval[min_index] - l_interval[l_min_index]) / (
+                        interval_wl[min_index] - l_interval_wl[l_min_index])
+            intercept = l_interval[l_min_index] - slope * l_interval_wl[l_min_index]
+
+        elif average == "min_reg":
+            y2 = []
+            x2 = []
+
+            q = np.sort(l_interval)
+
+            for i in range(3):
+                y2.append(q[i])
+                index = int((np.where(l_interval == q[i]))[0])
+                x2.append(l_interval_wl[index])
+
+            q = np.sort(interval)
+
+            for i in range(3):
+                y2.append(q[i])
+                index = int((np.where(interval == q[i]))[0])
+                x2.append(interval_wl[index])
+
+            slope, intercept, r_value, p_value, std_err = stats.linregress(x2, y2)
+
+        elif average == "gernot":
+            left = self.slice_by_borders(2760, 2750)
+            right = self.slice_by_borders(3000, 2950)
+
+            left_x = self.wavenumbers[left[0]:left[1] + 1]
+            left_y = self.normalized_intensity[left[0]:left[1] + 1]
+
+            right_x = self.wavenumbers[right[0]:right[1] + 1]
+            right_y = self.normalized_intensity[right[0]:right[1] + 1]
+
+            slope = (np.average(right_y) - np.average(left_y)) / \
+                    (np.average(right_x) - np.average(left_x))
+
+            intercept = np.average(left_y) - slope * np.average(left_x)
+
+        baseline = lambda x: slope * x + intercept
+        return baseline
+
+    def correct_baseline(self, average="min"):
+
+        func = self.make_ch_baseline(average=average)
+        temp = copy.deepcopy(self.normalized_intensity)
+
+        for i in range(2750, 3000):
+            index = np.where(self.wavenumbers == i)
+            correction = func(self.wavenumbers[index])
+            temp[index] = temp[index] - correction
+
+        self.baseline_corrected = temp
+
+    def calculate_ch_integral(self, average="min"):
+
+        self.correct_baseline(average=average)
+        borders = self.slice_by_borders(3000, 2750)
+        x_array = self.wavenumbers[borders[0]:borders[1] + 1]
+        y_array = self.baseline_corrected[borders[0]:borders[1] + 1]
+        integral = self.integrate_peak(x_array[::-1], y_array[::-1])
+        return integral
+
 
 class SmlLtIsotherm(LtIsotherm):
-    pass
+
+    def get_day(self, string):
+
+        if len(string) == 4:
+            day = string[2:]
+        else:
+            raise ValueError("Invalid day string length at spectrum " + self.name)
+
+        day = int(day)
+        day = day - 2
+        return day
+
+    def process_name(self):
+        """Function to extract metainformation from the filename"""
+        temp = self.name.split("_")
+        self.day = self.get_day(temp[1])
+        self.long_day = temp[1]
+        self.type = temp[3].lower()
+        self.station = temp[2]
+        self.number = temp[4]
+        self.long_station = self.long_day + "_" + self.station
+        self.station_hash = self.long_day + "_" + self.station[1]
+
+        try:
+            self.speed = temp[5]
+        except IndexError:
+            print(self.name + " has not a defined compression speed!")
+
+    def same_sample(self, other):
+        """Checks wether two isotherms belong to the same sample. This is the case if the same sample
+        is measured several times in a row. Returns a bool."""
+        if self.create_sample_hash() == other.create_sample_hash():
+            return True
+        else:
+            return False
+
+    def create_sample_hash(self):
+        """Creates a string which identifies the sample by the day, station and type. All isotherms
+        from the same station taken by the same method (plate or screen or CTD) will therefore yield
+        the same sample_hash. This is usually used to match samples together"""
+        return str(self.day) + self.station + self.type + str(self.number)
+
 
 class SystematicGasExName(SystematicName):
     """Special modification of the systematic name in order to fit the requirements for the GasEx

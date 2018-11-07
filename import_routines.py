@@ -129,14 +129,18 @@ class Importer:
 
             if file.endswith(".dat"):
 
+                try:
+                    path = folder + "/" + file
+                    creation_time = datetime.datetime.fromtimestamp(os.path.getmtime(path))
+                    data = self.import_Lt_data(path)
+                    data = list(self.refine_collector(data))
+                    data.append(creation_time)
+                    data.append(file[:-4])
+                    lt_list.append(data)
 
-                path = folder + "/" + file
-                creation_time = datetime.datetime.fromtimestamp(os.path.getmtime(path))
-                data = self.import_Lt_data(path)
-                data = list(self.refine_collector(data))
-                data.append(creation_time)
-                data.append(file[:-4])
-                lt_list.append(data)
+                except IndexError:
+                    print("File "+path+" is invalid!")
+
 
         return lt_list
 
@@ -175,10 +179,36 @@ class Importer:
         db.close()
 
     @staticmethod
-    def write_spectra(database, target_folder):
+    def write_surface_tension():
+        out = []
+
+        with open("gasex_surftens.txt", "r") as infile:
+
+            for line in infile:
+
+                try:
+                    temp = line.strip().split(";")
+                    out.append([temp[0], temp[1]])
+
+                except IndexError:
+                    pass
+
         db = sqlite3.connect("sfg.db")
         cur = db.cursor()
+        command = f'INSERT INTO gasex_surftens(name, surface_tension)VALUES(?,?);'
+        for tup in out:
+            try:
 
+                cur.execute(command, (tup[0], tup[1]))
+
+            except sqlite3.IntegrityError as e:
+                print(f'Surface tension {tup} already in database!')
+        db.commit()
+        db.close()
+
+
+    @staticmethod
+    def write_spectra(database, target_folder):
         db = sqlite3.connect("sfg.db")
         cur = db.cursor()
 
@@ -413,6 +443,16 @@ class SqlWizard:
                         );
                     """
 
+        command8 = \
+            """
+                    CREATE TABLE IF NOT EXISTS gasex_surftens (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT,
+                        surface_tension TEXT,
+                        CONSTRAINT unique_name UNIQUE(name)
+                        );
+                    """
+
 
         db = sqlite3.connect("sfg.db")
         cur = db.cursor()
@@ -424,6 +464,7 @@ class SqlWizard:
         cur.execute(command5)
         cur.execute(command6)
         cur.execute(command7)
+        cur.execute(command8)
 
         db.commit()
         db.close()
@@ -992,7 +1033,8 @@ I.write_lt_to_sql("gasex_lt")
 I = Importer("KristianBE","KristianBE_out")
 I.generate_sql("kristian")
 
-#import IR,Raman,UV
+#import IR,Raman,UV,surface tension
 Importer.write_spectra("ir","IR")
 Importer.write_spectra("raman","Raman")
 Importer.write_spectra("uv","UV")
+Importer.write_surface_tension()
