@@ -287,7 +287,7 @@ class SfgSpectrum:
         return tablestring
 
     def get_sample_hash(self):
-        if isinstance(self.name, SystematicGasExName) == True:
+        if isinstance(self.name, SystematicGasExName) is True:
             return SampleHash(self.name.sample_hash_string)
 
     # CH baseline correction and integration
@@ -1019,10 +1019,25 @@ class SessionControlManager:
             except IndexError:
                 print(tension)
 
+        self.stations = {}
+        for s in station_hashes:
+            self.stations[s] = Station(s)
 
-        return station_hashes
+    def map_to_stations(self):
+
+        for spectrum in self.subset:
+            if isinstance(spectrum.name, SystematicGasExName) is True:
+                self.stations[spectrum.get_sample_hash().station_hash].sfg_spectra.append(spectrum)
+
+        for tension in self.tensions:
+            try:
+                self.stations[SampleHash(tension).station_hash].tensions.append([tension, self.tensions[tension]])
+            except IndexError:
+                print(tension)
 
 
+        for lt_isotherm in self.lt_manager.isotherms:
+            self.stations[lt_isotherm.sample_hash.station_hash].lt_isotherms.append(lt_isotherm)
 
     def match_to_stations(self):
         """Matches the LtIsotherms in the LtManager to the generated station list. The
@@ -1059,7 +1074,8 @@ class SessionControlManager:
         self.set_lt_manager()
         self.fetch_gasex_sfg()
         self.tensions = self.fetch_tension_data()
-        #self.collect_stations()
+        self.collect_stations()
+        self.map_to_stations()
         #self.match_to_stations()
         #self.get_station_numbers()
         #self.dppc_ints = self.get_dppc_average()
@@ -1230,7 +1246,7 @@ class LtIsotherm:
 
     def calc_compression_factor(self):
         max = np.max(self.area)
-        return self.area/max
+        return (self.area/max)
 
     def derive_pressure(self):
         """Calculates the difference quotient of the surface pressure with respect to the area.
@@ -1255,12 +1271,16 @@ class LtIsotherm:
             output.append((a, b, i))
         return output
 
-    def get_slice(self, x_array, lower, upper):
+    def get_slice(self, x_array, lower, upper, smooth=False):
         """Returns a slice of the x_array (usually time or area) defined by the lower and upper integer
         index."""
 
         x_out = x_array[lower:upper + 1]
-        y_out = self.pressure[lower:upper + 1]
+        if smooth == False:
+            y_out = self.pressure[lower:upper + 1]
+        else:
+            y_out = self.smooth()[lower:upper + 1]
+
         return x_out, y_out
 
     def calculate_elasticity(self):
@@ -1282,6 +1302,66 @@ class LtIsotherm:
     def smooth(self):
         """Performs a smooth operation of the measured pressure involving a Savitzky-Golay-filter"""
         return savgol_filter(self.pressure, 9, 5)
+
+    def cut_away_decay(self, x_array):
+
+        max = self.get_maximum_pressure()
+        index = int(np.where(self.pressure==max)[0][0])
+        return self.get_slice(x_array, 0, index)
+
+    @staticmethod
+    def process_lift_off(x, y):
+
+        start = 0
+        diff = 0
+        increment = int(0.15 * len(x))
+        line1 = None
+        line2 = None
+        x_out = None
+
+        while start < (len(x) - increment * 2):
+
+            left_x = x[start:start + increment]
+            left_y = y[start:start + increment]
+
+            right_x = x[start + increment:start + (2 * increment)]
+            right_y = y[start + increment:start + (2 * increment)]
+
+            slope_l, intercept_l, r_value, p_value, std_err = \
+                stats.linregress(left_x, left_y)
+
+            slope_r, intercept_r, r_value, p_value, std_err = \
+                stats.linregress(right_x, right_y)
+
+            temp = np.abs(slope_l - slope_r)
+
+            if temp > diff:
+                diff = temp
+                line1 = [slope_l, intercept_l]
+                line2 = [slope_r, intercept_r]
+                x_out = x[start:start + (2 * increment)]
+
+            start += 1
+
+        return diff, line1, line2, x_out
+
+    def find_lift_off(self, x_array):
+        x, y = self.cut_away_decay(x_array)
+        tup = LtIsotherm.process_lift_off(x, y)
+        lift_off = LtIsotherm.calculate_intersection(tup[1], tup[2])
+        return lift_off
+
+    @staticmethod
+    def calculate_intersection(line1, line2):
+
+        x = (line2[1] - line1[1]) / (line1[0] - line2[0])
+
+        y = line1[0] * x + line1[1]
+
+        return x, y
+
+
+
 
 
 class LtManager:
@@ -1320,12 +1400,14 @@ class Station:
 
     def __init__(self, name):
 
-        self.name = name
-        self.station_hash = None
-        self.date, self.id = self.name.split("_")
-        self.cruise_day = int(self.date[2:]) - 2
+        self.station_hash = name
+        self.date = datetime.date(2018,int(name[0:2]),int(name[2:4]))
+        self.number = name[4]
+
         self.sfg_spectra = []
         self.lt_isotherms = []
+        self.tensions= []
+
         self.station_number = None
         self.lt_joined = {}
         self.stats = {
@@ -1344,52 +1426,14 @@ class Station:
             "total_percent": 0,
             "total_av": 0,
         }
+
         self.isotherm_count = None
 
-        self.set_station_hash()
-
-    def __lt__(self, other):
-        """Determines which of two stations took place earlier."""
-
-        daytag = int(self.name.split("_")[0][2:])
-        monthtag = int(self.name.split("_")[0][0:2])
-        stationtag = int(self.id[1])
-
-        daytag2 = int(other.name.split("_")[0][2:])
-        monthtag2 = int(other.name.split("_")[0][0:2])
-        stationtag2 = int(other.id[1])
-
-        outbool = None
-
-        if monthtag <= monthtag2:
-
-            if daytag == daytag2:
-                if stationtag < stationtag2:
-                    outbool = True
-
-            elif daytag < daytag2:
-                outbool = True
-
-            else:
-                outbool = False
-        else:
-            outbool = False
-
-        return outbool
-
     def __rpr__(self):
-        return f'Station {self.id[1]} on date {self.date}'
+        return f'Station {self.number} on date {self.date}'
 
     def __str__(self):
-        return f'Station {self.id[1]} on date {self.date}'
-
-    def set_station_hash(self):
-        temp = self.name.split("_")
-        try:
-            self.station_hash = temp[0] + "_" + temp[1][1]
-        except IndexError:
-            print("*" * 80 + "\n" + str(temp))
-            print(self.name)
+        return self.__rpr__()
 
     def count_per_type(self):
         """Counts the occurence of plate and screen samples as well as how many of those are positive
@@ -1666,7 +1710,10 @@ class SampleHash:
         self.date = datetime.date(year, month, day)
 
     def set_station_hash(self):
-        self.station_hash = self.process_list[0] + self.process_list[1]
+        try:
+            self.station_hash = self.process_list[0] + self.process_list[1][1]
+        except IndexError:
+            print(f'Invalid sample name {self.namestring}')
 
     def get_type(self):
         self.station_type = self.process_list[1][0].lower()
@@ -2366,18 +2413,22 @@ mpl.rcParams['axes.linewidth']= 2
 
 S = SessionControlManager("sfg.db", "test")
 S.setup_for_gasex()
-#S.fetch_tension_data()
-#for s in S.lt_manager.isotherms:
-    #print (s.sample_hash.station_hash)
 
-i = 0
-q = S.collect_stations()
-for i in q:
-    print(i+"\n")
+for station in S.stations.values():
+    print(station.station_hash)
+    print(station.lt_isotherms)
+    print(station.tensions)
+    print(station.sfg_spectra)
 
 
-print(f'in total {i} spectra')
 
-
-# S.get("su DPPC")
-#lt_sfg_integral_dppc(S)
+# t = S.lt_manager.isotherms[275]
+# print(len(S.lt_manager.isotherms))
+#
+# lo=t.find_lift_off(t.compression_factor)
+# plt.plot(t.cut_away_decay(t.compression_factor)[0], t.cut_away_decay(t.compression_factor)[1])
+# plt.plot(lo[0], lo[1],marker="o", color="r")
+# plt.xlabel("Compression ratio")
+# plt.ylabel("Surface pressure/mN$\cdot m^{-1}$")
+# #plt.axvline(lo[0])
+# plt.show()
