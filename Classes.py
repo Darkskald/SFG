@@ -1,5 +1,5 @@
 # module-internal imports
-#from new_gui import run_app, run_lt_app
+from new_gui import run_app, run_lt_app
 
 # standard utilities
 import os
@@ -45,8 +45,6 @@ class SfgSpectrum:
         self.normalized_intensity = self.raw_intensity / (self.vis_intensity * self.ir_intensity)
         self.peaks = self.detailed_analysis()
         self.baseline_corrected = None
-
-
 
     def __repr__(self):
         return self.name.full_name[:-4] + "   " + str(self.yield_spectral_range())
@@ -1402,13 +1400,12 @@ class Station:
 
         self.station_hash = name
         self.date = datetime.date(2018,int(name[0:2]),int(name[2:4]))
-        self.number = name[4]
+        self.station_number = name[4]
 
         self.sfg_spectra = []
         self.lt_isotherms = []
         self.tensions= []
 
-        self.station_number = None
         self.lt_joined = {}
         self.stats = {
             "positive_plate": 0,
@@ -1430,7 +1427,7 @@ class Station:
         self.isotherm_count = None
 
     def __rpr__(self):
-        return f'Station {self.number} on date {self.date}'
+        return f'Station {self.station_number} on date {self.date}'
 
     def __str__(self):
         return self.__rpr__()
@@ -1589,6 +1586,11 @@ class Station:
 
         return outstring
 
+    def get_doy(self):
+        doy = self.date.timetuple().tm_yday
+        factor = (1-int(self.station_number))*0.25
+        return doy+factor
+
 
 class Spectrum:
 
@@ -1725,9 +1727,35 @@ class SampleHash:
         elif len(self.process_list) == 4:
             self.sample_number = self.process_list[-1]
 
+        if "s" in self.sample_type:
+            self.sample_type = "s"
+
+        elif "p" in self.sample_type:
+            self.sample_type="p"
+
+        elif "deep" in self.sample_type:
+            self.sample_type="c"
+
     def get_doy(self):
 
         return self.date.timetuple().tm_yday
+
+class Sample:
+    def __init__(self, sample_hash):
+        self.sample_hash = SampleHash(sample_hash)
+        self.station_hash = self.sample_hash.station_hash  # todo:
+        self.lt_isotherms = []  # list of corresponding Isotherms
+        self.sfg_spectra = []  # list of sfg spectra
+
+        self.ch_integral = None
+        self.max_pressure = None
+        self.surface_tension = None
+
+    def __repr__(self):
+        pass
+
+    def __str__(self):
+        pass
 
 
 # plotting functions
@@ -2402,6 +2430,86 @@ def plot_lt_isotherm(isotherm): # type: LtIsotherm
     ax.plot(isotherm.area, isotherm.pressure, linewidth=3)
     plt.show()
 
+def broken_axis(x, y, lim):
+
+    fig, (ax, ax2) = plt.subplots(1, 2, sharey=True)
+
+    ax.set_ylabel("Surface tension/ $mN \cdot m^{-1}$")
+    fig.text(0.5, 0.015, s="Day of the year", ha="center", va="center", size=14)
+
+    ax.set_xlim(lim[0], lim[1])
+    ax2.set_xlim(lim[2], lim[3])
+
+    ax.spines['right'].set_visible(False)
+    ax2.spines['left'].set_visible(False)
+    ax.yaxis.tick_left()
+    ax.tick_params(labeltop='off')  # don't put tick labels at the top
+    ax2.yaxis.tick_right()
+
+    d = .012  # how big to make the diagonal lines in axes coordinates
+    # arguments to pass plot, just so we don't keep repeating them
+    kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
+    ax.plot((1 - d, 1 + d), (-d, +d), **kwargs)
+    ax.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+
+    kwargs.update(transform=ax2.transAxes)  # switch to the bottom axes
+    ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)
+    ax2.plot((-d, +d), (-d, +d), **kwargs)
+
+    ax.scatter(x, y, marker="o")
+    ax2.scatter(x, y, marker="o")
+
+
+
+def broken_axis_errorbar(x,y,z, lim):
+    fig, (ax, ax2) = plt.subplots(1, 2, sharey=True)
+
+    ax.set_ylabel("Surface tension/ $mN \cdot m^{-1}$")
+    fig.text(0.5, 0.015, s="Day of the year", ha="center", va="center", size=14)
+
+    ax.set_xlim(lim[0], lim[1])
+    ax2.set_xlim(lim[2], lim[3])
+
+    ax.spines['right'].set_visible(False)
+    ax2.spines['left'].set_visible(False)
+    ax.yaxis.tick_left()
+    ax.tick_params(labeltop='off')  # don't put tick labels at the top
+    ax2.yaxis.tick_right()
+
+    d = .012  # how big to make the diagonal lines in axes coordinates
+    # arguments to pass plot, just so we don't keep repeating them
+    kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
+    ax.plot((1 - d, 1 + d), (-d, +d), **kwargs)
+    ax.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+
+    kwargs.update(transform=ax2.transAxes)  # switch to the bottom axes
+    ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)
+    ax2.plot((-d, +d), (-d, +d), **kwargs)
+
+
+    ax.errorbar(x, y, yerr=z, fmt="ro", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
+                markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
+    ax2.errorbar(x, y, yerr=z, fmt="ro", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
+                 markeredgecolor="black",  markeredgewidth=0.4, antialiased=True)
+
+    #ax.scatter(x,y, marker="o", color="b")
+    #ax2.scatter(x, y, marker="o", color="b")
+
+
+def tension_average(station):
+        average = []
+        x = station.get_doy()
+
+        for tension in station.tensions:
+            average.append(tension[1])
+
+        average = np.array(average)
+        av_out = np.average(average)
+        std = np.std(average)
+
+
+
+        return x, av_out, std
 
 
 plt.style.use('seaborn-talk')
@@ -2409,17 +2517,27 @@ import matplotlib as mpl
 mpl.rcParams['axes.linewidth']= 2
 
 
-
-
 S = SessionControlManager("sfg.db", "test")
 S.setup_for_gasex()
+limits = [153,166,254,266]
+
+days = []
+averages = []
+errors = []
 
 for station in S.stations.values():
-    print(station.station_hash)
-    print(station.lt_isotherms)
-    print(station.tensions)
-    print(station.sfg_spectra)
+    for spec in station.sfg_spectra:
+        print (spec.get_sample_hash().sample_type)
+    if len(station.tensions) != 0:
+        out = tension_average(station)
+        days.append(out[0])
+        averages.append(out[1])
+        errors.append(out[2])
 
+
+
+#broken_axis_errorbar(days, averages, errors, limits)
+#plt.show()
 
 
 # t = S.lt_manager.isotherms[275]

@@ -269,21 +269,6 @@ class SessionControlManager:
 
         self.lt_manager = LtManager(self.db)
 
-    def match_same_measurements(self):
-        """Returns a dictionary containing the sample hash as keys and a list of all the SFG measurements that were
-        performed with this sample"""
-
-        out = {}
-        for spectrum in self.subset:
-
-            if spectrum.get_sample_hash() not in out:
-                out[spectrum.get_sample_hash()] = []
-                out[spectrum.get_sample_hash()].append(spectrum)
-
-            else:
-                out[spectrum.get_sample_hash()].append(spectrum)
-
-        return out
 
     def collect_stations(self):
         """Creates Station objects from the station information of the currently available isotherms and
@@ -297,6 +282,9 @@ class SessionControlManager:
             if temp not in stations:
                 stations.append(Station(temp))
         self.stations = {s.station_hash: s for s in stations}
+
+    def collect_samples(self):
+
 
     def match_to_stations(self):
         """Matches the LtIsotherms in the LtManager to the generated station list. The
