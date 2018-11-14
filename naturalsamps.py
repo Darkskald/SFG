@@ -2,14 +2,12 @@ from Classes import SfgSpectrum, LtIsotherm
 
 
 class Sample:
-
     def __init__(self, sample_hash):
-
         self.sample_hash = sample_hash
-        self.station_hash = None # todo:
-        self.date = None # odo: has to be a datetime.date object
-        self.lt_isotherms = [] #list of corresponding Isotherms
-        self.sfg_spectra = [] #list of sfg spectra
+        self.station_hash = None  # todo:
+        self.date = None  # odo: has to be a datetime.date object
+        self.lt_isotherms = []  # list of corresponding Isotherms
+        self.sfg_spectra = []  # list of sfg spectra
 
         self.ch_integral = None
         self.max_pressure = None
@@ -20,6 +18,7 @@ class Sample:
 
     def __str__(self):
         pass
+
 
 class Station:
     """A class carrying all information and data for a given cruise station, especially SFG and isotherms"""
@@ -214,12 +213,12 @@ class Station:
         else:
             if len(to_av) != 0:
                 dates = dppc
-                temp= []
+                temp = []
 
-                for spec in to_av: # type: SfgSpectrum
+                for spec in to_av:  # type: SfgSpectrum
                     dppc_integral = dates[spec.name.creation_time.date()]
                     ch_integral = spec.calculate_ch_integral(average="gernot")
-                    temp.append(np.sqrt((ch_integral/dppc_integral)))
+                    temp.append(np.sqrt((ch_integral / dppc_integral)))
 
                 out = np.average(temp), np.std(temp)
             else:
@@ -250,6 +249,9 @@ class Station:
         outstring += separator + "\n"
 
         return outstring
+
+    # analysis
+
 
 class Cruise:
     def __init__(self, hash):
@@ -285,7 +287,7 @@ class SmlSfgSpectrum(SfgSpectrum):
 
         if average == "min":
             slope = (interval[min_index] - l_interval[l_min_index]) / (
-                        interval_wl[min_index] - l_interval_wl[l_min_index])
+                    interval_wl[min_index] - l_interval_wl[l_min_index])
             intercept = l_interval[l_min_index] - slope * l_interval_wl[l_min_index]
 
         elif average == "min_reg":
