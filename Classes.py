@@ -292,7 +292,12 @@ class SfgSpectrum:
 
     def make_ch_baseline(self, average="min"):
 
-        l_interval = self.slice_by_borders(2800, 2750)
+        if np.min(self.wavenumbers > 2760):
+            l_interval = self.slice_by_borders(2805, np.min(self.wavenumbers))
+
+        else:
+            l_interval = self.slice_by_borders(2800, 2750)
+
         l_interval_wl = self.wavenumbers[l_interval[0]:l_interval[1] + 1]
         l_interval = self.normalized_intensity[l_interval[0]:l_interval[1] + 1]
 
@@ -329,7 +334,12 @@ class SfgSpectrum:
             slope, intercept, r_value, p_value, std_err = stats.linregress(x2, y2)
 
         elif average == "gernot":
-            left = self.slice_by_borders(2760, 2750)
+
+            if np.min(self.wavenumbers) > 2760:
+                left = self.slice_by_borders(2760, 2750)
+            else:
+                left = self.slice_by_borders(2805, 2800)
+
             right = self.slice_by_borders(3000, 2950)
 
             left_x = self.wavenumbers[left[0]:left[1] + 1]
@@ -361,7 +371,7 @@ class SfgSpectrum:
     def calculate_ch_integral(self, average="min"):
 
         self.correct_baseline(average=average)
-        borders = self.slice_by_borders(3000, 2750)
+        borders = self.slice_by_borders(3000, np.min(self.wavenumbers))
         x_array = self.wavenumbers[borders[0]:borders[1] + 1]
         y_array = self.baseline_corrected[borders[0]:borders[1] + 1]
         integral = self.integrate_peak(x_array[::-1], y_array[::-1])
@@ -994,32 +1004,62 @@ class SessionControlManager:
         """Creates Station objects from the station information of the currently available isotherms and
         spectra. This helps to keep track of the set of samples taken within one GasEx sampling station"""
         station_hashes = []
+        types = []
 
         for spec in self.subset: #type: SfgSpectrum
 
             if isinstance(spec.name, SystematicGasExName) is True:
-                _hash = spec.get_sample_hash().station_hash
+                h = spec.get_sample_hash()
+                _hash = h.station_hash
+
 
                 if _hash not in station_hashes:
                     station_hashes.append(_hash)
+
+                    if h.station_type == "a":
+                        types.append("small")
+
+                    elif h.station_type in ("r", "c"):
+                        types.append("big")
+
+                    else:
+                        print("Unknwonwn station type!")
 
         for isotherm in self.lt_manager.isotherms:#type: LtIsotherm
             _hash = isotherm.sample_hash.station_hash
             if _hash not in station_hashes:
                 station_hashes.append(_hash)
+                if isotherm.sample_hash.station_type == "a":
+                    types.append("small")
+
+                elif isotherm.sample_hash.station_type in ("r", "c"):
+                    types.append("big")
+
+                else:
+                    print("Unknwonwn station type!")
 
         for tension in self.tensions:
             try:
-                _hash = SampleHash(tension).station_hash
+                h = SampleHash(tension)
+                _hash = h.station_hash
+
                 if _hash not in station_hashes:
                     station_hashes.append(_hash)
+                    if h.station_type == "a":
+                        types.append("small")
+
+                    elif h.station_type in ("r", "c"):
+                        types.append("big")
+
+                    else:
+                        print("Unknwonwn station type!")
 
             except IndexError:
                 print(tension)
 
         self.stations = {}
-        for s in station_hashes:
-            self.stations[s] = Station(s)
+        for s in zip(station_hashes, types):
+            self.stations[s[0]] = Station(s[0], s[1])
 
     def map_to_stations(self):
 
@@ -1037,31 +1077,6 @@ class SessionControlManager:
         for lt_isotherm in self.lt_manager.isotherms:
             self.stations[lt_isotherm.sample_hash.station_hash].lt_isotherms.append(lt_isotherm)
 
-    def match_to_stations(self):
-        """Matches the LtIsotherms in the LtManager to the generated station list. The
-        stations attribute of the SessionControllManager is a dictionary with the station names
-        as keys and a list with LtIsotherms matching the station as value"""
-
-        for isotherm in self.lt_manager.isotherms:
-            self.stations[isotherm.station_hash].lt_isotherms.append(isotherm)
-
-        for spectrum in self.subset:
-            if isinstance(spectrum.name, SystematicGasExName):
-
-                try:
-                    self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
-                except KeyError:
-                    self.stations[spectrum.name.station_hash] = Station(spectrum.name.station)
-                    self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
-
-    def get_station_numbers(self):
-        """Traverse the stations and assign them a number in chronological order (1-n)"""
-
-        stations = [i for i in self.stations.values()]
-        stations.sort()
-        for i, s in enumerate(stations):
-            s.station_number = i + 1
-
     def fetch_gasex_sfg(self):
         """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
         self.general_fetch(database="sfg_gasex")
@@ -1074,12 +1089,11 @@ class SessionControlManager:
         self.tensions = self.fetch_tension_data()
         self.collect_stations()
         self.map_to_stations()
-        #self.match_to_stations()
-        #self.get_station_numbers()
-        #self.dppc_ints = self.get_dppc_average()
-        #for s in self.stations.values():
-            #s.join_samples()
-            #s.count_per_type()
+        self.dppc_ints = self.get_dppc_average()
+
+        for station in self.stations.values():
+                station.analyze_station_data()
+
 
     def fetch_tension_data(self):
         out = {}
@@ -1127,7 +1141,7 @@ class SessionControlManager:
 
         return out
 
-    # auxiliary functions 
+    # auxiliary functions
 
     def flagstring_split(self, flagstring):
         """This function processes the given flagstring and returns a list of SFG objects
@@ -1396,35 +1410,19 @@ class LtManager:
 class Station:
     """A class carrying all information and data for a given cruise station, especially SFG and isotherms"""
 
-    def __init__(self, name):
+    def __init__(self, name, type=None):
 
         self.station_hash = name
         self.date = datetime.date(2018,int(name[0:2]),int(name[2:4]))
         self.station_number = name[4]
+        self.type = type
 
         self.sfg_spectra = []
         self.lt_isotherms = []
-        self.tensions= []
+        self.tensions = []
 
         self.lt_joined = {}
-        self.stats = {
-            "positive_plate": 0,
-            "positive_screen": 0,
-            "total_screen": 0,
-            "total_plate": 0,
-            "screen_av": 0,
-            "plate_av": 0,
-            "total": 0,
-            "std_plate": 0,
-            "std_screen": 0,
-            "std_total": 0,
-            "percent_plate": 0,
-            "percent_screen": 0,
-            "total_percent": 0,
-            "total_av": 0,
-        }
-
-        self.isotherm_count = None
+        self.stats = {}
 
     def __rpr__(self):
         return f'Station {self.station_number} on date {self.date}'
@@ -1591,6 +1589,84 @@ class Station:
         factor = (1-int(self.station_number))*0.25
         return doy+factor
 
+    #todo: calculate surface tension, sfg and LT by type
+    #todo: differentiate between small and big station
+
+    def get_value_by_type(self, type, value):
+
+        dic = { "a": ("s", "p", "c"), "deep":("c",), "sml":("p", "s"), "s":("s", ) , "p":("p",)}
+        types = dic[type]
+        out = []
+
+        if value == "tension":
+
+            if len(self.tensions) > 0:
+
+                for tension in self.tensions:
+                    h = SampleHash(tension[0])
+                    if h.sample_type in types:
+                        out.append(tension[1])
+
+        elif value == "ch":
+            spectra = []
+            for spec in self.sfg_spectra:
+
+                if spec.get_sample_hash().sample_type in types:
+                    # out.append(spec.calculate_ch_integral(average="gernot"))
+                    spectra.append(spec)
+
+            if len(spectra) > 0:
+                av_spec = spectra[0]
+
+                for spec in spectra[1:]:
+                    av_spec += spec
+
+                out.append(spec.calculate_ch_integral(average="gernot"))
+
+        elif value == "max_pres":
+
+            if len(self.lt_isotherms) > 0:
+
+                for isotherm in self.lt_isotherms:
+                    if isotherm.sample_hash.sample_type in types:
+                        out.append(isotherm.get_maximum_pressure())
+
+        if len(out) > 0:
+            average = np.average(out)
+            std = np.std(out)
+            count = len(out)
+
+            return average, std, count
+
+        else:
+            return None
+
+    def analyze_station_data(self):
+
+        #tension
+
+        self.stats["tension_average"] = self.get_value_by_type("a", "tension")
+        self.stats["tension_deep"] = self.get_value_by_type("deep", "tension")
+        self.stats["tension_sml"] = self.get_value_by_type("sml", "tension")
+        self.stats["tension_plate"] = self.get_value_by_type("p", "tension")
+        self.stats["tension_screen"] = self.get_value_by_type("s", "tension")
+
+        # surface pressure
+
+        self.stats["pressure_average"] = self.get_value_by_type("a", "max_pres")
+        self.stats["pressure_deep"] = self.get_value_by_type("deep", "max_pres")
+        self.stats["pressure_sml"] = self.get_value_by_type("sml", "max_pres")
+        self.stats["pressure_plate"] = self.get_value_by_type("p", "max_pres")
+        self.stats["pressure_screen"] = self.get_value_by_type("s", "max_pres")
+
+        # SFG data
+
+        self.stats["ch_average"] = self.get_value_by_type("a", "ch")
+        self.stats["ch_deep"] = self.get_value_by_type("deep", "ch")
+        self.stats["ch_sml"] = self.get_value_by_type("sml", "ch")
+        self.stats["ch_plate"] = self.get_value_by_type("p", "ch")
+        self.stats["ch_screen"] = self.get_value_by_type("s", "ch")
+
 
 class Spectrum:
 
@@ -1598,7 +1674,7 @@ class Spectrum:
 
         self.name = name
         self.x_data = x_data
-        self.y_data = ydata
+        self.y_data = y_data
 
         self.printstring = f'Spectrum object of name {self.name}'
 
@@ -1694,10 +1770,13 @@ class SampleHash:
 
         self.date = None
         self.station_hash = None
+        self.station_construct = None
 
         self.date_from_name()
         self.set_station_hash()
         self.get_type()
+
+
 
     def __eq__(self, other):
 
@@ -1730,11 +1809,8 @@ class SampleHash:
         if "s" in self.sample_type:
             self.sample_type = "s"
 
-        elif "p" in self.sample_type:
-            self.sample_type="p"
-
-        elif "deep" in self.sample_type:
-            self.sample_type="c"
+        elif self.sample_type in ("deep", "low"):
+            self.sample_type = "c"
 
     def get_doy(self):
 
@@ -2385,11 +2461,11 @@ def lt_integral_average(S):
 
 
 def baseline_demo(spectrum, name="default"):
-    spectrum.correct_baseline()
+    spectrum.correct_baseline(average="gernot")
 
     test = np.linspace(2750, 3050, 10000)
-    func = spectrum.make_ch_baseline()
-    borders = spectrum.slice_by_borders(3000, 2750)
+    func = spectrum.make_ch_baseline(average="gernot")
+    borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
 
     f, axarr = plt.subplots(2, sharex=True)
     axarr[0].plot(spectrum.wavenumbers, spectrum.normalized_intensity, label=spectrum.name.full_name, linewidth=1.5,
@@ -2407,9 +2483,8 @@ def baseline_demo(spectrum, name="default"):
     axarr[1].set_xlabel("Wavenumber/ cm$^{-1}$")
     axarr[1].set_ylabel("Norm. SFG intensity/ arb. u.")
     axarr[1].legend()
-
-    plt.show()
-    #plt.savefig(name + ".png")
+    name = spec.name.full_name
+    plt.savefig(name + ".png")
 
 
 def benchmark_baseline(speclist):
@@ -2461,7 +2536,7 @@ def broken_axis(x, y, lim):
 
 
 
-def broken_axis_errorbar(x,y,z, lim):
+def broken_axis_errorbar(lim):
     fig, (ax, ax2) = plt.subplots(1, 2, sharey=True)
 
     ax.set_ylabel("Surface tension/ $mN \cdot m^{-1}$")
@@ -2486,14 +2561,39 @@ def broken_axis_errorbar(x,y,z, lim):
     ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)
     ax2.plot((-d, +d), (-d, +d), **kwargs)
 
+    return ax, ax2
 
-    ax.errorbar(x, y, yerr=z, fmt="ro", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
-                markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
-    ax2.errorbar(x, y, yerr=z, fmt="ro", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
-                 markeredgecolor="black",  markeredgewidth=0.4, antialiased=True)
 
-    #ax.scatter(x,y, marker="o", color="b")
-    #ax2.scatter(x, y, marker="o", color="b")
+def plot_stats(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$"):
+
+    axes = broken_axis_errorbar([153, 166, 254, 266])
+    counter = 0
+    colormap = { 0: "ro", 1: "bo", 2:"go", 3:"purple"}
+    axes[0].set_ylabel(ylabel)
+
+    for s in stats:
+
+        doy = []
+        out = []
+        err = []
+
+        for station in stations:
+
+            if station.stats[s] is not None:
+                doy.append(station.get_doy())
+                out.append(station.stats[s][0])
+                err.append(station.stats[s][1])
+
+
+        axes[0].errorbar(doy, out, yerr=err, fmt=colormap[counter], color="r", barsabove="true", capsize=5,
+                         capthick=1, ecolor="black", elinewidth=1.0,
+                     markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
+        axes[1].errorbar(doy, out, yerr=err, fmt=colormap[counter], color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
+                      markeredgecolor="black",  markeredgewidth=0.4, antialiased=True, label=s)
+        counter += 1
+
+    axes[1].legend()
+    plt.show()
 
 
 def tension_average(station):
@@ -2519,34 +2619,24 @@ mpl.rcParams['axes.linewidth']= 2
 
 S = SessionControlManager("sfg.db", "test")
 S.setup_for_gasex()
-limits = [153,166,254,266]
-
-days = []
-averages = []
-errors = []
-
-for station in S.stations.values():
-    for spec in station.sfg_spectra:
-        print (spec.get_sample_hash().sample_type)
-    if len(station.tensions) != 0:
-        out = tension_average(station)
-        days.append(out[0])
-        averages.append(out[1])
-        errors.append(out[2])
+limits = [153, 166, 254, 266]
 
 
+plot_stats(S.stations.values(), ["ch_deep","ch_sml"])
 
-#broken_axis_errorbar(days, averages, errors, limits)
-#plt.show()
-
-
-# t = S.lt_manager.isotherms[275]
-# print(len(S.lt_manager.isotherms))
+# axes[0].errorbar(doys1, av_deeps, yerr=av_deep_stds, fmt="ro", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
+#             markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
+# axes[1].errorbar(doys1, av_deeps, yerr=av_deep_stds, fmt="ro", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
+#              markeredgecolor="black",  markeredgewidth=0.4, antialiased=True, label="deep water")
 #
-# lo=t.find_lift_off(t.compression_factor)
-# plt.plot(t.cut_away_decay(t.compression_factor)[0], t.cut_away_decay(t.compression_factor)[1])
-# plt.plot(lo[0], lo[1],marker="o", color="r")
-# plt.xlabel("Compression ratio")
-# plt.ylabel("Surface pressure/mN$\cdot m^{-1}$")
-# #plt.axvline(lo[0])
-# plt.show()
+# axes[0].errorbar(doys2, av_smls, yerr=av_sml_stds, fmt="bo", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
+#             markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
+# axes[1].errorbar(doys2, av_smls, yerr=av_sml_stds, fmt="bo", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
+#              markeredgecolor="black",  markeredgewidth=0.4, antialiased=True, label="SML")
+
+
+
+
+
+
+
