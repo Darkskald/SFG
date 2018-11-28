@@ -1059,7 +1059,7 @@ class SessionControlManager:
 
         self.stations = {}
         for s in zip(station_hashes, types):
-            self.stations[s[0]] = Station(s[0], s[1], parent=self)
+            self.stations[s[0]] = Station(s[0], s[1])
 
     def map_to_stations(self):
 
@@ -1410,7 +1410,7 @@ class LtManager:
 class Station:
     """A class carrying all information and data for a given cruise station, especially SFG and isotherms"""
 
-    def __init__(self, name, type=None, parent=None):
+    def __init__(self, name, type=None):
 
         self.station_hash = name
         self.date = datetime.date(2018,int(name[0:2]),int(name[2:4]))
@@ -1422,49 +1422,81 @@ class Station:
         self.tensions = []
 
         self.lt_joined = {}
-        
-        self.parent = parent
-        self.stats = {
-                
-                "tension_average": None,
-                "tension_deep":None,
-                "tension_sml":None,
-                "tension_plate":None,
-                "tension_screen":None,
-                "pressure_average":None,
-                "pressure_deep":None,
-                "pressure_sml":None,
-                "pressure_plate":None,
-                "pressure_screen":None,
-                "ch_average":None,
-                "ch_deep":None,
-                "ch_sml":None,
-                "ch_plate":None,
-                "ch_screen":None,
-                "coverage_average":None,
-                "coverage_deep":None,
-                "coverage_sml":None,
-                "coverage_plate":None,
-                "coverage_screen":None
-                }
-        
+        self.stats = {}
 
     def __rpr__(self):
         return f'Station {self.station_number} on date {self.date}'
 
     def __str__(self):
         return self.__rpr__()
-    
-    def __lt__(self, other):
-        
-        if self.date < other.date:
-            return True
-        
-        elif self.date == other.date:
-            
-            if int(self.station_number) < int( other.station_number):
-                return True
 
+    def count_per_type(self):
+        """Counts the occurence of plate and screen samples as well as how many of those are positive
+        with respect to surfactants (high surface pressure in Langmuir trough measurement). Stores all the
+        statistical information in the stats dictionary."""
+
+        # todo: handle CTD samples!
+        # todo: implement a similar sample for SFG
+
+        isos = [i[0] for i in self.lt_joined.values()]
+        plate_array = []
+        screen_array = []
+
+        for isotherm in isos:  # type: LtIsotherm
+
+            p_max = isotherm.get_maximum_pressure()
+
+            if p_max < 73:
+                if isotherm.type == "p":
+
+                    if p_max > 1.5:
+                        self.stats["positive_plate"] += 1
+
+                    self.stats["total_plate"] += 1
+                    self.stats["plate_av"] += p_max
+                    plate_array.append(p_max)
+
+                elif isotherm.type[0] == "s":
+
+                    if 72 > p_max > 1.5:
+                        self.stats["positive_screen"] += 1
+
+                    self.stats["total_screen"] += 1
+                    self.stats["screen_av"] += p_max
+                    screen_array.append(p_max)
+
+        self.stats["total"] = (self.stats["total_screen"] + self.stats["total_plate"])
+
+        try:
+            self.stats["total_av"] = (self.stats["screen_av"] + self.stats["plate_av"]) / self.stats["total"]
+        except ZeroDivisionError:
+            pass
+        try:
+            self.stats["screen_av"] /= self.stats["total_screen"]
+        except ZeroDivisionError:
+            pass
+        try:
+            self.stats["plate_av"] /= self.stats["total_plate"]
+        except ZeroDivisionError:
+            pass
+        try:
+            self.stats["percent_screen"] = self.stats["positive_screen"] / self.stats["total_screen"] * 100
+        except ZeroDivisionError:
+            pass
+        try:
+            self.stats["percent_plate"] = self.stats["positive_plate"] / self.stats["total_plate"] * 100
+        except ZeroDivisionError:
+            pass
+        try:
+            self.stats["total_percent"] = (self.stats["positive_screen"] + self.stats["positive_plate"]) / self.stats[
+                "total"] * 100
+        except ZeroDivisionError:
+            pass
+        total_array = plate_array + screen_array
+
+        self.stats["std_plate"] = np.std(plate_array)
+        self.stats["std_screen"] = np.std(screen_array)
+        self.stats["std_total"] = np.std(total_array)
 
     def join_samples(self):
         """Joins Langmuir trough measurements of the same sample. Much more comprehensive than
@@ -1509,6 +1541,8 @@ class Station:
 
             else:
                 out = None
+
+
 
         else:
             if len(to_av) != 0:
@@ -1555,6 +1589,9 @@ class Station:
         factor = (1-int(self.station_number))*0.25
         return doy+factor
 
+    #todo: calculate surface tension, sfg and LT by type
+    #todo: differentiate between small and big station
+
     def get_value_by_type(self, type, value):
 
         dic = { "a": ("s", "p", "c"), "deep":("c",), "sml":("p", "s"), "s":("s", ) , "p":("p",)}
@@ -1571,45 +1608,28 @@ class Station:
                         out.append(tension[1])
 
         elif value == "ch":
-            
+            spectra = []
             for spec in self.sfg_spectra:
 
                 if spec.get_sample_hash().sample_type in types:
-                    if np.min(spec.wavenumbers) <= 2750:
-                        out.append(spec.calculate_ch_integral(average="gernot"))
-        
-        elif value == "dppc":
-            
-            for spec in self.sfg_spectra:
+                    # out.append(spec.calculate_ch_integral(average="gernot"))
+                    spectra.append(spec)
 
-                if spec.get_sample_hash().sample_type in types:
-                    if np.min(spec.wavenumbers) <= 2750:
-                        integral = spec.calculate_ch_integral(average="gernot")
-                        dppc_integral = self.parent.dppc_ints[spec.name.creation_time.date()]
-                        temp = np.sqrt(integral/dppc_integral)
-                        out.append(temp)
-                        
-  
+            if len(spectra) > 0:
+                av_spec = spectra[0]
+
+                for spec in spectra[1:]:
+                    av_spec += spec
+
+                out.append(spec.calculate_ch_integral(average="gernot"))
+
         elif value == "max_pres":
 
             if len(self.lt_isotherms) > 0:
-                
-                isotherms = {}
-                
+
                 for isotherm in self.lt_isotherms:
-                    
-                    if isotherm.sample_hash.namestring not in isotherms:
-                        isotherms[isotherm.sample_hash.namestring] = isotherm
-                    else:
-                        if isotherm.measured_time < isotherms[isotherm.sample_hash.namestring].measured_time:
-                            isotherms[isotherm.sample_hash.namestring] = isotherm
-                        
-                for isotherm in isotherms.values():  
-                    
                     if isotherm.sample_hash.sample_type in types:
-                        pres = isotherm.get_maximum_pressure()
-                        if pres < 72:
-                            out.append(pres)
+                        out.append(isotherm.get_maximum_pressure())
 
         if len(out) > 0:
             average = np.average(out)
@@ -1624,34 +1644,28 @@ class Station:
     def analyze_station_data(self):
 
         #tension
-        if len(self.tensions) > 0:
-            self.stats["tension_average"] = self.get_value_by_type("a", "tension")
-            self.stats["tension_deep"] = self.get_value_by_type("deep", "tension")
-            self.stats["tension_sml"] = self.get_value_by_type("sml", "tension")
-            self.stats["tension_plate"] = self.get_value_by_type("p", "tension")
-            self.stats["tension_screen"] = self.get_value_by_type("s", "tension")
+
+        self.stats["tension_average"] = self.get_value_by_type("a", "tension")
+        self.stats["tension_deep"] = self.get_value_by_type("deep", "tension")
+        self.stats["tension_sml"] = self.get_value_by_type("sml", "tension")
+        self.stats["tension_plate"] = self.get_value_by_type("p", "tension")
+        self.stats["tension_screen"] = self.get_value_by_type("s", "tension")
 
         # surface pressure
-        if len(self.lt_isotherms) > 0:
-            self.stats["pressure_average"] = self.get_value_by_type("a", "max_pres")
-            self.stats["pressure_deep"] = self.get_value_by_type("deep", "max_pres")
-            self.stats["pressure_sml"] = self.get_value_by_type("sml", "max_pres")
-            self.stats["pressure_plate"] = self.get_value_by_type("p", "max_pres")
-            self.stats["pressure_screen"] = self.get_value_by_type("s", "max_pres")
+
+        self.stats["pressure_average"] = self.get_value_by_type("a", "max_pres")
+        self.stats["pressure_deep"] = self.get_value_by_type("deep", "max_pres")
+        self.stats["pressure_sml"] = self.get_value_by_type("sml", "max_pres")
+        self.stats["pressure_plate"] = self.get_value_by_type("p", "max_pres")
+        self.stats["pressure_screen"] = self.get_value_by_type("s", "max_pres")
 
         # SFG data
-        if len(self.sfg_spectra) > 0:
-            self.stats["ch_average"] = self.get_value_by_type("a", "ch")
-            self.stats["ch_deep"] = self.get_value_by_type("deep", "ch")
-            self.stats["ch_sml"] = self.get_value_by_type("sml", "ch")
-            self.stats["ch_plate"] = self.get_value_by_type("p", "ch")
-            self.stats["ch_screen"] = self.get_value_by_type("s", "ch")
-            
-            self.stats["coverage_average"] = self.get_value_by_type("a", "dppc")
-            self.stats["coverage_deep"] = self.get_value_by_type("deep", "dppc")
-            self.stats["coverage_sml"] = self.get_value_by_type("sml", "dppc")
-            self.stats["coverage_plate"] = self.get_value_by_type("p", "dppc")
-            self.stats["coverage_screen"] = self.get_value_by_type("s", "dppc")
+
+        self.stats["ch_average"] = self.get_value_by_type("a", "ch")
+        self.stats["ch_deep"] = self.get_value_by_type("deep", "ch")
+        self.stats["ch_sml"] = self.get_value_by_type("sml", "ch")
+        self.stats["ch_plate"] = self.get_value_by_type("p", "ch")
+        self.stats["ch_screen"] = self.get_value_by_type("s", "ch")
 
 
 class Spectrum:
@@ -2459,7 +2473,7 @@ def baseline_demo(spectrum, name="default"):
     axarr[0].plot(test, func(test), color="r", label="Baseline")
     axarr[0].set_xlabel("Wavenumber/ cm$^{-1}$")
     axarr[0].set_ylabel("Norm. SFG intensity/ arb. u.")
-    #axarr[0].set_title("Demonstration of the automatic baseline subtraction and integration")
+    axarr[0].set_title("Demonstration of the automatic baseline subtraction and integration")
     axarr[0].legend()
 
     axarr[1].plot(spectrum.wavenumbers, spectrum.baseline_corrected, label=spectrum.name.full_name, linewidth=1.5,
@@ -2607,13 +2621,8 @@ S = SessionControlManager("sfg.db", "test")
 S.setup_for_gasex()
 limits = [153, 166, 254, 266]
 
-l1 = "SFG CH integral/ arb u."
-l2 = "surface coverage"
-l3 = "surface tension/ $mN \cdot m^{-1}$"
-l4 = "surface pressure/ $mN \cdot m^{-1}$"
 
-
-plot_stats(S.stations.values(), ["pressure_deep","pressure_sml"], ylabel=l4)
+plot_stats(S.stations.values(), ["ch_deep","ch_sml"])
 
 # axes[0].errorbar(doys1, av_deeps, yerr=av_deep_stds, fmt="ro", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
 #             markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
