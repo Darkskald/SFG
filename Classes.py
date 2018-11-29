@@ -16,6 +16,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import sqlite3
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
@@ -340,7 +341,7 @@ class SfgSpectrum:
             else:
                 left = self.slice_by_borders(2805, 2800)
 
-            right = self.slice_by_borders(3000, 2950)
+            right = self.slice_by_borders(3010, 2990)
 
             left_x = self.wavenumbers[left[0]:left[1] + 1]
             left_y = self.normalized_intensity[left[0]:left[1] + 1]
@@ -984,22 +985,6 @@ class SessionControlManager:
 
         self.lt_manager = LtManager(self.db)
 
-    def match_same_measurements(self):
-        """Returns a dictionary containing the sample hash as keys and a list of all the SFG measurements that were
-        performed with this sample"""
-
-        out = {}
-        for spectrum in self.subset:
-
-            if spectrum.get_sample_hash() not in out:
-                out[spectrum.get_sample_hash()] = []
-                out[spectrum.get_sample_hash()].append(spectrum)
-
-            else:
-                out[spectrum.get_sample_hash()].append(spectrum)
-
-        return out
-
     def collect_stations(self):
         """Creates Station objects from the station information of the currently available isotherms and
         spectra. This helps to keep track of the set of samples taken within one GasEx sampling station"""
@@ -1011,7 +996,6 @@ class SessionControlManager:
             if isinstance(spec.name, SystematicGasExName) is True:
                 h = spec.get_sample_hash()
                 _hash = h.station_hash
-
 
                 if _hash not in station_hashes:
                     station_hashes.append(_hash)
@@ -1093,6 +1077,7 @@ class SessionControlManager:
 
         for station in self.stations.values():
                 station.analyze_station_data()
+                station.arange_to_sample()
 
 
     def fetch_tension_data(self):
@@ -1226,7 +1211,6 @@ class LtIsotherm:
         if "c" not in temp[3][0]:
             hashstring += ("_"+temp[4])
 
-
         self.sample_hash = SampleHash(hashstring)
 
         if len(temp) >= 5:
@@ -1235,7 +1219,8 @@ class LtIsotherm:
 
         else:
             self.measurement_number = 1
-
+        if type(self.sample_hash) != SampleHash:
+            raise ValueError(f'{self} was not created correctly!')
     def drop_ascii(self):
         """Drops an ascii file with semikolon-separated data in the form time;area;surface pressure. Intention
         is easy interfacing with external software like Excel or Origin"""
@@ -1421,6 +1406,8 @@ class Station:
         self.lt_isotherms = []
         self.tensions = []
 
+        self.samples = []
+
         self.lt_joined = {}
         
         self.parent = parent
@@ -1447,7 +1434,6 @@ class Station:
                 "coverage_plate":None,
                 "coverage_screen":None
                 }
-        
 
     def __rpr__(self):
         return f'Station {self.station_number} on date {self.date}'
@@ -1465,100 +1451,35 @@ class Station:
             if int(self.station_number) < int( other.station_number):
                 return True
 
-
-    def join_samples(self):
-        """Joins Langmuir trough measurements of the same sample. Much more comprehensive than
-        the approach in the LtManager."""
-
-        for isotherm in self.lt_isotherms:
-
-            if isotherm.create_sample_hash() not in self.lt_joined:
-                self.lt_joined[isotherm.create_sample_hash()] = [isotherm]
-            else:
-                self.lt_joined[isotherm.create_sample_hash()].append(isotherm)
-
-        for isolist in self.lt_joined.values():
-            isolist.sort(reverse=True)
-
-        self.isotherm_count = len(self.lt_joined)
-
     def print_stats(self):
         """Formatted output of the stations stats, calculated from the LtIsotherms belonging to the
         station."""
-
+        s = ''
         for item in self.stats:
-            s = f'{item} : {self.stats[item]}\n'
-            print(s)
+            s += f'{item} : {self.stats[item]}\n'
+        return s
 
-    def make_average_sfg(self, dppc=False):
+    def print_data(self):
+        s = ""
+        for sp in self.sfg_spectra:
+            s += f'{sp.name.full_name}\n'
 
-        to_av = []
-        for spec in self.sfg_spectra:
-            if isinstance(spec.name, SystematicGasExName):
-                if "deep" not in spec.name.type and "low" not in spec.name.type:
-                    to_av.append(spec)
+        for l in self.lt_isotherms:
+            s += f'{str(l)}\n'
 
-        if dppc == False:
+        for t in self.tensions:
+            s += str(t)+"\n"
 
-            if len(to_av) != 0:
-                out = to_av[0]
-                for spec in to_av[1:]:
-                    out += spec
-                out.name.full_name = self.name
-                out = out.calculate_ch_integral(average="gernot")
-
-            else:
-                out = None
-
-        else:
-            if len(to_av) != 0:
-                dates = dppc
-                temp= []
-
-                for spec in to_av: # type: SfgSpectrum
-                    dppc_integral = dates[spec.name.creation_time.date()]
-                    ch_integral = spec.calculate_ch_integral(average="gernot")
-                    temp.append(np.sqrt((ch_integral/dppc_integral)))
-
-                out = np.average(temp), np.std(temp)
-            else:
-                out = None
-
-        return out
-
-    def get_overview(self, sfg=True, lt=True):
-        """A function returning a formatted string of information about the station. Can be used to
-        check wether everything was imported correctly"""
-        separator = "-" * 80
-        outstring = f'Station number {self.station_number} with name {self.name} '
-        outstring += f'on {self.date[0:2]}.{self.date[2:]}.2018\n'
-        outstring += f'The station contains {len(self.sfg_spectra)} SFG measurements '
-        outstring += f' and  {len(self.lt_isotherms)} compression isotherm numbers.\n'
-
-        if sfg == True:
-            outstring += f'{separator}\n List of the SFG measurements:\n'
-            for i, spectrum in enumerate(self.sfg_spectra):
-                temp = f'{i+1}: {spectrum.name.full_name}\n'
-                outstring += temp
-
-        if lt == True:
-            outstring += f'{separator}\n List of the LT measurements:\n'
-            for i, spectrum in enumerate(self.lt_isotherms):
-                temp = f'{i+1}: {spectrum.name}\n'
-                outstring += temp
-        outstring += separator + "\n"
-
-        return outstring
-
+        return s
     def get_doy(self):
         doy = self.date.timetuple().tm_yday
         factor = (1-int(self.station_number))*0.25
         return doy+factor
 
-    def get_value_by_type(self, type, value):
+    def get_value_by_type(self, type_, value):
 
         dic = { "a": ("s", "p", "c"), "deep":("c",), "sml":("p", "s"), "s":("s", ) , "p":("p",)}
-        types = dic[type]
+        types = dic[type_]
         out = []
 
         if value == "tension":
@@ -1583,11 +1504,16 @@ class Station:
             for spec in self.sfg_spectra:
 
                 if spec.get_sample_hash().sample_type in types:
+
                     if np.min(spec.wavenumbers) <= 2750:
                         integral = spec.calculate_ch_integral(average="gernot")
                         dppc_integral = self.parent.dppc_ints[spec.name.creation_time.date()]
-                        temp = np.sqrt(integral/dppc_integral)
-                        out.append(temp)
+                        temp = integral/dppc_integral
+
+                        if temp < 0:
+                            temp = 0
+
+                        out.append(np.sqrt(temp))
                         
   
         elif value == "max_pres":
@@ -1652,6 +1578,42 @@ class Station:
             self.stats["coverage_sml"] = self.get_value_by_type("sml", "dppc")
             self.stats["coverage_plate"] = self.get_value_by_type("p", "dppc")
             self.stats["coverage_screen"] = self.get_value_by_type("s", "dppc")
+
+    def arange_to_sample(self):
+        """Matches the analytical data of the station to the corresponding sampless
+        in order to keep them together for further analysis"""
+        samples = []
+
+        for s in self.sfg_spectra:
+            if s.get_sample_hash() not in samples:
+                samples.append(s.get_sample_hash())
+
+        for l in self.lt_isotherms: #type: LtIsotherm
+            if l.sample_hash not in samples:
+                samples.append(l.sample_hash)
+
+
+        for t in self.tensions:
+            if SampleHash(t[0]) not in samples:
+                samples.append(SampleHash(t[0]))
+
+        for sample in samples:
+            self.samples.append(Sample(sample))
+
+        for sample in self.samples:
+
+            for spec in self.sfg_spectra:
+                if spec.get_sample_hash() == sample.sample_hash:
+                    sample.sfg_spectra.append(spec)
+
+            for l in self.lt_isotherms:
+                if l.sample_hash == sample.sample_hash:
+                    sample.lt_isotherms.append(l)
+
+            for t in self.tensions:
+                if SampleHash(t[0]) == sample.sample_hash:
+                    sample.surface_tension = t
+
 
 
 class Spectrum:
@@ -1763,7 +1725,6 @@ class SampleHash:
         self.get_type()
 
 
-
     def __eq__(self, other):
 
         if self.namestring == other.namestring:
@@ -1803,8 +1764,9 @@ class SampleHash:
         return self.date.timetuple().tm_yday
 
 class Sample:
+
     def __init__(self, sample_hash):
-        self.sample_hash = SampleHash(sample_hash)
+        self.sample_hash = sample_hash
         self.station_hash = self.sample_hash.station_hash  # todo:
         self.lt_isotherms = []  # list of corresponding Isotherms
         self.sfg_spectra = []  # list of sfg spectra
@@ -1818,6 +1780,8 @@ class Sample:
 
     def __str__(self):
         pass
+
+
 
 
 # plotting functions
@@ -2469,8 +2433,40 @@ def baseline_demo(spectrum, name="default"):
     axarr[1].set_xlabel("Wavenumber/ cm$^{-1}$")
     axarr[1].set_ylabel("Norm. SFG intensity/ arb. u.")
     axarr[1].legend()
-    name = spec.name.full_name
-    plt.savefig(name + ".png")
+    name = spectrum.name.full_name
+    #plt.savefig(name + ".png")
+    plt.show()
+
+def baseline_demo_dppc(spectrum, ref, name="default"):
+
+    spectrum.correct_baseline(average="gernot")
+
+    test = np.linspace(2750, 3050, 10000)
+    func = spectrum.make_ch_baseline(average="gernot")
+    borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
+
+    f, axarr = plt.subplots(3, sharex=True)
+
+    axarr[0].plot(ref.wavenumbers, ref.normalized_intensity, label="reference", linewidth=1.5,
+                  marker="o", markersize=3)
+
+    axarr[0].legend()
+
+    axarr[1].plot(spectrum.wavenumbers, spectrum.normalized_intensity, label="spectrum", linewidth=1.5,
+                  marker="o", markersize=3)
+    axarr[1].plot(test, func(test), color="r", label="baseline")
+
+    axarr[1].legend()
+
+    axarr[2].plot(spectrum.wavenumbers, spectrum.baseline_corrected, label="spectrum", linewidth=1.5,
+                  marker="o", markersize=3)
+    axarr[2].fill_between(spectrum.wavenumbers[borders[0]:borders[1] + 1],
+                          spectrum.baseline_corrected[borders[0]:borders[1] + 1])
+    axarr[2].set_xlabel("wavenumber/ cm$^{-1}$")
+
+    axarr[2].legend()
+    f.text(0.03, 0.5, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical', fontsize=14)
+    plt.show()
 
 
 def benchmark_baseline(speclist):
@@ -2490,6 +2486,7 @@ def plot_lt_isotherm(isotherm): # type: LtIsotherm
     ax.set_ylim(-0.1, 2)
     ax.plot(isotherm.area, isotherm.pressure, linewidth=3)
     plt.show()
+
 
 def broken_axis(x, y, lim):
 
@@ -2519,7 +2516,6 @@ def broken_axis(x, y, lim):
 
     ax.scatter(x, y, marker="o")
     ax2.scatter(x, y, marker="o")
-
 
 
 def broken_axis_errorbar(lim):
@@ -2554,7 +2550,7 @@ def plot_stats(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$"):
 
     axes = broken_axis_errorbar([153, 166, 254, 266])
     counter = 0
-    colormap = { 0: "ro", 1: "bo", 2:"go", 3:"purple"}
+    colormap = {0: "ro", 1: "bo", 2:"go", 3:"purple"}
     axes[0].set_ylabel(ylabel)
 
     for s in stats:
@@ -2570,15 +2566,69 @@ def plot_stats(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$"):
                 out.append(station.stats[s][0])
                 err.append(station.stats[s][1])
 
-
-        axes[0].errorbar(doy, out, yerr=err, fmt=colormap[counter], color="r", barsabove="true", capsize=5,
-                         capthick=1, ecolor="black", elinewidth=1.0,
-                     markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
-        axes[1].errorbar(doy, out, yerr=err, fmt=colormap[counter], color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
-                      markeredgecolor="black",  markeredgewidth=0.4, antialiased=True, label=s)
-        counter += 1
+            axes[0].errorbar(doy, out, yerr=err, fmt=colormap[counter], color="r", barsabove="true", capsize=5,
+                             capthick=1, ecolor="black", elinewidth=1.0,
+                         markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
+            axes[1].errorbar(doy, out, yerr=err, fmt=colormap[counter], color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
+                          markeredgecolor="black",  markeredgewidth=0.4, antialiased=True, label=s)
+            counter += 1
 
     axes[1].legend()
+
+    plt.show()
+
+
+def plot_stats_scatter(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$", scatter= False):
+
+    axes = broken_axis_errorbar([153, 166, 254, 266])
+    counter = 0
+    colormap = { 0: "r", 1: "b", 2:"g", 3:"p"}
+    legendmap = {"tension_deep": "bulkwater",
+                 "tension_sml": "SML",
+                 "coverage_sml": "SML",
+                 "coverage_deep": "bulkwater",
+                 "pressure_sml": "SML",
+                 "pressure_deep": "bulkwater"}
+
+    axes[0].set_ylabel(ylabel)
+
+    legend_elements = []
+    labels = []
+
+    for s in stats:
+
+        av1 = []
+        av2 = []
+
+        for station in stations:
+
+            if station.stats[s] is not None:
+                d = station.get_doy()
+                y = station.stats[s][0]
+                axes[0].scatter(d, y, color=colormap[counter])
+                axes[1].scatter(d, y, color=colormap[counter])
+
+                if d < 165:
+                    av1.append(y)
+                else:
+                    av2.append(y)
+        av1 = np.average(av1)
+        av2 = np.average(av2)
+        axes[0].axhline(y=av1, color=colormap[counter], alpha=0.5, linestyle="--")
+        axes[1].axhline(y=av2, color=colormap[counter], alpha=0.5, linestyle="--")
+
+        labels.append(legendmap[s])
+        labels.append(legendmap[s]+" average")
+        counter += 1
+
+    for i in range(counter):
+
+        legend_elements.append(Line2D([0], [0], marker='o', color="w", markerfacecolor=colormap[i]))
+
+        legend_elements.append(Line2D([0], [0], color=colormap[i],
+                                      alpha=0.5, linestyle="--"))
+
+    axes[1].legend(legend_elements, labels)
     plt.show()
 
 
@@ -2598,6 +2648,36 @@ def tension_average(station):
         return x, av_out, std
 
 
+def correlation_plot(stations, value1, value2, spec1, spec2, average=True):
+    dic = {
+        "t": "surface tension/ $mN \cdot m^{-1}$",
+        "s": "SFG CH integral/ arb u.",
+        "c": "surface coverage",
+        "p": "surface pressure/ $mN \cdot m^{-1}$"
+    }
+    if average is True:
+        for station in stations:
+
+            x = station.stats[value1]
+            y = station.stats[value2]
+
+            if x is not None and y is not None:
+                plt.errorbar(x[0], y[0], xerr=x[1], yerr=y[1], fmt="ro",
+                             color="r", barsabove="true", capsize=5,
+                             capthick=1, ecolor="black", elinewidth=1.0,
+                         markeredgecolor="black", markeredgewidth=0.4,
+                             antialiased=True)
+
+    else:
+        for station in stations:
+            plt.plot()
+
+    plt.xlabel(dic[spec1])
+    plt.ylabel(dic[spec2])
+    plt.show()
+
+
+
 plt.style.use('seaborn-talk')
 import matplotlib as mpl
 mpl.rcParams['axes.linewidth']= 2
@@ -2613,21 +2693,16 @@ l3 = "surface tension/ $mN \cdot m^{-1}$"
 l4 = "surface pressure/ $mN \cdot m^{-1}$"
 
 
-plot_stats(S.stations.values(), ["pressure_deep","pressure_sml"], ylabel=l4)
 
-# axes[0].errorbar(doys1, av_deeps, yerr=av_deep_stds, fmt="ro", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
-#             markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
-# axes[1].errorbar(doys1, av_deeps, yerr=av_deep_stds, fmt="ro", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
-#              markeredgecolor="black",  markeredgewidth=0.4, antialiased=True, label="deep water")
-#
-# axes[0].errorbar(doys2, av_smls, yerr=av_sml_stds, fmt="bo", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
-#             markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
-# axes[1].errorbar(doys2, av_smls, yerr=av_sml_stds, fmt="bo", color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
-#              markeredgecolor="black",  markeredgewidth=0.4, antialiased=True, label="SML")
+dp = [i for i in S.subset if type(i.name) == SystematicName]
+print(dp)
+#stats = sorted(S.stations.values())
 
+#plot_stats_scatter(stats, ["pressure_deep", "pressure_sml"], l4)
+#baseline_demo(S.subset[16])
+#baseline_demo_dppc(S.subset[16], dp[0])
 
+a = S.subset[16].calculate_ch_integral(average="gernot")
+b = dp[0].calculate_ch_integral(average="gernot")
 
-
-
-
-
+print(np.sqrt(a/b))
