@@ -16,7 +16,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
+
 import sqlite3
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
@@ -2438,7 +2438,8 @@ def baseline_demo(spectrum, name="default"):
     plt.show()
 
 def baseline_demo_dppc(spectrum, ref, name="default"):
-
+    rcParams['xtick.labelsize'] = 18
+    rcParams['ytick.labelsize'] = 18
     spectrum.correct_baseline(average="gernot")
 
     test = np.linspace(2750, 3050, 10000)
@@ -2450,22 +2451,22 @@ def baseline_demo_dppc(spectrum, ref, name="default"):
     axarr[0].plot(ref.wavenumbers, ref.normalized_intensity, label="reference", linewidth=1.5,
                   marker="o", markersize=3)
 
-    axarr[0].legend()
+    axarr[0].legend(frameon=False)
 
     axarr[1].plot(spectrum.wavenumbers, spectrum.normalized_intensity, label="spectrum", linewidth=1.5,
                   marker="o", markersize=3)
     axarr[1].plot(test, func(test), color="r", label="baseline")
 
-    axarr[1].legend()
+    axarr[1].legend(frameon=False)
 
     axarr[2].plot(spectrum.wavenumbers, spectrum.baseline_corrected, label="spectrum", linewidth=1.5,
                   marker="o", markersize=3)
     axarr[2].fill_between(spectrum.wavenumbers[borders[0]:borders[1] + 1],
                           spectrum.baseline_corrected[borders[0]:borders[1] + 1])
-    axarr[2].set_xlabel("wavenumber/ cm$^{-1}$")
+    axarr[2].set_xlabel("wavenumber/ cm$^{-1}$", fontsize=26)
 
-    axarr[2].legend()
-    f.text(0.03, 0.5, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical', fontsize=14)
+    axarr[2].legend(frameon=False)
+    f.text(0.025, 0.5, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical', fontsize=26)
     plt.show()
 
 
@@ -2522,7 +2523,7 @@ def broken_axis_errorbar(lim):
     fig, (ax, ax2) = plt.subplots(1, 2, sharey=True)
 
     ax.set_ylabel("Surface tension/ $mN \cdot m^{-1}$")
-    fig.text(0.5, 0.015, s="Day of the year", ha="center", va="center", size=14)
+    fig.text(0.5, 0.02, s="day of the year", ha="center", va="center", size=20)
 
     ax.set_xlim(lim[0], lim[1])
     ax2.set_xlim(lim[2], lim[3])
@@ -2579,6 +2580,9 @@ def plot_stats(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$"):
 
 
 def plot_stats_scatter(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$", scatter= False):
+    rcParams['xtick.labelsize'] = 18
+    rcParams['ytick.labelsize'] = 18
+    rcParams['axes.labelsize'] = 'x-large'
 
     axes = broken_axis_errorbar([153, 166, 254, 266])
     counter = 0
@@ -2590,7 +2594,7 @@ def plot_stats_scatter(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1
                  "pressure_sml": "SML",
                  "pressure_deep": "bulkwater"}
 
-    axes[0].set_ylabel(ylabel)
+    axes[0].set_ylabel(ylabel,  fontsize=22)
 
     legend_elements = []
     labels = []
@@ -2628,7 +2632,7 @@ def plot_stats_scatter(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1
         legend_elements.append(Line2D([0], [0], color=colormap[i],
                                       alpha=0.5, linestyle="--"))
 
-    axes[1].legend(legend_elements, labels)
+    axes[1].legend(legend_elements, labels, frameon=False, )
     plt.show()
 
 
@@ -2680,7 +2684,6 @@ def correlation_plot(stations, value1, value2, spec1, spec2, average=True):
 
 plt.style.use('seaborn-talk')
 import matplotlib as mpl
-mpl.rcParams['axes.linewidth']= 2
 
 
 S = SessionControlManager("sfg.db", "test")
@@ -2695,14 +2698,12 @@ l4 = "surface pressure/ $mN \cdot m^{-1}$"
 
 
 dp = [i for i in S.subset if type(i.name) == SystematicName]
-print(dp)
-#stats = sorted(S.stations.values())
+stats = sorted(S.stations.values())
 
-#plot_stats_scatter(stats, ["pressure_deep", "pressure_sml"], l4)
+
+
+#plot_stats_scatter(stats, ["tension_deep", "tension_sml"], l3)
+
 #baseline_demo(S.subset[16])
-#baseline_demo_dppc(S.subset[16], dp[0])
+baseline_demo_dppc(S.subset[16], dp[0])
 
-a = S.subset[16].calculate_ch_integral(average="gernot")
-b = dp[0].calculate_ch_integral(average="gernot")
-
-print(np.sqrt(a/b))
