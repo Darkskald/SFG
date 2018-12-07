@@ -119,7 +119,10 @@ class SfgSpectrum:
 
     def __lt__(self, SFG2):
         """Returns true if the current spectrum was measured before SFG2"""
-        return (self.name.creation_time < SFG2.name.creation_time)
+        if self.name.creation_time < SFG2.name.creation_time:
+            return True
+        else:
+            return False
 
     # spectral data processing and analysis tools
 
@@ -1856,117 +1859,10 @@ def plot_per_sample(isothermlist):
             print("Already processed!")
 
 
-def sfg_pub_plot(speclist, title="default", normalized="false"):
-    """Produces a pre-formatted SFG plot from a list of SFG spectrum objects"""
-
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-    ax.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
-    ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
-
-    inc = 0.25 / len(speclist)
-    counter = 0
-    for spectrum in speclist:
-        eff_alpha = 0.75 + inc * counter
-        if normalized == "false":
-            ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
-                    alpha=eff_alpha, label=spectrum.name.full_name)
-        elif normalized == "true":
-            ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="o", markersize=3,
-                    alpha=eff_alpha, label=spectrum.name.full_name)
-        counter += 1
-
-    size = fig.get_size_inches()
-    ratio = size[0] / size[1]
-    fig.set_size_inches(3.2 * ratio, 3.2)
-    fig.tight_layout()
-    return fig
 
 
-def sfg_stack_plot(speclist):
-    """Stacks the provided SfgSpectrum objects after normalizing them to 1 internally."""
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-    ax.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
-    ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
-    ax.set_yticks([])
-    ax.set_yticklabels([])
-
-    inc = 0.25 / len(speclist)
-    counter = 0
-    offset = 0
-    for spectrum in speclist:
-        eff_alpha = 0.75 + inc * counter
-        ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, linewidth=1.5, marker="o", markersize=3,
-                alpha=eff_alpha, label=spectrum.name.full_name)
-        counter += 1
-        offset += 0.2
-
-    size = fig.get_size_inches()
-    ratio = size[0] / size[1]
-    fig.set_size_inches(3.2 * ratio, 3.2)
-    fig.tight_layout()
-    return fig
 
 
-def sfg_doublestack_plot(speclist1, speclist2):
-    """Two stacked-by-offset plots, one on the bottom, on on the top of the figure."""
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax1 = fig.add_subplot(211)
-    ax2 = fig.add_subplot(212)
-    ax2.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
-    ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
-
-    ax.spines['top'].set_color('none')
-    ax.spines['bottom'].set_color('none')
-    ax.spines['left'].set_color('none')
-    ax.spines['right'].set_color('none')
-    ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
-
-    ax2.set_yticks([])
-    ax2.set_yticklabels([])
-    ax1.set_yticks([])
-    ax1.set_yticklabels([])
-
-    inc = 0.25 / len(speclist1)
-    counter = 0
-    offset = 0
-    for spectrum in speclist1:
-        eff_alpha = 0.75 + inc * counter
-        ax1.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, linewidth=1.5, marker="o",
-                 markersize=3,
-                 alpha=eff_alpha, label=spectrum.name.full_name)
-        counter += 1
-        offset += 0.2
-
-    inc = 0.25 / len(speclist1)
-    counter = 0
-    offset = 0
-    for spectrum in speclist2:
-        eff_alpha = 0.75 + inc * counter
-        ax2.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, linewidth=1.5, marker="o",
-                 markersize=3,
-                 alpha=eff_alpha, label=spectrum.name.full_name)
-        counter += 1
-        offset += 0.2
-    ax1.legend()
-    ax2.legend()
-    # size = fig.get_size_inches()
-    # ratio = size[0] / size[1]
-    # fig.set_size_inches(3.2 * ratio, 3.2)
-    # fig.tight_layout()
-    return fig
-
-
-def finalize_figure(fig, title="test2"):
-    """Makes figures publication-ready and exports them as pdf. Takes the title for the output file as argument"""
-    size = fig.get_size_inches()
-    ratio = size[0] / size[1]
-    fig.set_size_inches(3.2 * ratio, 3.2)
-    fig.tight_layout()
-    fig.savefig(title + ".pdf", dpi=600)
 
 
 def lt_plot_stats_new(S):
@@ -2281,51 +2177,7 @@ def lt_sfg_integral_dppc(S):
     plt.show()
 
 
-def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="false"):
-    """Produces a pre-formatted SFG plot from a list of SFG spectrum objects"""
 
-    fig, (ax, ax2) = plt.subplots(1, 2, sharey=True)
-    ax.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=10)
-    ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=10)
-
-    ax.set_xlim(lower[0], lower[1])
-    ax2.set_xlim(upper[0], upper[1])
-
-    ax.spines['right'].set_visible(False)
-    ax2.spines['left'].set_visible(False)
-    ax.yaxis.tick_left()
-    ax.tick_params(labeltop='off')  # don't put tick labels at the top
-    ax2.yaxis.tick_right()
-
-    d = .015  # how big to make the diagonal lines in axes coordinates
-    # arguments to pass plot, just so we don't keep repeating them
-    kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
-    ax.plot((1 - d, 1 + d), (-d, +d), **kwargs)
-    ax.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
-
-    kwargs.update(transform=ax2.transAxes)  # switch to the bottom axes
-    ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)
-    ax2.plot((-d, +d), (-d, +d), **kwargs)
-
-    inc = 0.25 / len(speclist)
-    counter = 0
-    for spectrum in speclist:
-        eff_alpha = 0.75 + inc * counter
-        if normalized == "false":
-            ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
-                    alpha=eff_alpha, label=spectrum.name.full_name)
-            ax2.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="o", markersize=3,
-                     alpha=eff_alpha, label=spectrum.name.full_name)
-        elif normalized == "true":
-            ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="o", markersize=3,
-                    alpha=eff_alpha, label=spectrum.name.full_name)
-        counter += 1
-
-    size = fig.get_size_inches()
-    ratio = size[0] / size[1]
-    fig.set_size_inches(3.2 * ratio, 3.2)
-    fig.tight_layout()
-    return fig
 
 
 def lt_integral_average(S):
@@ -2682,28 +2534,28 @@ def correlation_plot(stations, value1, value2, spec1, spec2, average=True):
 
 
 
-plt.style.use('seaborn-talk')
+#plt.style.use('seaborn-talk')
 import matplotlib as mpl
 
 
-S = SessionControlManager("sfg.db", "test")
-S.setup_for_gasex()
-limits = [153, 166, 254, 266]
-
-l1 = "SFG CH integral/ arb u."
-l2 = "surface coverage"
-l3 = "surface tension/ $mN \cdot m^{-1}$"
-l4 = "surface pressure/ $mN \cdot m^{-1}$"
-
-
-
-dp = [i for i in S.subset if type(i.name) == SystematicName]
-stats = sorted(S.stations.values())
-
-
-
-#plot_stats_scatter(stats, ["tension_deep", "tension_sml"], l3)
-
-#baseline_demo(S.subset[16])
-baseline_demo_dppc(S.subset[16], dp[0])
+# S = SessionControlManager("sfg.db", "test")
+# S.setup_for_gasex()
+# limits = [153, 166, 254, 266]
+#
+# l1 = "SFG CH integral/ arb u."
+# l2 = "surface coverage"
+# l3 = "surface tension/ $mN \cdot m^{-1}$"
+# l4 = "surface pressure/ $mN \cdot m^{-1}$"
+#
+#
+#
+# dp = [i for i in S.subset if type(i.name) == SystematicName]
+# stats = sorted(S.stations.values())
+#
+#
+#
+# #plot_stats_scatter(stats, ["tension_deep", "tension_sml"], l3)
+#
+# #baseline_demo(S.subset[16])
+# baseline_demo_dppc(S.subset[16], dp[0])
 
