@@ -6,25 +6,36 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.lines import Line2D
 
-rcParams['xtick.labelsize'] = 12
-rcParams['ytick.labelsize'] = 12
-rcParams['legend.frameon'] = False
+def set_plot_properties(big=True):
+    rcParams['xtick.labelsize'] = 12
+    rcParams['ytick.labelsize'] = 12
+    rcParams['legend.frameon'] = False
 
-rcParams['axes.labelsize'] = 14
-rcParams['axes.labelweight'] = 'normal'
-rcParams['axes.labelpad'] = 6.0
+    rcParams['axes.labelsize'] = 14
+    rcParams['axes.labelweight'] = 'normal'
+    rcParams['axes.labelpad'] = 6.0
 
-rcParams['figure.autolayout'] = True
-rcParams['figure.figsize'] = 6.8, 4.25
+    rcParams['figure.autolayout'] = True
+    rcParams['figure.figsize'] = 6.8, 4.25
 
-rcParams['lines.linewidth'] = 0.5
-rcParams['lines.markersize'] = 6
+    rcParams['lines.linewidth'] = 1
+    rcParams['lines.markersize'] = 6
 
+    rcParams['legend.fontsize'] = 10
 
+    if big is False:
+        rcParams['xtick.labelsize'] = 10
+        rcParams['ytick.labelsize'] = 10
 
+        rcParams['figure.figsize'] = 3.15, 1.96
 
+        rcParams['lines.markersize'] = 4
+        rcParams['lines.linewidth'] = 0.5
 
-
+        rcParams['axes.labelsize'] = 10
+        rcParams['axes.labelweight'] = 'normal'
+        rcParams['figure.autolayout'] = True
+        rcParams['legend.fontsize'] = 8
 
 
 
@@ -37,8 +48,8 @@ def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="fa
 
     ax.set_xlim(lower[0], lower[1])
     ax2.set_xlim(upper[0], upper[1])
-    fig.text(0.05, 0.5, 'Norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical', fontsize=22)
-    fig.text(0.5, 0.025, 'Wavenumber/ cm$^{-1}$', ha='center', va='center', fontsize=22)
+    fig.text(0.025, 0.5, 'Norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical')
+    fig.text(0.5, 0.025, 'Wavenumber/ cm$^{-1}$', ha='center', va='center')
 
     ax.spines['right'].set_visible(False)
     ax2.spines['left'].set_visible(False)
@@ -61,9 +72,9 @@ def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="fa
     for spectrum in speclist:
         eff_alpha = 0.75 + inc * counter
         if normalized == "false":
-            ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="s", markersize=4,
+            ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="s",
                     alpha=eff_alpha, label=spectrum.name.full_name)
-            ax2.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="s", markersize=4,
+            ax2.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="s",
                      alpha=eff_alpha, label=spectrum.name.full_name)
         elif normalized == "true":
             ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="s", markersize=4,
@@ -71,10 +82,6 @@ def sfg_plot_broken_axis(speclist, lower, upper, title="default", normalized="fa
         counter += 1
 
     ax2.legend()
-    # size = fig.get_size_inches()
-    # ratio = size[0] / size[1]
-    # fig.set_size_inches(3.2 * ratio, 3.2)
-    # fig.tight_layout()
     return fig
 
 
@@ -220,9 +227,6 @@ def sfg_doublestack_plot_broken(speclist1, speclist2, lower, upper):
     left_top.set_xticklabels([])
 
 
-
-
-
     d = .015  # how big to make the diagonal lines in axes coordinates
     d2 = 0.02
 
@@ -248,10 +252,10 @@ def sfg_doublestack_plot_broken(speclist1, speclist2, lower, upper):
     offset = 0
 
     for spectrum in speclist1:
-        left_top.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, linewidth=2, marker="s",
+        left_top.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, marker="s",
                  markersize=3, label=spectrum.name.full_name)
 
-        right_top.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, linewidth=2, marker="s",
+        right_top.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, marker="s",
                       markersize=3, label=spectrum.name.full_name)
 
         offset += 0.4
@@ -259,16 +263,16 @@ def sfg_doublestack_plot_broken(speclist1, speclist2, lower, upper):
     offset = 0
 
     for spectrum in speclist2:
-        left_bottom.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, linewidth=2, marker="s",
+        left_bottom.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, marker="s",
                  markersize=3, label=spectrum.name.full_name)
 
-        right_bottom.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, linewidth=2, marker="s",
+        right_bottom.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, marker="s",
                       markersize=3, label=spectrum.name.full_name)
 
         offset += 0.4
 
-    fig.text(0.08, 0.5, 'Norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical', fontsize=22)
-    fig.text(0.5, 0.025, 'Wavenumber/ cm$^{-1}$', ha='center', va='center', fontsize=22)
+    fig.text(0.025, 0.5, 'Norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical', fontsize=12)
+    fig.text(0.5, 0.025, 'Wavenumber/ cm$^{-1}$', ha='center', va='center', fontsize=12)
     right_bottom.legend()
     right_top.legend()
 
@@ -307,7 +311,7 @@ def decay_double(speclist):
     sfg_to_axes(axes[0], speclist)
 
     for i, spectrum in enumerate(speclist):
-        axes[1].scatter(i, np.max(spectrum.normalized_intensity), color="r", edgecolor="black", alpha=0.7, s=52)
+        axes[1].scatter(i, np.max(spectrum.normalized_intensity), color="r", edgecolor="black", alpha=0.7, s=22)
 
     axes[0].legend()
     axes[1].legend()
@@ -324,52 +328,45 @@ def sfg_to_axes(axes, speclist):
     axes.set_xlabel("Wavenumber/ cm$^{-1}$")
     axes.set_ylabel("Norm. SFG intensity/ arb. u.")
 
+
 S = scm("sfg.db", "test")
 #li = ["20180323_PA_BX12_10_x2_#1_0.5zu1mM", "20180323_PA_BX12_10_x2_#2_80p_0.5zu1mM", "20180323_PA_10_x2_#1_45p_5mM", "20180323_PA_10_x1_#2_5mM"]
-
-li = ["20180130_BX12_3.5_x1_#6_4p_Peak1", "20180130_BX12_3.5_x1_#9_7p_Peak1",
-      "20180130_BX12_3.5_x1_#5_3p_Peak1", "20180130_BX12_3.5_x1_#8_6p_Peak1", "20180130_BX12_3.5_x1_#4_2p_Peak1",
-      "20180130_BX12_3.5_x1_#7_5p_Peak1", "20180130_BX12_3.5_x1_#3_1p_Peak1", "20180130_BX12_3.5_x1_#2_Peak1init"]
-
-li = get_by_name(sorted(li), S)
-f = sfg_pub_plot(li)
-a = f.gca()
-a.set_xlim(1640, 1670)
-ax2 = f.add_subplot(1, 2, 2)
-ax2.plot(1,2)
-fig = decay_double(li)
-finalize_figure(fig)
+#li = ["20170901_BX9_5_x2_#1_5mM", "20170901_BX9_5_x2_#2_30p_5mM"]
+# li = ["20180130_BX12_3.5_x1_#6_4p_Peak1", "20180130_BX12_3.5_x1_#9_7p_Peak1",
+#       "20180130_BX12_3.5_x1_#5_3p_Peak1", "20180130_BX12_3.5_x1_#8_6p_Peak1", "20180130_BX12_3.5_x1_#4_2p_Peak1",
+#       "20180130_BX12_3.5_x1_#7_5p_Peak1", "20180130_BX12_3.5_x1_#3_1p_Peak1", "20180130_BX12_3.5_x1_#2_Peak1init"]
 
 
 
 
 
-#S.get("name 20170901_BX9_5_x2_#1_5mM")
-#S.get("name 20170901_BX9_5_x2_#2_30p_5mM")
-#sfg_plot_broken_axis(li, [1600,1850],[2700,3200])
-# pa = S.subset[0]
-# S.clear()
-#
-# S.get("name 20180315_SA_BX12_10_x1_#2_mixedlayer1zu2mM")
-# sa_bx = S.subset[0]
-# S.clear()
-#
-# S.get("name 20180320_PA_BX12_10_x1_#1_1.5zu1.5mM")
-# pa_bx = S.subset[0]
-# S.clear()
-#
-# S.get("name 20180524_BX12_8_x2_#2_1mM")
-# bx = S.subset[0]
-# S.clear()
-#
-# S.get("name 20160316_SA_5_x1_#1_5mM")
-# sa = S.subset[0]
-# S.clear()
-#
-# stack1 = [sa, sa_bx, bx]
-# stack2 = [pa, pa_bx, bx]
-#
-# t = stack1 + stack2
-#
-# f = sfg_doublestack_plot_broken(stack1, stack2, [1600,1850], [2700,3300])
-# plt.show()
+
+
+
+S.get("name 20180323_PA_10_x1_#2_5mM")
+
+pa = S.subset[0]
+S.clear()
+
+S.get("name 20180315_SA_BX12_10_x1_#2_mixedlayer1zu2mM")
+sa_bx = S.subset[0]
+S.clear()
+
+S.get("name 20180320_PA_BX12_10_x1_#1_1.5zu1.5mM")
+pa_bx = S.subset[0]
+S.clear()
+
+S.get("name 20180524_BX12_8_x2_#2_1mM")
+bx = S.subset[0]
+S.clear()
+
+S.get("name 20160316_SA_5_x1_#1_5mM")
+sa = S.subset[0]
+S.clear()
+
+stack1 = [sa, sa_bx, bx]
+stack2 = [pa, pa_bx, bx]
+
+set_plot_properties()
+f = sfg_doublestack_plot_broken(stack1, stack2, [1600,1850], [2700,3300])
+plt.show()
