@@ -261,7 +261,7 @@ def sfg_doublestack_plot_broken(speclist1, speclist2, lower, upper):
         offset += 0.4
 
     offset = 0
-
+#
     for spectrum in speclist2:
         left_bottom.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, marker="s",
                  markersize=3, label=spectrum.name.full_name)
