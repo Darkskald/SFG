@@ -19,7 +19,7 @@ def set_plot_properties(big=True):
     rcParams['figure.figsize'] = 6.8, 4.25
 
     rcParams['lines.linewidth'] = 1
-    rcParams['lines.markersize'] = 6
+    rcParams['lines.markersize'] = 4
 
     rcParams['legend.fontsize'] = 10
 
@@ -90,8 +90,8 @@ def sfg_pub_plot(speclist, title="default", normalized="false"):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.set_xlabel("Wavenumber/ cm$^{-1}$", fontsize=22)
-    ax.set_ylabel("Norm. SFG intensity/ arb. u.", fontsize=22)
+    ax.set_xlabel("Wavenumber/ cm$^{-1}$")
+    ax.set_ylabel("Norm. SFG intensity/ arb. u.")
 
     inc = 0.25 / len(speclist)
     counter = 0
@@ -99,18 +99,15 @@ def sfg_pub_plot(speclist, title="default", normalized="false"):
         eff_alpha = 0.75 + inc * counter
 
         if normalized == "false":
-            ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="s", markersize=3,
+            ax.plot(spectrum.wavenumbers, spectrum.normalized_intensity, linewidth=1.5, marker="s",
                     alpha=eff_alpha, label=spectrum.name.full_name)
         elif normalized == "true":
 
-            ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="s", markersize=3,
+            ax.plot(spectrum.wavenumbers, spectrum.normalize_to_highest(), linewidth=1.5, marker="s",
                     alpha=eff_alpha, label=spectrum.name.full_name)
 
         counter += 1
     ax.legend(frameon=False)
-    size = fig.get_size_inches()
-    ratio = size[0] / size[1]
-    fig.set_size_inches(3.2 * ratio, 3.2)
     #fig.tight_layout()
     return fig
 
@@ -193,7 +190,7 @@ def sfg_doublestack_plot(speclist1, speclist2):
     return fig
 
 
-def sfg_doublestack_plot_broken(speclist1, speclist2, lower, upper):
+def sfg_doublestack_plot_broken(speclist1, speclist2, lower, upper, labels1=None, labels2=None):
     """Two stacked-by-offset plots, one on the bottom, on on the top of the figure."""
 
     fig, (row_1, row_2) = plt.subplots(nrows=2, ncols=2, sharey=True)
@@ -250,31 +247,49 @@ def sfg_doublestack_plot_broken(speclist1, speclist2, lower, upper):
 
 
     offset = 0
+    legend_counter = 0
 
     for spectrum in speclist1:
+        if labels1 == None:
+            label = spectrum.name.full_name
+        else:
+            label = labels1[legend_counter]
+            legend_counter += 1
+
         left_top.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, marker="s",
-                 markersize=3, label=spectrum.name.full_name)
+                 markersize=3, label=label)
 
         right_top.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, marker="s",
-                      markersize=3, label=spectrum.name.full_name)
+                      markersize=3, label=label)
 
         offset += 0.4
 
     offset = 0
+    legend_counter = 0
 #
     for spectrum in speclist2:
+
+        if labels1 == None:
+            label = spectrum.name.full_name
+        else:
+            label = labels1[legend_counter]
+            legend_counter += 1
+
         left_bottom.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, marker="s",
-                 markersize=3, label=spectrum.name.full_name)
+                 markersize=3, label=label)
 
         right_bottom.plot(spectrum.wavenumbers, spectrum.normalize_to_highest() + offset, marker="s",
-                      markersize=3, label=spectrum.name.full_name)
+                      markersize=3, label=label)
 
         offset += 0.4
 
     fig.text(0.025, 0.5, 'Norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical', fontsize=12)
-    fig.text(0.5, 0.025, 'Wavenumber/ cm$^{-1}$', ha='center', va='center', fontsize=12)
-    right_bottom.legend()
-    right_top.legend()
+    fig.text(0.5, 0.015, 'Wavenumber/ cm$^{-1}$', ha='center', va='center', fontsize=12)
+    bl = left_bottom.legend(fontsize=8)
+    tl = left_top.legend(fontsize=8)
+
+    bl.draggable()
+    tl.draggable()
 
     left_top.set_xlim(lower[0], lower[1])
     right_top.set_xlim(upper[0], upper[1])
@@ -304,6 +319,7 @@ def get_by_name(names, scm):
 
     return out
 
+
 def decay_double(speclist):
 
     fig, axes = plt.subplots(nrows=1, ncols=2, sharey=True)
@@ -319,6 +335,7 @@ def decay_double(speclist):
 
     return fig
 
+
 def sfg_to_axes(axes, speclist):
 
     for spectrum in speclist: # type: Classes.SfgSpectrum
@@ -330,7 +347,7 @@ def sfg_to_axes(axes, speclist):
 
 
 S = scm("sfg.db", "test")
-#li = ["20180323_PA_BX12_10_x2_#1_0.5zu1mM", "20180323_PA_BX12_10_x2_#2_80p_0.5zu1mM", "20180323_PA_10_x2_#1_45p_5mM", "20180323_PA_10_x1_#2_5mM"]
+li = ["20180323_PA_BX12_10_x2_#1_0.5zu1mM", "20180323_PA_BX12_10_x2_#2_80p_0.5zu1mM", "20180323_PA_10_x2_#1_45p_5mM", "20180323_PA_10_x1_#2_5mM"]
 #li = ["20170901_BX9_5_x2_#1_5mM", "20170901_BX9_5_x2_#2_30p_5mM"]
 # li = ["20180130_BX12_3.5_x1_#6_4p_Peak1", "20180130_BX12_3.5_x1_#9_7p_Peak1",
 #       "20180130_BX12_3.5_x1_#5_3p_Peak1", "20180130_BX12_3.5_x1_#8_6p_Peak1", "20180130_BX12_3.5_x1_#4_2p_Peak1",
@@ -343,30 +360,34 @@ S = scm("sfg.db", "test")
 
 
 
-S.get("name 20180323_PA_10_x1_#2_5mM")
-
-pa = S.subset[0]
-S.clear()
-
-S.get("name 20180315_SA_BX12_10_x1_#2_mixedlayer1zu2mM")
-sa_bx = S.subset[0]
-S.clear()
-
-S.get("name 20180320_PA_BX12_10_x1_#1_1.5zu1.5mM")
-pa_bx = S.subset[0]
-S.clear()
-
-S.get("name 20180524_BX12_8_x2_#2_1mM")
-bx = S.subset[0]
-S.clear()
-
-S.get("name 20160316_SA_5_x1_#1_5mM")
-sa = S.subset[0]
-S.clear()
-
-stack1 = [sa, sa_bx, bx]
-stack2 = [pa, pa_bx, bx]
-
+# S.get("name 20180323_PA_10_x1_#2_5mM")
+#
+# pa = S.subset[0]
+# S.clear()
+#
+# S.get("name 20180315_SA_BX12_10_x1_#2_mixedlayer1zu2mM")
+# sa_bx = S.subset[0]
+# S.clear()
+#
+# S.get("name 20180320_PA_BX12_10_x1_#1_1.5zu1.5mM")
+# pa_bx = S.subset[0]
+# S.clear()
+#
+# S.get("name 20180524_BX12_8_x2_#2_1mM")
+# bx = S.subset[0]
+# S.clear()
+#
+# S.get("name 20160316_SA_5_x1_#1_5mM")
+# sa = S.subset[0]
+# S.clear()
+#
+# stack1 = [sa, sa_bx, bx]
+# stack2 = [pa, pa_bx, bx]
+# labels1 = ["Stearic Acid, pure", "Stearic Acid/ BX12 (1:2)", "BX12, pure"]
+# labels2 = ["Palmitic Acid, pure", "Palmitic Acid/ BX12 (1:1)", "BX12, pure"]
+# set_plot_properties()
+# f = sfg_doublestack_plot_broken(stack1, stack2, [1600,1850], [2700,3300], labels1, labels2)
 set_plot_properties()
-f = sfg_doublestack_plot_broken(stack1, stack2, [1600,1850], [2700,3300])
+li = get_by_name(li, S)
+sfg_pub_plot(li)
 plt.show()
