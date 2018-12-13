@@ -1,0 +1,190 @@
+import numpy as np
+
+class LtIsotherm:
+    """A class to represent experimental Langmuir trough isotherms, handling time, area, area per molecule and
+    surface pressure"""
+
+    def __init__(self, *args):
+
+        self.name = args[0]
+        self.measured_time = args[1]
+        self.time = np.array(args[2].split(";")).astype(np.float)
+        self.area = np.array(args[3].split(";")).astype(np.float)
+        self.apm = np.array(args[4].split(";")).astype(np.float)
+        self.pressure = np.array(args[5].split(";")).astype(np.float)
+        self.compression_factor = self.calc_compression_factor()
+
+
+        self.sample_hash = None
+        self.speed = None
+        self.measurement_number = None
+
+        self.partners = [] #todo obsolete
+
+        self.process_name()
+
+    def __str__(self):
+        return self.name + " LtIsotherm Object"
+
+    def __repr__(self):
+        return self.name + " LtIsotherm Object"
+
+    def __lt__(self, other):
+        if self.get_maximum_pressure() < other.get_maximum_pressure():
+            return True
+
+    def process_name(self): #todo odjust to create hash object
+        """Function to extract metainformation from the filename"""
+        temp = self.name.split("_")
+
+        hashstring = temp[1] + "_" + temp[2] + "_" + temp[3]
+
+        if "c" not in temp[3][0]:
+            hashstring += ("_"+temp[4])
+
+        self.sample_hash = SampleHash(hashstring)
+
+        if len(temp) >= 5:
+            self.measurement_number = temp[-1]
+            self.speed = temp[-2]
+
+        else:
+            self.measurement_number = 1
+        if type(self.sample_hash) != SampleHash:
+            raise ValueError(f'{self} was not created correctly!')
+
+    def drop_ascii(self):
+        """Drops an ascii file with semikolon-separated data in the form time;area;surface pressure. Intention
+        is easy interfacing with external software like Excel or Origin"""
+
+        with open(self.name + ".out", "w") as outfile:
+            for a, b, c in zip(self.time, self.area, self.pressure):
+                outfile.write(str(a) + ";" + str(b) + ";" + str(c) + "\n")
+
+    def get_maximum_pressure(self, shrinked=None):
+        """Returns the maximum measured surface pressure. Note: This property is uesd for the less-then
+        operator implementation of this class!"""
+        if shrinked == None:
+            return np.max(self.pressure)
+        else:
+            try:
+                return np.max(shrinked)
+            except:
+                # todo specify the type of error numpy will throw
+                raise TypeError("Can not calc maximum for this operand")
+
+    def calc_compression_factor(self):
+        max = np.max(self.area)
+        return (self.area/max)
+
+    def derive_pressure(self):
+        """Calculates the difference quotient of the surface pressure with respect to the area.
+        Useful for calculation of surface elasticity"""
+        return np.diff(self.pressure) / np.diff(self.area)
+
+    def same_sample(self, other):
+        """Checks wether two isotherms belong to the same sample. This is the case if the same sample
+        is measured several times in a row. Returns a bool."""
+        if self.sample_hash == other.sample_hash:
+            return True
+        else:
+            return False
+
+    def create_pointlist(self, x_array):
+        """Returns a list containing the index, the x_array (usually area or time) and the surface pressure.
+        This is used for example by the GUI functions to find the closest datapoint to a mouse-defined position
+        in the plot"""
+
+        output = []
+        for i, (a, b) in enumerate(zip(x_array, self.pressure)):
+            output.append((a, b, i))
+        return output
+
+    def get_slice(self, x_array, lower, upper, smooth=False):
+        """Returns a slice of the x_array (usually time or area) defined by the lower and upper integer
+        index."""
+
+        x_out = x_array[lower:upper + 1]
+        if smooth == False:
+            y_out = self.pressure[lower:upper + 1]
+        else:
+            y_out = self.smooth()[lower:upper + 1]
+
+        return x_out, y_out
+
+    def calculate_elasticity(self):
+        """Returns the surface elasticity of the isotherm"""
+
+        xdata = self.area[::-1]
+        ydata = self.pressure[::-1]
+        out = []
+
+        for i in range(len(self.pressure) - 1):
+            p = abs(ydata[i + 1] - ydata[i])
+            a = abs((xdata[i + 1] - xdata[i]))
+            A = (xdata[i + 1] - xdata[i]) / 2
+
+            out.append(p / a * A)
+
+        return np.array(out[::-1])
+
+    def smooth(self):
+        """Performs a smooth operation of the measured pressure involving a Savitzky-Golay-filter"""
+        return savgol_filter(self.pressure, 9, 5)
+
+    def cut_away_decay(self, x_array):
+
+        max = self.get_maximum_pressure()
+        index = int(np.where(self.pressure==max)[0][0])
+        return self.get_slice(x_array, 0, index)
+
+    @staticmethod
+    def process_lift_off(x, y):
+
+        start = 0
+        diff = 0
+        increment = int(0.15 * len(x))
+        line1 = None
+        line2 = None
+        x_out = None
+
+        while start < (len(x) - increment * 2):
+
+            left_x = x[start:start + increment]
+            left_y = y[start:start + increment]
+
+            right_x = x[start + increment:start + (2 * increment)]
+            right_y = y[start + increment:start + (2 * increment)]
+
+            slope_l, intercept_l, r_value, p_value, std_err = \
+                stats.linregress(left_x, left_y)
+
+            slope_r, intercept_r, r_value, p_value, std_err = \
+                stats.linregress(right_x, right_y)
+
+            temp = np.abs(slope_l - slope_r)
+
+            if temp > diff:
+                diff = temp
+                line1 = [slope_l, intercept_l]
+                line2 = [slope_r, intercept_r]
+                x_out = x[start:start + (2 * increment)]
+
+            start += 1
+
+        return diff, line1, line2, x_out
+
+    def find_lift_off(self, x_array):
+        x, y = self.cut_away_decay(x_array)
+        tup = LtIsotherm.process_lift_off(x, y)
+        lift_off = LtIsotherm.calculate_intersection(tup[1], tup[2])
+        return lift_off
+
+    @staticmethod
+    def calculate_intersection(line1, line2):
+
+        x = (line2[1] - line1[1]) / (line1[0] - line2[0])
+
+        y = line1[0] * x + line1[1]
+
+        return x, y

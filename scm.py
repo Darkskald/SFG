@@ -1,18 +1,27 @@
-class SpectraManager:
-    """A class to handle UV, IR, and Raman specta"""
+# module-internal imports
+from new_gui import run_app, run_lt_app
 
-    def __init__(self, database):
-        self.raman = []
-        self.ir = []
-        self.uv = []
+# standard utilities
+import os
+import shutil
+import csv
+import time
+import datetime
+import copy
+import traceback
+import logging
 
-    def construct_spectrum(self, item):
-        """Constructs a spectrum object from the SQL query results"""
-        pass
+# scientific libraries
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
+from matplotlib.lines import Line2D
 
-    def query(self, table):
-        """Extract the data from the table"""
-        pass
+import sqlite3
+from scipy.signal import savgol_filter
+from scipy.integrate import simps as sp
+from scipy import stats
+
 
 class SessionControlManager:
     """Successor of the IpyInterpreter. A class to access all experimental data, search data by certain match criteria
@@ -33,6 +42,7 @@ class SessionControlManager:
 
         self.lt_manager = None
         self.spec_manager = None
+        self.tensions = None
 
         # former IpyInterpreter functionality, tracking the primary key in parallel
         self.subset_ids = []
@@ -269,47 +279,81 @@ class SessionControlManager:
 
         self.lt_manager = LtManager(self.db)
 
-
     def collect_stations(self):
         """Creates Station objects from the station information of the currently available isotherms and
         spectra. This helps to keep track of the set of samples taken within one GasEx sampling station"""
-        # todo: include SFG stations here as well as in the match to station function
-        # todo: include error handling (LtManager defined?)
-        stations = []
-        for isotherm in self.lt_manager.isotherms:
+        station_hashes = []
+        types = []
 
-            temp = isotherm.long_station
-            if temp not in stations:
-                stations.append(Station(temp))
-        self.stations = {s.station_hash: s for s in stations}
+        for spec in self.subset: #type: SfgSpectrum
 
-    def collect_samples(self):
+            if isinstance(spec.name, SystematicGasExName) is True:
+                h = spec.get_sample_hash()
+                _hash = h.station_hash
 
+                if _hash not in station_hashes:
+                    station_hashes.append(_hash)
 
-    def match_to_stations(self):
-        """Matches the LtIsotherms in the LtManager to the generated station list. The
-        stations attribute of the SessionControllManager is a dictionary with the station names
-        as keys and a list with LtIsotherms matching the station as value"""
+                    if h.station_type == "a":
+                        types.append("small")
 
-        for isotherm in self.lt_manager.isotherms:
-            self.stations[isotherm.station_hash].lt_isotherms.append(isotherm)
+                    elif h.station_type in ("r", "c"):
+                        types.append("big")
+
+                    else:
+                        print("Unknwonwn station type!")
+
+        for isotherm in self.lt_manager.isotherms:#type: LtIsotherm
+            _hash = isotherm.sample_hash.station_hash
+            if _hash not in station_hashes:
+                station_hashes.append(_hash)
+                if isotherm.sample_hash.station_type == "a":
+                    types.append("small")
+
+                elif isotherm.sample_hash.station_type in ("r", "c"):
+                    types.append("big")
+
+                else:
+                    print("Unknwonwn station type!")
+
+        for tension in self.tensions:
+            try:
+                h = SampleHash(tension)
+                _hash = h.station_hash
+
+                if _hash not in station_hashes:
+                    station_hashes.append(_hash)
+                    if h.station_type == "a":
+                        types.append("small")
+
+                    elif h.station_type in ("r", "c"):
+                        types.append("big")
+
+                    else:
+                        print("Unknwonwn station type!")
+
+            except IndexError:
+                print(tension)
+
+        self.stations = {}
+        for s in zip(station_hashes, types):
+            self.stations[s[0]] = Station(s[0], s[1], parent=self)
+
+    def map_to_stations(self):
 
         for spectrum in self.subset:
-            if isinstance(spectrum.name, SystematicGasExName):
+            if isinstance(spectrum.name, SystematicGasExName) is True:
+                self.stations[spectrum.get_sample_hash().station_hash].sfg_spectra.append(spectrum)
 
-                try:
-                    self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
-                except KeyError:
-                    self.stations[spectrum.name.station_hash] = Station(spectrum.name.station)
-                    self.stations[spectrum.name.station_hash].sfg_spectra.append(spectrum)
+        for tension in self.tensions:
+            try:
+                self.stations[SampleHash(tension).station_hash].tensions.append([tension, self.tensions[tension]])
+            except IndexError:
+                print(tension)
 
-    def get_station_numbers(self):
-        """Traverse the stations and assign them a number in chronological order (1-n)"""
 
-        stations = [i for i in self.stations.values()]
-        stations.sort()
-        for i, s in enumerate(stations):
-            s.station_number = i + 1
+        for lt_isotherm in self.lt_manager.isotherms:
+            self.stations[lt_isotherm.sample_hash.station_hash].lt_isotherms.append(lt_isotherm)
 
     def fetch_gasex_sfg(self):
         """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
@@ -320,13 +364,24 @@ class SessionControlManager:
         processing"""
         self.set_lt_manager()
         self.fetch_gasex_sfg()
+        self.tensions = self.fetch_tension_data()
         self.collect_stations()
-        self.match_to_stations()
-        self.get_station_numbers()
+        self.map_to_stations()
         self.dppc_ints = self.get_dppc_average()
-        for s in self.stations.values():
-            s.join_samples()
-            s.count_per_type()
+
+        for station in self.stations.values():
+                station.analyze_station_data()
+                station.arange_to_sample()
+
+
+    def fetch_tension_data(self):
+        out = {}
+        command = f'SELECT * from gasex_surftens'
+        self.cur.execute(command)
+        for item in self.cur.fetchall():
+            out[item[1]] = float(item[2])
+        return out
+
 
     # handling DPPC normalization
     def get_dppc_average(self):
@@ -405,77 +460,3 @@ class SessionControlManager:
 
     def set_spec_manager(self):
         self.spec_manager = SpectraManager(self.db)
-
-class LtManager:
-    """A class to perform operations on a set of LtIsotherm objects. It is an extension to the SessionControllManager
-    to extend his features with isotherm handling. It relies on sqlite databases as well."""
-
-    def __init__(self, database, table="lt_gasex"):
-
-        self.database = database
-        self.cursor = database.cursor()
-        self.table = table
-        self.isotherms = []
-        self.days = None
-        self.ordered_days = {}
-
-        self.get_all_isotherms()
-        self.join_days_isotherms()
-        self.order_by_sample()
-        self.join_same_measurement()
-
-    def get_all_isotherms(self):
-        """Fetches all isotherm data from the database and transforms them to LtIsotherm objects."""
-        command = "SELECT * from " + self.table
-        self.cursor.execute(command)
-        result = self.cursor.fetchall()
-        for i in result:
-            lt = LtIsotherm(i[1], i[2], i[4], i[5], i[6], i[7])
-            self.isotherms.append(lt)
-
-    def get_days(self):
-        """Extract the days on which the samples were taking from the isotherms."""
-        days = []
-        for isotherm in self.isotherms:
-            if isotherm.day not in days:
-                days.append(isotherm.day)
-        return days
-
-    def join_days_isotherms(self):
-        """Matches the isotherms to the days of measurement, storing this mapping as a dictionary
-        in the days attribute."""
-
-        days = self.get_days()
-        self.days = {i: [j for j in self.isotherms if j.day == i] for i in days}
-
-    def order_by_sample(self):
-        """Matches isotherms to a certain sample, ensuring that all consecutive measurements of
-        the same sample are stored together."""
-
-        for item in self.days:
-            stations = []
-
-            for isotherm in self.days[item]:
-                if isotherm.station not in stations:
-                    stations.append(isotherm.station)
-
-            self.ordered_days[item] = {i: [j for j in self.days[item] if j.station == i] for i in stations}
-
-        for day in self.ordered_days:
-            for station in self.ordered_days[day]:
-
-                types = []
-                for isotherm in self.ordered_days[day][station]:
-                    if isotherm.type not in types:
-                        types.append(isotherm.type)
-                self.ordered_days[day][station] = {i: [j for j in self.ordered_days[day][station] if j.type == i] for i
-                                                   in types}
-
-    def join_same_measurement(self):
-        """Stores information about the other measurements of a single sample in the isotherms partner
-        attribute."""
-        for i, isotherm in enumerate(self.isotherms):
-
-            for isotherm2 in self.isotherms[i + 1:]:
-                if isotherm.same_sample(isotherm2) and isotherm2 not in isotherm.partners:
-                    isotherm.partners.append(isotherm2)
