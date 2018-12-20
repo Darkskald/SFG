@@ -1,4 +1,3 @@
-from Classes import SessionControlManager as scm
 
 # scientific libraries
 import numpy as np
@@ -387,8 +386,5 @@ li = ["20180323_PA_BX12_10_x2_#1_0.5zu1mM", "20180323_PA_BX12_10_x2_#2_80p_0.5zu
 # labels2 = ["Palmitic Acid, pure", "Palmitic Acid/ BX12 (1:1)", "BX12, pure"]
 # set_plot_properties()
 # f = sfg_doublestack_plot_broken(stack1, stack2, [1600,1850], [2700,3300], labels1, labels2)
-set_plot_properties()
-li = get_by_name(li, S)
-sfg_pub_plot(li)
-plt.show()
+
 # test

@@ -14,6 +14,7 @@ from matplotlib.lines import Line2D
 import sqlite3
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
+from scipy.interpolate import interp1d, splrep
 
 
 def scatter_maxpressure_day(isothermlist):
@@ -750,3 +751,52 @@ def correlation_plot(stations, value1, value2, spec1, spec2, average=True):
     plt.xlabel(dic[spec1])
     plt.ylabel(dic[spec2])
     plt.show()
+
+
+
+
+
+from scm import SessionControlManager
+from scipy.interpolate import UnivariateSpline
+S = SessionControlManager("sfg.db", "test")
+S.setup_for_gasex()
+count = 1
+errors = 0
+for s in S.stations.values():
+    for li in s.lt_isotherms:
+        try:
+            if 72 > li.get_maximum_pressure() > 2 and li.monotonic is True:
+
+                data = li.cut_away_decay(li.area)
+
+                x = data[1]
+                y = np.log(data[0])
+
+                inc = int(0.05*len(y))
+                temp = 0
+
+
+
+
+
+
+
+
+                plt.plot(x,y)
+
+
+
+
+
+
+                # plt.scatter(lo[0], lo[1], color="r", label="optimized")
+                # plt.scatter(raw[0], raw[1], color="b", label="initial")
+                plt.xlabel("area")
+                plt.ylabel("surface pressure")
+                plt.legend(frameon=False)
+                plt.show()
+                plt.cla()
+        except:
+                pass
+
+

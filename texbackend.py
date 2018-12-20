@@ -174,21 +174,5 @@ class StationTexGenerator:
         
 
 
-S = SessionControlManager("sfg.db", "test")
-S.setup_for_gasex()
-
-stats = []
-
-for s in S.stations.values():
-    stats.append(s)
-
-stats.sort()
-
-T = StationTexGenerator(stats[0])
-
-s = T.generate_tex()
-with open("out.tex", "w") as outfile:
-    outfile.write(s)
-
 
 
