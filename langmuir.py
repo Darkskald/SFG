@@ -1,10 +1,13 @@
 import numpy as np
+from scipy import stats
+from scipy.signal import savgol_filter
+from scipy.interpolate import interp1d
 
 class LtIsotherm:
     """A class to represent experimental Langmuir trough isotherms, handling time, area, area per molecule and
     surface pressure"""
 
-    def __init__(self, *args):
+    def __init__(self, *args, correct=True):
 
         self.name = args[0]
         self.measured_time = args[1]
@@ -14,14 +17,21 @@ class LtIsotherm:
         self.pressure = np.array(args[5].split(";")).astype(np.float)
         self.compression_factor = self.calc_compression_factor()
 
-
         self.sample_hash = None
         self.speed = None
         self.measurement_number = None
 
-        self.partners = [] #todo obsolete
+        if correct is True:
+            p = np.min(self.pressure)
+            if p < 0:
+                self.pressure += np.abs(p)
 
-        self.process_name()
+        self.monotonic = True
+        try:
+            self.correct_increase()
+        except:
+            self.monotonic = False
+
 
     def __str__(self):
         return self.name + " LtIsotherm Object"
@@ -33,25 +43,45 @@ class LtIsotherm:
         if self.get_maximum_pressure() < other.get_maximum_pressure():
             return True
 
-    def process_name(self): #todo odjust to create hash object
-        """Function to extract metainformation from the filename"""
-        temp = self.name.split("_")
+    def find_increase(self):
+        start = None
+        end = None
+        for i,j in enumerate(self.area[:-3]):
+            try:
+                if self.area[i] > self.area[i+1]:
+                    if self.area[i] > self.area[i + 2]:
+                        if self.area[i] > self.area[i + 3]:
+                            start = i
+                            break
 
-        hashstring = temp[1] + "_" + temp[2] + "_" + temp[3]
+            except IndexError:
+                raise IndexError("Monotony first step failed!")
 
-        if "c" not in temp[3][0]:
-            hashstring += ("_"+temp[4])
+        for i,j in enumerate(self.area[start:-1]):
+            try:
+                if self.area[i] < self.area[i+1]:
+                    end = i
+            except IndexError:
+                raise IndexError("Monotony second step failed!")
 
-        self.sample_hash = SampleHash(hashstring)
+        return start, end
 
-        if len(temp) >= 5:
-            self.measurement_number = temp[-1]
-            self.speed = temp[-2]
 
-        else:
-            self.measurement_number = 1
-        if type(self.sample_hash) != SampleHash:
-            raise ValueError(f'{self} was not created correctly!')
+    def correct_increase(self):
+
+        start,end = self.find_increase()
+        self.area = self.area[start:end+1]
+        self.pressure = self.pressure[start:end+1]
+        self.time = self.time[start:end+1]
+        self.compression_factor = self.compression_factor[start:end+1]
+        self.apm = self.apm[start:end+1]
+
+
+
+
+
+
+
 
     def drop_ascii(self):
         """Drops an ascii file with semikolon-separated data in the form time;area;surface pressure. Intention
@@ -130,7 +160,7 @@ class LtIsotherm:
 
     def smooth(self):
         """Performs a smooth operation of the measured pressure involving a Savitzky-Golay-filter"""
-        return savgol_filter(self.pressure, 9, 5)
+        return savgol_filter(self.pressure, 9, 3)
 
     def cut_away_decay(self, x_array):
 
@@ -138,15 +168,78 @@ class LtIsotherm:
         index = int(np.where(self.pressure==max)[0][0])
         return self.get_slice(x_array, 0, index)
 
+    def find_lift_off(self, x_array, inc=0.1, anchor=False):
+        x, y = self.cut_away_decay(x_array)
+        if anchor is True:
+            x,y = x[self.x_anchor:], y[self.x_anchor:]
+
+        if len(x) < 100:
+            new_x = np.linspace(np.min(x), np.max(x), 500)
+            interpol = interp1d(x, y)
+            new_y = interpol(new_x)
+
+            x = new_x
+            y = new_y
+
+        tup = LtIsotherm.process_lift_off(x, y, inc)
+
+        if tup is False:
+            return False
+
+        if tup[1] is None or tup[2]is None:
+            print(self.name, len(x), len(y), tup[1], tup[2])
+
+        lift_off = LtIsotherm.calculate_intersection(tup[1], tup[2])
+        index = LtIsotherm.get_closest_index(self.create_pointlist(self.area), lift_off)
+        lift_off = self.area[index], self.pressure[index]
+        return lift_off
+
+    def optimize_lift_off(self):
+
+        initial = 0.02
+        maxiter = 25
+        anc = False
+
+        init = self.find_lift_off(self.area, initial)
+
+        if init[0] > self.area[self.x_anchor]:
+            anc = True
+            init = self.find_lift_off(self.area, initial, anchor=anc)
+
+        if init[1] > 0.8:
+
+            pressure = init[1]
+
+            while pressure > 0.8 and maxiter > 0:
+
+                    point2 = self.find_lift_off(self.area, initial+0.05, anchor=anc)
+
+                    if point2 is False:
+                        break
+
+                    if point2[0] > self.area[self.x_anchor]:
+                        break
+                    else:
+                        initial += 0.01
+                        maxiter -= 1
+
+        return self.find_lift_off(self.area, initial)
+
+
     @staticmethod
-    def process_lift_off(x, y):
+    def process_lift_off(x, y, inc=0.1):
 
         start = 0
         diff = 0
-        increment = int(0.15 * len(x))
+        increment = int(inc * len(x))
         line1 = None
         line2 = None
         x_out = None
+
+        if (len(x) - increment * 2 < 0):
+            return False
+
+
 
         while start < (len(x) - increment * 2):
 
@@ -164,7 +257,7 @@ class LtIsotherm:
 
             temp = np.abs(slope_l - slope_r)
 
-            if temp > diff:
+            if temp >= diff:
                 diff = temp
                 line1 = [slope_l, intercept_l]
                 line2 = [slope_r, intercept_r]
@@ -174,12 +267,6 @@ class LtIsotherm:
 
         return diff, line1, line2, x_out
 
-    def find_lift_off(self, x_array):
-        x, y = self.cut_away_decay(x_array)
-        tup = LtIsotherm.process_lift_off(x, y)
-        lift_off = LtIsotherm.calculate_intersection(tup[1], tup[2])
-        return lift_off
-
     @staticmethod
     def calculate_intersection(line1, line2):
 
@@ -188,3 +275,22 @@ class LtIsotherm:
         y = line1[0] * x + line1[1]
 
         return x, y
+
+    @staticmethod
+    def get_closest_index(array_datapoints, check):
+
+        d = 1000000000000
+        index = None
+        for point in array_datapoints:
+
+            d_temp = np.sqrt((check[0] - point[0]) ** 2 + (check[1] - point[1]) ** 2)
+            if d_temp < d:
+                d = d_temp
+                index = point[2]
+
+        return index
+
+
+
+
+    # todo: cut away decay before lift-off detection, smooth, check for very round isotherms

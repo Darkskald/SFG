@@ -1,5 +1,8 @@
 # module-internal imports
 from new_gui import run_app, run_lt_app
+from sfg import AddedSpectrum, SystematicName
+from spectools import SpectraManager, SpecDatabase, Spectrum
+from gasex import SampleHash, SystematicGasExName, LtManager, GasExLtIsotherm, SfgSpectrum, Station
 
 # standard utilities
 import os
@@ -77,6 +80,7 @@ class SessionControlManager:
 
         return spec
 
+
     def construct_sfg(self, query_result, database):
         """A function to create an SFG spectrum from the result of a query in the SQL database"""
 
@@ -111,6 +115,7 @@ class SessionControlManager:
 
         return spec
 
+
     def general_fetch(self, condition_1=None, condition_2=None, database="sfg_database"):
         """A function to fetch spectra from the database according to specified match criteria.
         The default_data kwarg controlls the datatable that is used."""
@@ -130,6 +135,7 @@ class SessionControlManager:
                 self.subset.append(self.construct_sfg(item, database))
             except:
                 logging.error(traceback.format_exc())
+
 
     def general_refine(self, condition1, condition2, database):
         """Refinement of the actual subset by applying further match criteria. This is the
@@ -372,7 +378,6 @@ class SessionControlManager:
         for station in self.stations.values():
                 station.analyze_station_data()
                 station.arange_to_sample()
-
 
     def fetch_tension_data(self):
         out = {}
