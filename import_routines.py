@@ -284,6 +284,38 @@ class Importer:
                     intensity.append(float(l[1]))
         return wavelength, intensity
 
+    @staticmethod
+    def write_liftoffs():
+        db = sqlite3.connect("sfg.db")
+        cur = db.cursor()
+        names = []
+        liftoffs = []
+        with open("liftoff_points.csv") as csvfile:
+            csvreader = csv.reader(csvfile, delimiter=";")
+            next(csvfile)
+            for row in csvreader:
+                names.append(row[0])
+                liftoffs.append(float(row[1]))
+
+        command = \
+            f"""
+            INSERT INTO gasex_liftoff
+            (
+            name,
+            lift_off)
+            VALUES(?,?);
+            """
+        for i,k in enumerate(names):
+            try:
+
+                cur.execute(command, (names[i], liftoffs[i]))
+
+            except sqlite3.IntegrityError as e:
+                print("Lift-off already in database!")
+        db.commit()
+        db.close()
+
+
 
 class DataCollector:
     """Extracts the data from raw SFG files."""
@@ -452,6 +484,15 @@ class SqlWizard:
                         CONSTRAINT unique_name UNIQUE(name)
                         );
                     """
+        command9 = \
+            """
+                    CREATE TABLE IF NOT EXISTS gasex_liftoff (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT,
+                        lift_off REAL,
+                        CONSTRAINT unique_name UNIQUE(name)
+                        );
+                    """
 
 
         db = sqlite3.connect("sfg.db")
@@ -465,6 +506,7 @@ class SqlWizard:
         cur.execute(command6)
         cur.execute(command7)
         cur.execute(command8)
+        cur.execute(command9)
 
         db.commit()
         db.close()
@@ -579,6 +621,7 @@ class SqlWizard:
             print("Spectrum already in database!")
         db.commit()
         db.close()
+
 
 
 class SfgSpectrum:
@@ -1038,3 +1081,4 @@ Importer.write_spectra("ir","IR")
 Importer.write_spectra("raman","Raman")
 Importer.write_spectra("uv","UV")
 Importer.write_surface_tension()
+Importer.write_liftoffs()

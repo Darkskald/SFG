@@ -379,9 +379,22 @@ class SessionControlManager:
                 station.analyze_station_data()
                 station.arange_to_sample()
 
+        liftoffs = self.fetch_liftoff_points()
+        for isotherm in self.lt_manager.isotherms:
+            if isotherm.name in liftoffs:
+                isotherm.lift_off = liftoffs[isotherm.name]
+
     def fetch_tension_data(self):
         out = {}
         command = f'SELECT * from gasex_surftens'
+        self.cur.execute(command)
+        for item in self.cur.fetchall():
+            out[item[1]] = float(item[2])
+        return out
+
+    def fetch_liftoff_points(self):
+        out = {}
+        command = f'SELECT * from gasex_liftoff'
         self.cur.execute(command)
         for item in self.cur.fetchall():
             out[item[1]] = float(item[2])
@@ -465,3 +478,4 @@ class SessionControlManager:
 
     def set_spec_manager(self):
         self.spec_manager = SpectraManager(self.db)
+

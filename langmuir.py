@@ -21,16 +21,12 @@ class LtIsotherm:
         self.speed = None
         self.measurement_number = None
 
+        self.lift_off = None
+
         if correct is True:
             p = np.min(self.pressure)
             if p < 0:
                 self.pressure += np.abs(p)
-
-        self.monotonic = True
-        try:
-            self.correct_increase()
-        except:
-            self.monotonic = False
 
 
     def __str__(self):
@@ -66,15 +62,6 @@ class LtIsotherm:
 
         return start, end
 
-
-    def correct_increase(self):
-
-        start,end = self.find_increase()
-        self.area = self.area[start:end+1]
-        self.pressure = self.pressure[start:end+1]
-        self.time = self.time[start:end+1]
-        self.compression_factor = self.compression_factor[start:end+1]
-        self.apm = self.apm[start:end+1]
 
 
 

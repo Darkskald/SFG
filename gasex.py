@@ -96,6 +96,9 @@ class GasExLtIsotherm(LtIsotherm):
         return self.name + " GasExLtIsotherm Object"
 
 
+
+
+
 class SampleHash:
 
     def __init__(self, namestring):
