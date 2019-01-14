@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.lines import Line2D
 
+
 import sqlite3
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
@@ -96,9 +97,6 @@ class GasExLtIsotherm(LtIsotherm):
         return self.name + " GasExLtIsotherm Object"
 
 
-
-
-
 class SampleHash:
 
     def __init__(self, namestring):
@@ -175,11 +173,13 @@ class Sample:
         self.max_pressure = None
         self.surface_tension = None
 
+        self.all_isotherms = []
+
     def __repr__(self):
-        pass
+        return self.station_hash
 
     def __str__(self):
-        pass
+        return self.station_hash
 
 
 class Station:
@@ -213,6 +213,11 @@ class Station:
             "pressure_sml": None,
             "pressure_plate": None,
             "pressure_screen": None,
+            "liftoff_average": None,
+            "liftoff_deep": None,
+            "liftoff_sml": None,
+            "liftoff_plate": None,
+            "liftoff_screen": None,
             "ch_average": None,
             "ch_deep": None,
             "ch_sml": None,
@@ -306,7 +311,6 @@ class Station:
 
                         out.append(np.sqrt(temp))
 
-
         elif value == "max_pres":
 
             if len(self.lt_isotherms) > 0:
@@ -328,6 +332,14 @@ class Station:
                         if pres < 72:
                             out.append(pres)
 
+        elif value == "lift_off":
+            if len(self.lt_isotherms) > 0:
+                for isotherm in self.lt_isotherms:
+                    if isotherm.sample_hash.sample_type in types:
+                        if isotherm.lift_off is not None:
+                            out.append(isotherm.lift_off)
+
+
         if len(out) > 0:
             average = np.average(out)
             std = np.std(out)
@@ -339,7 +351,10 @@ class Station:
             return None
 
     def analyze_station_data(self):
-
+        """Calculate the data which are necessary for the analysis of all cruise data as function
+        of the day of the year. The values of the surface tension, the surface pressure, the surface
+        coverage as well as the CH integral and the lift-off point are calculated for deep water, SML,
+        plate and screen separately."""
         # tension
         if len(self.tensions) > 0:
             self.stats["tension_average"] = self.get_value_by_type("a", "tension")
@@ -355,6 +370,14 @@ class Station:
             self.stats["pressure_sml"] = self.get_value_by_type("sml", "max_pres")
             self.stats["pressure_plate"] = self.get_value_by_type("p", "max_pres")
             self.stats["pressure_screen"] = self.get_value_by_type("s", "max_pres")
+
+            self.stats["liftoff_average"] = self.get_value_by_type("a", "lif_toff")
+            self.stats["liftoff_deep"] = self.get_value_by_type("deep", "lift_off")
+            self.stats["liftoff_sml"] = self.get_value_by_type("sml", "lift_off")
+            self.stats["liftoff_plate"] = self.get_value_by_type("p", "lift_off")
+            self.stats["liftoff_screen"] = self.get_value_by_type("s", "lift_off")
+
+
 
         # SFG data
         if len(self.sfg_spectra) > 0:
@@ -403,6 +426,21 @@ class Station:
             for t in self.tensions:
                 if SampleHash(t[0]) == sample.sample_hash:
                     sample.surface_tension = t
+
+    def only_slowest(self):
+        if len(self.lt_isotherms) > 1:
+            temp = []
+            for sample in self.samples:
+                try:
+                 temp2 = sorted(sample.lt_isotherms, key=lambda x: float(x.speed))
+                 temp.append(temp2[0])
+                except IndexError:
+                   pass
+
+
+            self.all_isotherms = self.lt_isotherms
+            self.lt_isotherms = temp
+
 
 
 class LtManager:
