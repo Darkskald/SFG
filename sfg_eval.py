@@ -201,8 +201,6 @@ def sfg_doublestack_plot_broken(speclist1, speclist2, lower, upper, labels1=None
     right_bottom = row_2[1]
 
 
-
-
     left_top.spines['right'].set_visible(False)
     right_top.spines['left'].set_visible(False)
     left_bottom.spines['right'].set_visible(False)

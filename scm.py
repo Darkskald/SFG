@@ -374,15 +374,18 @@ class SessionControlManager:
         self.collect_stations()
         self.map_to_stations()
         self.dppc_ints = self.get_dppc_average()
+        liftoffs = self.fetch_liftoff_points()
 
         for station in self.stations.values():
-                station.analyze_station_data()
                 station.arange_to_sample()
+                station.only_slowest()
+                for isotherm in station.lt_isotherms:
+                    if isotherm.name in liftoffs:
+                        isotherm.lift_off = float(liftoffs[isotherm.name])
+                station.analyze_station_data()
 
-        liftoffs = self.fetch_liftoff_points()
-        for isotherm in self.lt_manager.isotherms:
-            if isotherm.name in liftoffs:
-                isotherm.lift_off = liftoffs[isotherm.name]
+
+
 
     def fetch_tension_data(self):
         out = {}

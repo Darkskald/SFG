@@ -10,12 +10,44 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.lines import Line2D
+from mpl_toolkits.mplot3d import Axes3D
 
 import sqlite3
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
 from scipy.interpolate import interp1d, splrep
 from scipy.spatial import distance
+
+def set_plot_properties(big=True):
+    rcParams['xtick.labelsize'] = 12
+    rcParams['ytick.labelsize'] = 12
+    rcParams['legend.frameon'] = False
+
+    rcParams['axes.labelsize'] = 14
+    rcParams['axes.labelweight'] = 'normal'
+    rcParams['axes.labelpad'] = 6.0
+
+    rcParams['figure.autolayout'] = True
+    rcParams['figure.figsize'] = 6.8, 4.25
+
+    rcParams['lines.linewidth'] = 1
+    rcParams['lines.markersize'] = 4
+
+    rcParams['legend.fontsize'] = 10
+
+    if big is False:
+        rcParams['xtick.labelsize'] = 10
+        rcParams['ytick.labelsize'] = 10
+
+        rcParams['figure.figsize'] = 3.15, 1.96
+
+        rcParams['lines.markersize'] = 4
+        rcParams['lines.linewidth'] = 0.5
+
+        rcParams['axes.labelsize'] = 10
+        rcParams['axes.labelweight'] = 'normal'
+        rcParams['figure.autolayout'] = True
+        rcParams['legend.fontsize'] = 8
 
 
 def scatter_maxpressure_day(isothermlist):
@@ -665,7 +697,10 @@ def plot_stats_scatter(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1
                  "coverage_sml": "SML",
                  "coverage_deep": "bulkwater",
                  "pressure_sml": "SML",
-                 "pressure_deep": "bulkwater"}
+                 "pressure_deep": "bulkwater",
+                 "liftoff_sml": "SML",
+                 "liftoff_"
+                 "deep": "bulkwater"}
 
     axes[0].set_ylabel(ylabel,  fontsize=22)
 
@@ -760,13 +795,6 @@ from scm import SessionControlManager
 
 S = SessionControlManager("sfg.db", "test")
 S.setup_for_gasex()
-dup = []
-dups = 0
-for iso in S.lt_manager.isotherms:
-    if 2 < iso.get_maximum_pressure() < 72:
-        if iso.lift_off == None:
-            plt.plot(iso.area, iso.pressure)
-            plt.show()
-
+plot_stats_scatter([i for i in S.stations.values()],["liftoff_sml","liftoff_deep"],ylabel="Lift-off point")
 
 
