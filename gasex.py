@@ -153,7 +153,7 @@ class SampleHash:
         if "s" in self.sample_type:
             self.sample_type = "s"
 
-        elif self.sample_type in ("deep", "low"):
+        elif self.sample_type in ("low", "1") or "deep" in self.sample_type:
             self.sample_type = "c"
 
     def get_doy(self):
@@ -245,6 +245,20 @@ class Station:
 
             if int(self.station_number) < int(other.station_number):
                 return True
+
+    def has_deep(self):
+        for spectrum in self.sfg_spectra:
+            if spectrum.get_sample_hash().sample_type == "c":
+                return True
+
+        return False
+
+    def has_p3(self):
+        for spectrum in self.sfg_spectra:
+            if spectrum.name.type =="p":
+                if spectrum.name.number in (3, "3"):
+                    return True
+            return False
 
     def print_stats(self):
         """Formatted output of the stations stats, calculated from the LtIsotherms belonging to the
