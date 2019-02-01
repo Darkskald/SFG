@@ -795,6 +795,25 @@ from scm import SessionControlManager
 
 S = SessionControlManager("sfg.db", "test")
 S.setup_for_gasex()
-plot_stats_scatter([i for i in S.stations.values()],["liftoff_sml","liftoff_deep"],ylabel="Lift-off point")
+Out = []
+counter = 0
+for station in sorted(S.stations.values()):
+    if station.has_deep() is True:
+        if station.type == "big":
+            deep = f'{station.station_hash[0:4]}_c{station.station_number}_low'
+            plate = f'{station.station_hash[0:4]}_r{station.station_number}_p_4'
+            Out.append(deep)
+            Out.append(plate)
+            counter +=1
+        elif station.type == "small":
+            deep = f'{station.station_hash[0:4]}_a{station.station_number}_low'
+            Out.append(deep)
+
+
+with open ("samplex.txt", "w") as outfile:
+    for item in Out:
+        outfile.write(item+"\n")
+
+
 
 
