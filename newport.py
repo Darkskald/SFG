@@ -177,14 +177,17 @@ class SqlWizard:
 
                 if target_folder == "Raman":
                     y_data = "intensity"
+                    database = "raman"
 
                 elif target_folder == "IR":
                     y_data = "transmission"
+                    database = "ir"
 
             elif target_folder == "UV":
                 data = Importer.fetch_uv_dat(path)
                 x_data = "wavelength"
                 y_data = "absorbance"
+                database = "ir"
 
             command = \
                 f"""
