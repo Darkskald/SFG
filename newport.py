@@ -32,10 +32,11 @@ class SqlWizard:
             name TEXT,
             measured_time TIMESTAMP,
             measurer TEXT,
-            wavenumbers TEXT,
-            sfg TEXT,
-            ir TEXT,
-            vis TEXT,
+            time TEXT,
+            area TEXT,
+            apm TEXT,
+            surface_pressure TEXT,
+            lift_off TEXT,
             CONSTRAINT unique_name UNIQUE(name)
             """,
 
@@ -66,14 +67,6 @@ class SqlWizard:
                 CONSTRAINT unique_name UNIQUE(name)
                 """,
 
-            "gasex_liftoff":
-                """
-                id INTEGER PRIMARY KEY,
-                name TEXT,
-                lift_off REAL,
-                CONSTRAINT unique_name UNIQUE(name)
-                """,
-
             "gasex_surftens":
                 """
                 id INTEGER PRIMARY KEY,
@@ -83,7 +76,6 @@ class SqlWizard:
                 """
 
         }
-
         self.create_db()
 
     def create_db(self):
@@ -207,6 +199,35 @@ class SqlWizard:
                 print("Spectrum already in database!")
 
         db.commit()
+
+
+    def write_liftoffs(self):
+
+        names = []
+        liftoffs = []
+        with open("liftoff_points.csv") as csvfile:
+            csvreader = csv.reader(csvfile, delimiter=";")
+            next(csvfile)
+            for row in csvreader:
+                names.append(row[0])
+                liftoffs.append(float(row[1]))
+
+        command = \
+            f"""
+            UPDATE lt
+            SET lift_off = ?
+            WHERE
+            name = ?;
+            """
+        for i, k in enumerate(names):
+            try:
+
+                self.cur.execute(command, (names[i], liftoffs[i]))
+
+            except sqlite3.IntegrityError as e:
+                print("Lift-off already in database!")
+        self.db.commit()
+
 
 
 
@@ -386,5 +407,7 @@ class Importer:
 
 
 # testcode section
+# todo: insert data of lt and sfg in database
+
 
 I = Importer()
