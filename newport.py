@@ -26,10 +26,52 @@ class SqlWizard:
             photolysis TEXT,
             CONSTRAINT unique_name UNIQUE(name)""",
 
+            "sfg_references":
+                """
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    measured_time TIMESTAMP,
+                    measurer TEXT,
+                    wavenumbers TEXT,
+                    sfg TEXT,
+                    ir TEXT,
+                    vis TEXT,
+                    CONSTRAINT unique_name UNIQUE(name)""",
+
+            "boknis_eck":
+                """
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    measured_time TIMESTAMP,
+                    measurer TEXT,
+                    wavenumbers TEXT,
+                    sfg TEXT,
+                    ir TEXT,
+                    vis TEXT,
+                    CONSTRAINT unique_name UNIQUE(name)""",
+
+            "gasex_sfg":
+                """
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    measured_time TIMESTAMP,
+                    measurer TEXT,
+                    wavenumbers TEXT,
+                    sfg TEXT,
+                    ir TEXT,
+                    vis TEXT,
+                    sample_hash TEXT,
+                    sample_id INTEGER,
+                    station_hash TEXT,
+                    station_id INTEGER,
+                    CONSTRAINT unique_name UNIQUE(name)""",
+
+
             "lt":
             """
             id INTEGER PRIMARY KEY,
             name TEXT,
+            type TEXT,
             measured_time TIMESTAMP,
             measurer TEXT,
             time TEXT,
@@ -39,6 +81,25 @@ class SqlWizard:
             lift_off TEXT,
             CONSTRAINT unique_name UNIQUE(name)
             """,
+
+            "gasex_lt":
+                """
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                type TEXT,
+                measured_time TIMESTAMP,
+                measurer TEXT,
+                time TEXT,
+                area TEXT,
+                apm TEXT,
+                surface_pressure TEXT,
+                lift_off TEXT,
+                sample_hash TEXT,
+                sample_id INTEGER,
+                station_hash TEXT,
+                station_id INTEGER,
+                CONSTRAINT unique_name UNIQUE(name)
+                """,
 
             "ir":
                 """
@@ -253,12 +314,12 @@ class Importer:
     def import_sfg(self):
 
         for file in os.listdir("test"):
-            measurer = file.split(" ")[1]
+            date, measurer = file.split(" ")
 
             for data in os.listdir("test/" + file):
                 if data.endswith(".sfg"):
                     creation_time = datetime.datetime.fromtimestamp(os.path.getmtime("test/" + file + "/" + data))
-                    name = data[:-4]
+                    name = date+"_"+data[:-4]
                     wavenumbers, sfg, ir, vis = self.extract_sfg_data("test/" + file + "/" + data)
 
                     dic = {"name": name, "measured_time": creation_time, "measurer": measurer,
