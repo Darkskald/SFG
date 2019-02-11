@@ -18,6 +18,7 @@ from scipy.integrate import simps as sp
 from scipy.interpolate import interp1d, splrep
 from scipy.spatial import distance
 
+
 def set_plot_properties(big=True):
     rcParams['xtick.labelsize'] = 12
     rcParams['ytick.labelsize'] = 12
@@ -383,10 +384,8 @@ def lt_sfg_integral_dppc(S):
     figure, plots = plt.subplots(3, 1)
     t_percentages = []
 
-
-
     ltplot = plots[0]
-   # ltplot.set_title("Surfactant occurrence in GasEx 1 (June '18)\n\n", fontweight='bold')
+    # ltplot.set_title("Surfactant occurrence in GasEx 1 (June '18)\n\n", fontweight='bold')
     ltplot.set_ylabel("Average surface pressure/\n mN/m")
     ltplot.xaxis.set_ticklabels([])
 
@@ -405,28 +404,25 @@ def lt_sfg_integral_dppc(S):
     base = ltplot.twiny()
     base.xaxis.set_ticks_position("top")
     base.xaxis.set_label_position("top")
-    #base.spines["top"].set_position(("axes", +0.7))
+    # base.spines["top"].set_position(("axes", +0.7))
     base.set_xlabel("Day of cruise\n")
 
-    for station in S.stations.values(): # type: Station
+    for station in S.stations.values():  # type: Station
 
         if station.cruise_day < 13:
             base.scatter(station.cruise_day, station.stats["total_av"], s=0)
 
-
         if len(station.lt_isotherms) > 0:
             ltplot.scatter(station.station_number, station.stats["total_av"], color="green")
-            ltplot.text(station.station_number+0.15,station.stats["total_av"]+0.15, str(station.isotherm_count))
+            ltplot.text(station.station_number + 0.15, station.stats["total_av"] + 0.15, str(station.isotherm_count))
             t_percentages.append([station.station_number, station.stats["total_percent"]])
-
-
 
         if len(station.sfg_spectra) > 0:
             if station.make_average_sfg() is not None:
                 sfg.scatter(station.station_number, station.make_average_sfg(), color="blue")
 
             if station.make_average_sfg(dppc=S.dppc_ints) is not None:
-                dppc.scatter(station.station_number, station.make_average_sfg(dppc=S.dppc_ints)[0]*100, color="red")
+                dppc.scatter(station.station_number, station.make_average_sfg(dppc=S.dppc_ints)[0] * 100, color="red")
 
     bars.bar([a[0] + 0.2 for a in t_percentages], [a[1] for a in t_percentages], alpha=0.45, label="positive")
     plt.show()
@@ -525,9 +521,9 @@ def baseline_demo(spectrum, name="default"):
     axarr[0].plot(spectrum.wavenumbers, spectrum.normalized_intensity, label=spectrum.name.full_name, linewidth=1.5,
                   marker="o", markersize=3)
     axarr[0].plot(test, func(test), color="r", label="Baseline")
-    axarr[0].set_xlabel("Wavenumber/ cm$^{-1}$")
+    axarr[0].set_xlabel(str(spec.calculate_ch_integral(average="gernot")))
     axarr[0].set_ylabel("Norm. SFG intensity/ arb. u.")
-    #axarr[0].set_title("Demonstration of the automatic baseline subtraction and integration")
+    # axarr[0].set_title("Demonstration of the automatic baseline subtraction and integration")
     axarr[0].legend()
 
     axarr[1].plot(spectrum.wavenumbers, spectrum.baseline_corrected, label=spectrum.name.full_name, linewidth=1.5,
@@ -538,8 +534,8 @@ def baseline_demo(spectrum, name="default"):
     axarr[1].set_ylabel("Norm. SFG intensity/ arb. u.")
     axarr[1].legend()
     name = spectrum.name.full_name
-    #plt.savefig(name + ".png")
-    plt.show()
+    plt.savefig(name + ".png")
+    # plt.show()
 
 
 def baseline_demo_dppc(spectrum, ref, name="default"):
@@ -572,7 +568,8 @@ def baseline_demo_dppc(spectrum, ref, name="default"):
 
     axarr[2].legend(frameon=False)
     f.text(0.025, 0.5, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical', fontsize=26)
-    plt.show()
+    plt.savefig(spectrum.name.full_name + ".png")
+    # plt.show()
 
 
 def benchmark_baseline(speclist):
@@ -584,7 +581,7 @@ def benchmark_baseline(speclist):
         return standard, regress, gernot
 
 
-def plot_lt_isotherm(isotherm): # type: LtIsotherm
+def plot_lt_isotherm(isotherm):  # type: LtIsotherm
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     ax.set_xlabel("Total area (cm$^{-2}$)\n", fontsize=20)
@@ -595,7 +592,6 @@ def plot_lt_isotherm(isotherm): # type: LtIsotherm
 
 
 def broken_axis(x, y, lim):
-
     fig, (ax, ax2) = plt.subplots(1, 2, sharey=True)
 
     ax.set_ylabel("Surface tension/ $mN \cdot m^{-1}$")
@@ -628,7 +624,7 @@ def broken_axis_errorbar(lim):
     fig, (ax, ax2) = plt.subplots(1, 2, sharey=True)
 
     ax.set_ylabel("Surface tension/ $mN \cdot m^{-1}$")
-    fig.text(0.5, 0.02, s="day of the year", ha="center", va="center", size=20)
+    fig.text(0.5, 0.015, s="day of the year", ha="center", va="center", size=16)
 
     ax.set_xlim(lim[0], lim[1])
     ax2.set_xlim(lim[2], lim[3])
@@ -653,10 +649,9 @@ def broken_axis_errorbar(lim):
 
 
 def plot_stats(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$"):
-
     axes = broken_axis_errorbar([153, 166, 254, 266])
     counter = 0
-    colormap = {0: "ro", 1: "bo", 2:"go", 3:"purple"}
+    colormap = {0: "ro", 1: "bo", 2: "go", 3: "purple"}
     axes[0].set_ylabel(ylabel)
 
     for s in stats:
@@ -674,9 +669,10 @@ def plot_stats(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$"):
 
             axes[0].errorbar(doy, out, yerr=err, fmt=colormap[counter], color="r", barsabove="true", capsize=5,
                              capthick=1, ecolor="black", elinewidth=1.0,
-                         markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
-            axes[1].errorbar(doy, out, yerr=err, fmt=colormap[counter], color="r", barsabove="true", capsize=5, capthick=1, ecolor="black", elinewidth=1.0,
-                          markeredgecolor="black",  markeredgewidth=0.4, antialiased=True, label=s)
+                             markeredgecolor="black", markeredgewidth=0.4, antialiased=True)
+            axes[1].errorbar(doy, out, yerr=err, fmt=colormap[counter], color="r", barsabove="true", capsize=5,
+                             capthick=1, ecolor="black", elinewidth=1.0,
+                             markeredgecolor="black", markeredgewidth=0.4, antialiased=True, label=s)
             counter += 1
 
     axes[1].legend()
@@ -684,14 +680,14 @@ def plot_stats(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$"):
     plt.show()
 
 
-def plot_stats_scatter(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$", scatter= False):
+def plot_stats_scatter(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$", scatter=False):
     rcParams['xtick.labelsize'] = 18
     rcParams['ytick.labelsize'] = 18
     rcParams['axes.labelsize'] = 'x-large'
 
     axes = broken_axis_errorbar([153, 166, 254, 266])
     counter = 0
-    colormap = { 0: "r", 1: "b", 2:"g", 3:"p"}
+    colormap = {0: "r", 1: "b", 2: "g", 3: "p"}
     legendmap = {"tension_deep": "bulkwater",
                  "tension_sml": "SML",
                  "coverage_sml": "SML",
@@ -702,7 +698,7 @@ def plot_stats_scatter(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1
                  "liftoff_"
                  "deep": "bulkwater"}
 
-    axes[0].set_ylabel(ylabel,  fontsize=22)
+    axes[0].set_ylabel(ylabel, fontsize=22)
 
     legend_elements = []
     labels = []
@@ -730,11 +726,10 @@ def plot_stats_scatter(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1
         axes[1].axhline(y=av2, color=colormap[counter], alpha=0.5, linestyle="--")
 
         labels.append(legendmap[s])
-        labels.append(legendmap[s]+" average")
+        labels.append(legendmap[s] + " average")
         counter += 1
 
     for i in range(counter):
-
         legend_elements.append(Line2D([0], [0], marker='o', color="w", markerfacecolor=colormap[i]))
 
         legend_elements.append(Line2D([0], [0], color=colormap[i],
@@ -744,20 +739,86 @@ def plot_stats_scatter(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1
     plt.show()
 
 
+def plot_stats_scatter_small(stations, stats, ylabel="Surface tension/ $mN \cdot m^{-1}$", scatter=False):
+    axes = broken_axis_errorbar([153, 166, 254, 266])
+    counter = 0
+    colormap = {0: "r", 1: "b", 2: "g", 3: "p"}
+    legendmap = {"tension_deep": "bulkwater",
+                 "tension_sml": "SML",
+                 "coverage_sml": "SML",
+                 "coverage_deep": "bulkwater",
+                 "coverage_plate": "glass plate",
+                 "coverage_screen": "screen",
+                 "pressure_sml": "SML",
+                 "pressure_deep": "bulkwater",
+                 "liftoff_sml": "SML",
+                 "liftoff_deep": "bulkwater"
+                 }
+
+    axes[0].set_ylabel(ylabel, fontsize=14)
+
+    legend_elements = []
+    labels = []
+
+    for s in stats:
+
+        av1 = []
+        av2 = []
+
+        for station in stations:
+
+            if station.stats[s] is not None:
+                d = station.get_doy()
+                y = station.stats[s][0]
+                error = station.stats[s][1]
+                axes[0].errorbar(d, y, yerr=error, marker="o", mfc=colormap[counter],
+                                 color="r", barsabove="true", capsize=5,
+                                 capthick=1, ecolor="black", elinewidth=1.0,
+                                 markeredgecolor="black", markeredgewidth=0.4,
+                                 antialiased=True)
+
+                axes[1].errorbar(d, y, yerr=error, marker="o", mfc=colormap[counter],
+                                 color="r", barsabove="true", capsize=5,
+                                 capthick=1, ecolor="black", elinewidth=1.0,
+                                 markeredgecolor="black", markeredgewidth=0.4,
+                                 antialiased=True)
+
+                if d < 165:
+                    av1.append(y)
+                else:
+                    av2.append(y)
+        av1 = np.average(av1)
+        av2 = np.average(av2)
+        axes[0].axhline(y=av1, color=colormap[counter], alpha=0.5, linestyle="--")
+        axes[1].axhline(y=av2, color=colormap[counter], alpha=0.5, linestyle="--")
+
+        labels.append(legendmap[s])
+        labels.append(legendmap[s] + " average")
+        counter += 1
+
+    for i in range(counter):
+        legend_elements.append(Line2D([0], [0], marker='o', color="w", markerfacecolor=colormap[i]))
+
+        legend_elements.append(Line2D([0], [0], color=colormap[i],
+                                      alpha=0.5, linestyle="--"))
+
+    axes[1].legend(legend_elements, labels, frameon=False, )
+    plt.tight_layout()
+    plt.show()
+
+
 def tension_average(station):
-        average = []
-        x = station.get_doy()
+    average = []
+    x = station.get_doy()
 
-        for tension in station.tensions:
-            average.append(tension[1])
+    for tension in station.tensions:
+        average.append(tension[1])
 
-        average = np.array(average)
-        av_out = np.average(average)
-        std = np.std(average)
+    average = np.array(average)
+    av_out = np.average(average)
+    std = np.std(average)
 
-
-
-        return x, av_out, std
+    return x, av_out, std
 
 
 def correlation_plot(stations, value1, value2, spec1, spec2, average=True):
@@ -777,7 +838,7 @@ def correlation_plot(stations, value1, value2, spec1, spec2, average=True):
                 plt.errorbar(x[0], y[0], xerr=x[1], yerr=y[1], fmt="ro",
                              color="r", barsabove="true", capsize=5,
                              capthick=1, ecolor="black", elinewidth=1.0,
-                         markeredgecolor="black", markeredgewidth=0.4,
+                             markeredgecolor="black", markeredgewidth=0.4,
                              antialiased=True)
 
     else:
@@ -789,31 +850,104 @@ def correlation_plot(stations, value1, value2, spec1, spec2, average=True):
     plt.show()
 
 
-
 from scm import SessionControlManager
-
 
 S = SessionControlManager("sfg.db", "test")
 S.setup_for_gasex()
-Out = []
-counter = 0
-for station in sorted(S.stations.values()):
-    if station.has_deep() is True:
-        if station.type == "big":
-            deep = f'{station.station_hash[0:4]}_c{station.station_number}_low'
-            plate = f'{station.station_hash[0:4]}_r{station.station_number}_p_4'
-            Out.append(deep)
-            Out.append(plate)
-            counter +=1
-        elif station.type == "small":
-            deep = f'{station.station_hash[0:4]}_a{station.station_number}_low'
-            Out.append(deep)
+set_plot_properties()
+
+stats = [s for s in S.stations.values()]
+
+small = [s for s in stats if s.type == "small"]
+big = [s for s in stats if s.type == "big"]
+
+import csv
 
 
-with open ("samplex.txt", "w") as outfile:
-    for item in Out:
-        outfile.write(item+"\n")
+def export_station_data(stations, big=True):
+    if big:
+
+        with open("big_stations.csv", "w") as outfile:
+            writer = csv.writer(outfile, delimiter=";")
+            header = "Station", "Date", "Type", "coverage_screen", "coverage_screen_error", "coverage_plate", \
+                     "coverage_plate_error", "coverage_deep", "coverage_deep_error", "coverage_sml", \
+                     "coverage_sml_error", "max_pressure_screen", "max_pressure_error", "lift_off_screen", \
+                     "lift_off_screen_error", "max_pressure_plate", "max_pressure_plate", "lift_off_plate", \
+                     "lift_off_screen_plate_error", "max_pressure_deep", "max_pressure_deep_error", "lift_off_deep", \
+                     "lift_off_deep_error", "max_pressure_sml", "max_pressure_sml_error", "lift_off_sml", \
+                     "lift_off_sml_error"
+
+            writer.writerow(header)
+            for st in stations:
+                name = st.station_hash
+                date = st.date
+                try:
+                    coverage_screen, coverage_screen_error, n = st.stats["coverage_screen"]
+                except:
+                    coverage_screen, coverage_screen_error = "None", "None"
+
+                try:
+                    coverage_plate, coverage_plate_error, n = st.stats["coverage_plate"]
+                except:
+                    coverage_plate, coverage_plate_error = "None", "None"
+
+                try:
+                    coverage_deep, coverage_deep_error, n = st.stats["coverage_deep"]
+                except:
+                    coverage_deep, coverage_deep_error = "None", "None"
+
+                try:
+                    coverage_sml, coverage_sml_error, n = st.stats["coverage_sml"]
+                except:
+                    coverage_sml, coverage_sml_error = "None", "None"
+
+                #
+                try:
+                    pressure_screen, pressure_screen_error, n = st.stats["pressure_screen"]
+                except:
+                    pressure_screen, pressure_screen_error = "None", "None"
+
+                try:
+                    pressure_plate, pressure_plate_error, n = st.stats["pressure_plate"]
+                except:
+                    pressure_plate, pressure_plate_error = "None", "None"
+
+                try:
+                    pressure_deep, pressure_deep_error, n = st.stats["pressure_deep"]
+                except:
+                    pressure_deep, pressure_deep_error = "None", "None"
+
+                try:
+                    pressure_sml, pressure_sml_error, n = st.stats["pressure_sml"]
+                except:
+                    pressure_sml, pressure_sml_error = "None", "None"
+                #
+                try:
+                    liftoff_screen, liftoff_screen_error, n = st.stats["liftoff_screen"]
+                except:
+                    liftoff_screen, liftoff_screen_error = "None", "None"
+
+                try:
+                    liftoff_plate, liftoff_plate_error, n = st.stats["liftoff_plate"]
+                except:
+                    liftoff_plate, liftoff_plate_error = "None", "None"
+
+                try:
+                    liftoff_deep, liftoff_deep_error, n = st.stats["liftoff"]
+                except:
+                    liftoff_deep, liftoff_deep_error = "None", "None"
+
+                try:
+                    liftoff_sml, liftoff_sml_error, n = st.stats["liftoff_sml"]
+                except:
+                    liftoff_sml, liftoff_sml_error = "None", "None"
+
+                writer.writerow([name, date, str(st.type), coverage_screen, coverage_screen_error, coverage_plate,
+                                coverage_plate_error, coverage_deep, coverage_deep_error, coverage_sml,
+                                coverage_sml_error, pressure_screen, pressure_screen_error, liftoff_screen, liftoff_screen_error,
+                                pressure_plate, pressure_plate_error, liftoff_plate, liftoff_plate_error, pressure_deep,
+                                pressure_deep_error, liftoff_deep, liftoff_deep_error, pressure_sml, pressure_sml_error,
+                                liftoff_sml, liftoff_sml_error])
 
 
-
-
+export_station_data(stats)
