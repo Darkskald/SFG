@@ -950,4 +950,15 @@ def export_station_data(stations, big=True):
                                 liftoff_sml, liftoff_sml_error])
 
 
-export_station_data(stats)
+with open("ltdata.csv", "w ") as outfile:
+
+    writer = csv.writer(outfile, delimiter=";")
+    writer.writerow(["name", "station_type", "type", "max_surface_pressure", "lift_off",
+                     "initial_area"])
+    stats = sorted(stats)
+    for s in stats:
+        for isotherm in s.lt_isotherms:
+            if isotherm.lift_off is not None:
+                writer.writerow(isotherm.name, isotherm.sample_hash.station_type,
+                                isotherm.sample_hash.sample_type, isotherm.get_maximum_pressure(),
+                                isotherm.lift_off, np.max(isotherm.area))
