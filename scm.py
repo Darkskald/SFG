@@ -285,6 +285,7 @@ class SessionControlManager:
 
         self.lt_manager = LtManager(self.db)
 
+    # todo: put this to importing process
     def collect_stations(self):
         """Creates Station objects from the station information of the currently available isotherms and
         spectra. This helps to keep track of the set of samples taken within one GasEx sampling station"""
@@ -345,6 +346,7 @@ class SessionControlManager:
         for s in zip(station_hashes, types):
             self.stations[s[0]] = Station(s[0], s[1], parent=self)
 
+    #todo: put this to importing process and map the samples in the database to the stations
     def map_to_stations(self):
 
         for spectrum in self.subset:
@@ -365,6 +367,7 @@ class SessionControlManager:
         """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
         self.general_fetch(database="sfg_gasex")
 
+    #todo: reimplement this to realize it via database access only
     def setup_for_gasex(self):
         """Convenience function, calls all necessary functions to setup the SCM for gasex data
         processing"""
@@ -449,6 +452,7 @@ class SessionControlManager:
         f = flagstring.split(" ")
         return f
 
+    #todo: remove all name processing stuff and auxialiary file dependencies
     def get_senssurf_names(self):
         """Loads allowed names of surfactants and sensitizers from the control file"""
 
@@ -479,6 +483,7 @@ class SessionControlManager:
         else:
             print("Retranslation failed. Unknown expression.")
 
+    #todo should be obsolete
     def set_spec_manager(self):
         self.spec_manager = SpectraManager(self.db)
 
