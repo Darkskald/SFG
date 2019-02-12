@@ -21,70 +21,54 @@ class SqlWizard:
             sfg TEXT,
             ir TEXT,
             vis TEXT,
-            surfactant TEXT,
-            sensitizer TEXT,
-            photolysis TEXT,
+            
             CONSTRAINT unique_name UNIQUE(name)""",
 
-            "sfg_references":
-                """
+            "boknis_eck":"""
                     id INTEGER PRIMARY KEY,
                     name TEXT,
-                    measured_time TIMESTAMP,
-                    measurer TEXT,
-                    wavenumbers TEXT,
-                    sfg TEXT,
-                    ir TEXT,
-                    vis TEXT,
-                    CONSTRAINT unique_name UNIQUE(name)""",
+                    specid INTEGER,
+                    FOREIGN KEY (specid) REFERENCES sfg(id)
+                    """,
 
-            "boknis_eck":
-                """
+            "gasex_sfg":"""
                     id INTEGER PRIMARY KEY,
                     name TEXT,
-                    measured_time TIMESTAMP,
-                    measurer TEXT,
-                    wavenumbers TEXT,
-                    sfg TEXT,
-                    ir TEXT,
-                    vis TEXT,
-                    CONSTRAINT unique_name UNIQUE(name)""",
-
-            "gasex_sfg":
-                """
-                    id INTEGER PRIMARY KEY,
-                    name TEXT,
-                    measured_time TIMESTAMP,
-                    measurer TEXT,
-                    wavenumbers TEXT,
-                    sfg TEXT,
-                    ir TEXT,
-                    vis TEXT,
-                    sample_hash TEXT,
+                    spec_id INTEGER,
                     sample_id INTEGER,
-                    station_hash TEXT,
-                    station_id INTEGER,
-                    CONSTRAINT unique_name UNIQUE(name)""",
+                    FOREIGN KEY (spec_id) REFERENCES sfg(id),
+                    FOREIGN KEY(sample_id) REFERENCES samples(id)
+                   """,
 
+            "regular_sfg":"""
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    specid INTEGER,
+                    surfactant TEXT,
+                    sensitizer TEXT,
+                    photolysis TEXT,
+                    comment TEXT,
+                    FOREIGN KEY (specid) REFERENCES sfg(id)
+                """,
 
-            "lt":
-            """
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            type TEXT,
-            measured_time TIMESTAMP,
-            measurer TEXT,
-            time TEXT,
-            area TEXT,
-            apm TEXT,
-            surface_pressure TEXT,
-            lift_off TEXT,
-            CONSTRAINT unique_name UNIQUE(name)
-            """,
-
-            "gasex_lt":
-                """
+            "lt":"""
                 id INTEGER PRIMARY KEY,
+                name TEXT,
+                type TEXT,
+                measured_time TIMESTAMP,
+                measurer TEXT,
+                time TEXT,
+                area TEXT,
+                apm TEXT,
+                surface_pressure TEXT,
+                lift_off TEXT,
+                CONSTRAINT unique_name UNIQUE(name)
+                """,
+
+            "gasex_lt":"""
+                id INTEGER PRIMARY KEY,
+                station_id INTEGER,
+                sample_id INTEGER,
                 name TEXT,
                 type TEXT,
                 measured_time TIMESTAMP,
@@ -97,8 +81,8 @@ class SqlWizard:
                 sample_hash TEXT,
                 sample_id INTEGER,
                 station_hash TEXT,
-                station_id INTEGER,
-                CONSTRAINT unique_name UNIQUE(name)
+                CONSTRAINT unique_name UNIQUE(name),
+                FOREIGN KEY(sample_id) REFERENCES samples(id)
                 """,
 
             "ir":
@@ -119,8 +103,7 @@ class SqlWizard:
                 CONSTRAINT unique_name UNIQUE(name)
                 """,
 
-            "uv":
-                """
+            "uv":"""
                 id INTEGER PRIMARY KEY,
                 name TEXT,
                 wavelength TEXT,
@@ -128,13 +111,36 @@ class SqlWizard:
                 CONSTRAINT unique_name UNIQUE(name)
                 """,
 
-            "gasex_surftens":
-                """
+            "gasex_surftens": """
                 id INTEGER PRIMARY KEY,
                 name TEXT,
                 surface_tension TEXT,
                 CONSTRAINT unique_name UNIQUE(name)
-                """
+                """,
+
+            "substances":"""
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                long_name TEXT,
+                molar_mass REAL,
+                sensitizing TEXT,
+                CONSTRAINT unique_name UNIQUE(name)
+                """,
+
+            "stations":"""
+            id INTEGER PRIMARY KEY,
+            hash TEXT
+            """,
+
+            "samples": """
+                    id INTEGER PRIMARY KEY,
+                    station_id INTEGER,
+                    station_hash TEXT,
+                    type TEXT,
+                    FOREIGN KEY(station_id) REFERENCES stations(id)
+                    """
+
+            
 
         }
         self.create_db()
@@ -154,7 +160,10 @@ class SqlWizard:
 
         """A function to perform a number of SQL commands and commit them."""
         for c in commands:
-            self.cur.execute(c)
+            try:
+                self.cur.execute(c)
+            except sqlite3.OperationalError as e:
+                print(c)
 
         self.db.commit()
 
@@ -261,7 +270,6 @@ class SqlWizard:
 
         db.commit()
 
-
     def write_liftoffs(self):
 
         names = []
@@ -290,8 +298,6 @@ class SqlWizard:
         self.db.commit()
 
 
-
-
 class Importer:
 
     def __init__(self):
@@ -308,22 +314,30 @@ class Importer:
 
         self.station_meta = []
 
-        self.import_sfg()
-        self.import_lt()
+        # self.import_sfg()
+        # self.import_lt()
 
-    def import_sfg(self):
+    def import_sfg(self, folder):
 
-        for file in os.listdir("test"):
+        for file in os.listdir(folder):
             date, measurer = file.split(" ")
 
-            for data in os.listdir("test/" + file):
+            for data in os.listdir(folder + "/" + file):
                 if data.endswith(".sfg"):
-                    creation_time = datetime.datetime.fromtimestamp(os.path.getmtime("test/" + file + "/" + data))
-                    name = date+"_"+data[:-4]
-                    wavenumbers, sfg, ir, vis = self.extract_sfg_data("test/" + file + "/" + data)
+                    creation_time = datetime.datetime.fromtimestamp(os.path.getmtime(folder + "/" + file + "/" + data))
+                    name = date + "_" + data[:-4]
+                    # tuple contains wavenumber, sfg, ir, vis in this order
+                    extract = list(self.extract_sfg_data(folder + "/" + file + "/" + data))
 
-                    dic = {"name": name, "measured_time": creation_time, "measurer": measurer,
-                           "wavenumbers": wavenumbers, "sfg": sfg, "ir": ir, "vis": vis}
+                    for var, j in enumerate(extract):
+                        extract[j] = ";".join(extract[j].astype(str))
+
+                    dic = {"name": name, "type": folder, "measured_time": creation_time, "measurer": measurer,
+                           "wavenumbers": extract[0], "sfg": extract[1], "ir": extract[2], "vis": extract[3]}
+
+                    if "dppc" in dic["name"] or "DPPC" in dic["name"]:
+                        dic["type"] = "regular"
+
                     self.sfg.append(dic)
 
     def extract_sfg_data(self, file):
@@ -351,19 +365,25 @@ class Importer:
 
             return convert
 
-    def import_lt(self):
-        for file in os.listdir("test"):
+    def import_lt(self, folder):
+        for file in os.listdir(folder):
             measurer = file.split(" ")[1]
 
-            for data in os.listdir("test/" + file):
+            for data in os.listdir(folder + "/" + file):
                 if data.endswith(".dat"):
-                    creation_time = datetime.datetime.fromtimestamp(os.path.getmtime("test/" + file + "/" + data))
+                    creation_time = datetime.datetime.fromtimestamp(os.path.getmtime(folder + "/" + file + "/" + data))
                     name = data[:-4]
-                    time, area, apm, pressure = self.extract_lt_data("test/" + file + "/" + data)
 
-                    dic = {"name": name, "measured_time": creation_time, "measurer": measurer, "time": time,
-                           "area": area,
-                           "apm": apm, "pressure": pressure}
+                    # list contains time, area, area per molecule and pressure in this order
+                    extract = list(self.extract_lt_data(folder + "/" + file + "/" + data))
+
+                    for var, j in enumerate(extract):
+                        extract[j] = ";".join(extract[j].astype(str))
+
+                    dic = {"name": name, "type": folder, "measured_time": creation_time, "measurer": measurer,
+                           "time": extract[0],
+                           "area": extract[1],
+                           "apm": extract[2], "pressure": extract[3]}
                     print(dic)
                     self.lt.append(dic)
 
@@ -465,6 +485,40 @@ class Importer:
 
         db.commit()
         db.close()
+
+    def write_substances(self):
+        """A function to extract the sensitizer/surfactant metadata and pass them to the database"""
+        pass
+
+
+class NaturalSampleExtension:
+    """This class will handle station and sample hashes, generate the station SQL tables"""
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def get_sample_hash(name):
+        pass
+
+    @staticmethod
+    def get_station_hash(name):
+        pass
+
+    @staticmethod
+    def process_station_hash(station_hash):
+        """Returns a dictionary carrying key-value-pairs to describe the station properties"""
+        pass
+
+    @staticmethod
+    def process_sample_hash(sample_hash):
+        """Returns a dictionary carrying key-value-pairs to describe the sample properties"""
+        pass
+
+    @staticmethod
+    def process_boknis_name(name):
+        """Somehow interconnect the excel sheet with the actual spectra files"""
+        pass
 
 
 # testcode section
