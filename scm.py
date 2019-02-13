@@ -387,9 +387,6 @@ class SessionControlManager:
                         isotherm.lift_off = float(liftoffs[isotherm.name])
                 station.analyze_station_data()
 
-
-
-
     def fetch_tension_data(self):
         out = {}
         command = f'SELECT * from gasex_surftens'

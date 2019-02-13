@@ -24,14 +24,14 @@ class SqlWizard:
             
             CONSTRAINT unique_name UNIQUE(name)""",
 
-            "boknis_eck":"""
+            "boknis_eck": """
                     id INTEGER PRIMARY KEY,
                     name TEXT,
                     specid INTEGER,
                     FOREIGN KEY (specid) REFERENCES sfg(id)
                     """,
 
-            "gasex_sfg":"""
+            "gasex_sfg": """
                     id INTEGER PRIMARY KEY,
                     name TEXT,
                     spec_id INTEGER,
@@ -40,7 +40,7 @@ class SqlWizard:
                     FOREIGN KEY(sample_id) REFERENCES samples(id)
                    """,
 
-            "regular_sfg":"""
+            "regular_sfg": """
                     id INTEGER PRIMARY KEY,
                     name TEXT,
                     specid INTEGER,
@@ -51,7 +51,7 @@ class SqlWizard:
                     FOREIGN KEY (specid) REFERENCES sfg(id)
                 """,
 
-            "lt":"""
+            "lt": """
                 id INTEGER PRIMARY KEY,
                 name TEXT,
                 type TEXT,
@@ -65,7 +65,7 @@ class SqlWizard:
                 CONSTRAINT unique_name UNIQUE(name)
                 """,
 
-            "gasex_lt":"""
+            "gasex_lt": """
                 id INTEGER PRIMARY KEY,
                 station_id INTEGER,
                 sample_id INTEGER,
@@ -103,7 +103,7 @@ class SqlWizard:
                 CONSTRAINT unique_name UNIQUE(name)
                 """,
 
-            "uv":"""
+            "uv": """
                 id INTEGER PRIMARY KEY,
                 name TEXT,
                 wavelength TEXT,
@@ -113,37 +113,44 @@ class SqlWizard:
 
             "gasex_surftens": """
                 id INTEGER PRIMARY KEY,
+                sample_id INTEGER,
                 name TEXT,
                 surface_tension TEXT,
-                CONSTRAINT unique_name UNIQUE(name)
+                CONSTRAINT unique_name UNIQUE(name),
+                FOREIGN KEY(sample_id) REFERENCES samples(id)
                 """,
 
-            "substances":"""
+            "substances": """
                 id INTEGER PRIMARY KEY,
                 name TEXT,
                 long_name TEXT,
-                molar_mass REAL,
+                molar_mass TEXT,
                 sensitizing TEXT,
                 CONSTRAINT unique_name UNIQUE(name)
                 """,
 
-            "stations":"""
-            id INTEGER PRIMARY KEY,
-            hash TEXT
+            "stations": """
+                id INTEGER PRIMARY KEY,
+                hash TEXT,
+                type TEXT,
+                number INTEGER
+                
             """,
 
             "samples": """
                     id INTEGER PRIMARY KEY,
                     station_id INTEGER,
-                    station_hash TEXT,
+                    sample_hash TEXT,
+                    location TEXT,
                     type TEXT,
+                    number INTEGER,
                     FOREIGN KEY(station_id) REFERENCES stations(id)
                     """
 
-            
-
         }
         self.create_db()
+
+        self.write_substances()
 
     def create_db(self):
         commands = []
@@ -297,6 +304,20 @@ class SqlWizard:
                 print("Lift-off already in database!")
         self.db.commit()
 
+    def write_substances(self):
+        """A function to extract the sensitizer/surfactant metadata and pass them to the database"""
+        substances = Importer.extract_substances()
+
+        command = f'INSERT INTO substances(name, long_name, molar_mass, sensitizing)VALUES(?,?,?,?)'
+
+        for dic in substances:
+            try:
+                self.cur.execute(command, (dic["abbr"], dic["name"], dic["mass"], dic["photoactive"]))
+            except sqlite3.IntegrityError as e:
+                print(f'Substance {dic} already in database!')
+
+        self.db.commit()
+
 
 class Importer:
 
@@ -312,10 +333,14 @@ class Importer:
         self.raman = []
         self.uv = []
 
-        self.station_meta = []
+        # todo: create the import folder final structure
+        # todo: import sfg data from the folders setting MEASURER and TYPE
+        # todo: strip DATE_....._.sfg und LT_...._.dat and gain station and sample hashes
+        # todo: create station/sample hashes for the tensions as well
+        # todo: create a dictionary of the form "stationhash" : {stationhashdata} to collect all stations /samples from LT SFG Tension
+        # todo: create the station and sample tables, check if they are consistent
+        # todo: populate the tables with sfg,lt and tension using the station and sample IDs
 
-        # self.import_sfg()
-        # self.import_lt()
 
     def import_sfg(self, folder):
 
@@ -486,9 +511,24 @@ class Importer:
         db.commit()
         db.close()
 
-    def write_substances(self):
-        """A function to extract the sensitizer/surfactant metadata and pass them to the database"""
-        pass
+    @staticmethod
+    def extract_substances():
+
+        substances = []
+
+        with open("substances.txt", "r") as infile:
+            try:
+                for line in infile:
+                    name, abbreviation, mass, photoactive = line.split(";")
+
+                    substances.append({"name": name.strip(),
+                                       "abbr": abbreviation.strip(),
+                                       "mass": mass.strip(),
+                                       "photoactive": photoactive.strip()})
+            except:
+                print(line.split(";") + " is not a valid substance file line")
+
+        return substances
 
 
 class NaturalSampleExtension:
@@ -498,31 +538,81 @@ class NaturalSampleExtension:
         pass
 
     @staticmethod
-    def get_sample_hash(name):
-        pass
+    def get_hashes(name):
+        """ Extract the hashes from file names. Remember to strip the file ending as well as  the leading LT or date
+        before passing namestring to this function."""
+
+        temp = name.split("_")
+
+        station_hash = temp[0] + temp[1]
+
+        if temp[1][0] != "c":
+            sample_hash = station_hash + temp[2] + temp[3]
+        else:
+            sample_hash = station_hash + temp[2]
+
+        return {"name": name, "station_hash": station_hash, "sample_hash": sample_hash}
 
     @staticmethod
-    def get_station_hash(name):
-        pass
+    def process_station_hash(hash):
+        date = hash[:4]
+        temp = hash[4]
+
+        if temp in ("c", "r"):
+            stype = "big"
+        else:
+            stype = "small"
+
+        number = hash[5]
+
+        return {"date": date, "station_type": stype, "station_number": number}
 
     @staticmethod
-    def process_station_hash(station_hash):
-        """Returns a dictionary carrying key-value-pairs to describe the station properties"""
-        pass
+    def process_sample_hash(hash):
+        dic = NaturalSampleExtension.process_station_hash(hash)
+        location = hash[4]
+        dic["location"] = location
 
-    @staticmethod
-    def process_sample_hash(sample_hash):
-        """Returns a dictionary carrying key-value-pairs to describe the sample properties"""
-        pass
+        if location == "c":
+            if "deep" in hash or "low" in hash:
+                dic["sample_type"] = "deep"
 
-    @staticmethod
-    def process_boknis_name(name):
-        """Somehow interconnect the excel sheet with the actual spectra files"""
-        pass
+        elif location == "r":
+            dic["sample_type"] = hash[6]
+            if dic["sample_type"] == "p":
+                dic["sample_number"] = hash[7]
+            elif dic["sample_type"] == "s":
+                dic["sample_number"] = hash[8]
+
+        elif location == "a":
+            dic["sample_type"] = hash[6]
+            dic["sample_number"] = hash[8]
+
+        else:
+            raise ValueError(f"Invalid sample hash {hash}")
+
+        return dic
+
+
+
+
+
 
 
 # testcode section
 # todo: insert data of lt and sfg in database
 
 
-I = Importer()
+# I = Importer()
+
+ex1 = "0922_r1_p_4_1_#1"
+ex2 = "0922_r1_p_4"
+ex3 = "0922_c1_low_1_#1"
+ex4 = "0922_a1_s1_2"
+
+a = NaturalSampleExtension.get_hashes(ex1)
+b = a["sample_hash"]
+
+o = NaturalSampleExtension.get_hashes(ex4)["sample_hash"]
+print(o)
+print(NaturalSampleExtension.process_sample_hash(o))
