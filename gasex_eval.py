@@ -855,12 +855,9 @@ S = SessionControlManager("sfg.db", "test")
 S.setup_for_gasex()
 set_plot_properties()
 
-stats = [s for s in S.stations.values()]
-
-small = [s for s in stats if s.type == "small"]
-big = [s for s in stats if s.type == "big"]
-
-import csv
+for s in S.stations.values():
+    for spec in s.lt_isotherms:
+        print(spec.name, spec.sample_hash)
 
 
 def export_station_data(stations, big=True):
@@ -948,7 +945,7 @@ def export_station_data(stations, big=True):
                                 pressure_deep_error, liftoff_deep, liftoff_deep_error, pressure_sml, pressure_sml_error,
                                 liftoff_sml, liftoff_sml_error])
 
-
+"""
 with open("ltdata.csv", "w") as outfile:
 
     writer = csv.writer(outfile, delimiter=";")
@@ -960,5 +957,5 @@ with open("ltdata.csv", "w") as outfile:
             if isotherm.lift_off is not None:
                 writer.writerow([isotherm.name, isotherm.sample_hash.station_type,
                                 isotherm.sample_hash.sample_type, isotherm.get_maximum_pressure(),
-                                isotherm.lift_off, np.max(isotherm.area)])
+                                isotherm.lift_off, np.max(isotherm.area)])"""
 
