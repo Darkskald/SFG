@@ -316,7 +316,6 @@ class Importer:
         db.close()
 
 
-
 class DataCollector:
     """Extracts the data from raw SFG files."""
     def __init__(self, filename):
@@ -621,7 +620,6 @@ class SqlWizard:
             print("Spectrum already in database!")
         db.commit()
         db.close()
-
 
 
 class SfgSpectrum:
