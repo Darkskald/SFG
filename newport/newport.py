@@ -3,6 +3,7 @@ import os
 import datetime
 import numpy as np
 import csv
+import re
 
 
 class SqlWizard:
@@ -45,7 +46,11 @@ class SqlWizard:
                     name TEXT,
                     specid INTEGER,
                     surfactant TEXT,
+                    surfactant_vol TEXT,
+                    surfactant_conc TEXT,
                     sensitizer TEXT,
+                    sensitizer_vol TEXT,
+                    sensitizer_conc TEXT,
                     photolysis TEXT,
                     comment TEXT,
                     FOREIGN KEY (specid) REFERENCES sfg(id)
@@ -147,7 +152,6 @@ class SqlWizard:
         for folder in spec_folders:
             self.write_spectra(folder)
 
-
     def create_db(self):
 
         commands = []
@@ -237,7 +241,7 @@ class SqlWizard:
                 pass
         db.commit()
 
-    # ir raman uv
+    # ir raman uv misc
     def write_spectra(self, target_folder):
         db = self.db
         cur = self.cur
@@ -327,6 +331,8 @@ class SqlWizard:
 
         self.db.commit()
 
+    # todo: implement a method for command execution accepting a tuple as argument
+
 
 class Importer:
 
@@ -334,67 +340,27 @@ class Importer:
         os.chdir("newport")
         self.wizard = SqlWizard("test.db")
 
-        self.sfg = []
-        self.lt = []
-        self.tensions = []
-        self.liftoffs = []
+        self.gasex_lt = None
+        self.gasex_sfg = None
+        self.regular = None
 
-        # import sfg
-        gasex = self.import_sfg("gasex_sfg")
-        boknis = self.import_sfg("boknis")
-        regular = self.import_sfg("regular")
-        for j in (gasex, boknis, regular):
-            for dic in j:
-                self.wizard.write_sfg_data(dic)
+        self.get_sfgs()
+        self.get_lts()
 
-        # import lt
-        gasex_lt = self.import_lt("gasex_lt")
-        lt = self.import_lt("lt")
-        for j in (gasex_lt, lt):
-            for dic in j:
-                self.wizard.write_lt_data(dic)
-
-        gasex = gasex_lt + gasex
-        for dic in gasex:
-            if dic["type"] in ("gasex_sfg", "gasex_lt"):
-                hashdic = NaturalSampleExtension.generate_hashdic(dic["name"])
-
-                command = """
-                          INSERT INTO stations(hash,type,date,number)VALUES(?,?,?,?)
-                """
-                try:
-                    self.wizard.cur.execute(command, (hashdic["station_hash"], hashdic["station_type"],
-                                                      hashdic["date"], hashdic["station_number"]))
-                except sqlite3.IntegrityError:
-                    pass
-                self.wizard.db.commit()
-
-                command2 = """
-                           INSERT INTO samples(sample_hash, location, type, number)VALUES(?,?,?,?)
-                """
-                try:
-                    self.wizard.cur.execute(command2, (hashdic["sample_hash"], hashdic["location"],
-                                                      hashdic["sample_type"], hashdic["sample_number"]))
-                except sqlite3.IntegrityError:
-                    pass
-
-                command3 = f'SELECT id FROM samples WHERE sample_hash="{hashdic["sample_hash"]}"'
-                self.wizard.cur.execute(command3)
-                record = self.wizard.cur.fetchall()[0][0]
-                command4 = f'INSERT INTO {dic["type"]}(sample_id, sample_hash, name)VALUES(?,?,?)'#
-                try:
-                    self.wizard.cur.execute(command4, (record, hashdic["sample_hash"], dic["name"]))
-                except sqlite3.IntegrityError as e:
-                    pass
-
+        self.create_gasex_tables()
         self.wizard.db.commit()
-
         self.wizard.write_liftoffs()
         self.wizard.write_surface_tension()
         self.map_samples()
         self.map_tensions()
 
+        self.add_regular_info()
+
+    # SFG
     def import_sfg(self, folder):
+        """A function to loop trough the folders with sfg files, calling the extractor function
+        for each of the files and constructing a dictionary with all necessary information for
+        the database"""
         out = []
 
         for file in os.listdir(folder):
@@ -421,6 +387,7 @@ class Importer:
         return out
 
     def extract_sfg_data(self, file):
+        """A function collecting the data from sfg files"""
         data_collect = []
 
         with open(file, "r") as infile:
@@ -445,7 +412,113 @@ class Importer:
 
             return convert
 
+    def refine_regular(self, namestring):
+        """A function getting the meta information out of the name of a regular spectrum by regex parsing.
+        Ths function can be extended by adding additional expressions."""
+        command = f'SELECT name, sensitizing FROM substances'
+        self.wizard.cur.execute(command)
+        temp = self.wizard.cur.fetchall()
+        substances = {}
+        for record in temp:
+            substances[record[0]] = record[1]
+
+        process_list = namestring.split("_")
+        sample = re.compile('x\d')
+        measurement = re.compile('#\d')
+        photolysis = re.compile('\d{1,3}p')
+        spread_vol = re.compile('\d{1,2}.\d{1,2}')
+        spread_vol2 = re.compile('\d{1,2}')
+        conc = re.compile('\d{1,2}mM')
+
+        process_list = namestring.split("_")
+
+        date = datetime.date(int(process_list[0][0:4]), int(process_list[0][4:6]),
+                             int(process_list[0][6:]))
+        surf = None
+        sens = None
+        surf_v = None
+        sens_v = None
+        surf_c = None
+        sens_c = None
+        sample_nr = None
+        measurement_nr = None
+        photo = None
+        comment = None
+
+        for item in process_list[1:]:
+
+            if item in substances:
+                if surf is None:
+                    surf = item
+                else:
+                    if substances[item] == "y":
+                        sens = item
+
+            elif re.match(sample, item):
+                sample_nr = item
+
+            elif re.match(measurement, item):
+                measurement_nr = item
+
+            elif re.match(photolysis, item):
+                photo = item
+
+            elif re.match(conc, item):
+
+                if surf_c is None:
+                    surf_c = item
+                else:
+                    sens_c = item
+
+            elif re.match(spread_vol, item) or re.match(spread_vol2, item):
+
+                if surf_v is None:
+                    surf_v = item
+                else:
+                    sens_v = item
+
+            else:
+                comment = item
+
+        return {"sensitizer": sens,"date": date, "sample_nr": sample_nr, "measurement_nr": measurement_nr,
+                "surf_c": surf_c, "sens_c": sens_c, "surfactant": surf, "surf_volume": surf_v,
+                "sensitizer_volume": sens_v, "comment": comment, "full_name": namestring, "photolysis": photo}
+
+    def add_regular_info(self):
+        """This function passes the information extracted by the  refine_regular-call to the database."""
+
+        command = f' SELECT id, name FROM sfg WHERE type="regular"'
+        self.wizard.cur.execute(command)
+        records = self.wizard.cur.fetchall()
+        for item in records:
+            name = item[1]
+            meta_info = self.refine_regular(name)
+            command2 = f"""INSERT INTO regular_sfg(name, specid, surfactant,
+            sensitizer, photolysis, comment, surfactant_vol, surfactant_conc, sensitizer_conc, sensitizer_vol )
+            VALUES(?,?,?,?,?,?,?,?,?,?)"""
+            tup = (name, item[0], meta_info["surfactant"], meta_info["sensitizer"],
+                   meta_info["photolysis"], meta_info["comment"], meta_info["surf_volume"],
+                   meta_info["surf_c"], meta_info["sens_c"], meta_info["sensitizer_volume"])
+
+            self.wizard.cur.execute(command2, tup)
+
+        self.wizard.db.commit()
+
+    def get_sfgs(self):
+        """A convenient high-level function to collect SFG information from all the folders and write them to the da
+        database."""
+        self.gasex_sfg = self.import_sfg("gasex_sfg")
+        boknis = self.import_sfg("boknis")
+        self.regular = self.import_sfg("regular")
+        for j in (self.gasex_sfg, boknis, self.regular):
+            for dic in j:
+                self.wizard.write_sfg_data(dic)
+
+    # LT
     def import_lt(self, folder):
+        """A function to loop trough the folders with LT files, calling the extractor function
+        for each of the files and constructing a dictionary with all necessary information for
+        the database"""
         out = []
         for file in os.listdir(folder):
             if file.endswith(".dat"):
@@ -455,9 +528,9 @@ class Importer:
 
                     # list contains time, area, area per molecule and pressure in this order
                     extract = list(self.extract_lt_data(folder + "/" + file))
-
                     for j, var in enumerate(extract):
                         extract[j] = ";".join(extract[j].astype(str))
+
 
                         dic = {"name": name, "type": folder, "measured_time": creation_time,
                                "time": extract[0],
@@ -468,6 +541,7 @@ class Importer:
         return out
 
     def extract_lt_data(self, file):
+        """A function collecting the data from LT files"""
 
         with open(file, "r") as infile:
 
@@ -477,13 +551,14 @@ class Importer:
                 if line[0] != "#":
                     temp = line.strip().split("\t")
                     collector.append(temp)
+            
             time = []
             area = []
             apm = []
             surface_pressure = []
 
             for i in collector:
-                if len(i) == 7:
+                if len(i) == 8:
 
                     time.append(i[1])
                     area.append(i[2])
@@ -492,6 +567,17 @@ class Importer:
 
         return np.array(time), np.array(area), np.array(apm), np.array(surface_pressure)
 
+    def get_lts(self):
+        """A convenient high-level function to collect LT information from all the folders and write them to the da
+        database."""
+
+        self.gasex_lt = self.import_lt("gasex_lt")
+        lt = self.import_lt("lt")
+        for j in (self.gasex_lt, lt):
+            for dic in j:
+                self.wizard.write_lt_data(dic)
+
+    # GasEx
     def map_samples(self):
         """A function to connect the samples with their corresponding station ID"""
         command = "SELECT id,sample_hash FROM samples"
@@ -509,6 +595,7 @@ class Importer:
         self.wizard.db.commit()
 
     def map_tensions(self):
+        """Maps the surface tension table with GasEx tension data with the corresponding samples"""
         command = f'SELECT id, name FROM gasex_surftens'
         self.wizard.cur.execute(command)
         records = self.wizard.cur.fetchall()
@@ -525,10 +612,44 @@ class Importer:
             except IndexError:
                 pass
 
+    def create_gasex_tables(self):
+
+        gasex = self.gasex_lt + self.gasex_sfg
+        for dic in gasex:
+            if dic["type"] in ("gasex_sfg", "gasex_lt"):
+                hashdic = NaturalSampleExtension.generate_hashdic(dic["name"])
+
+                command = """                                                                           
+                          INSERT INTO stations(hash,type,date,number)VALUES(?,?,?,?)                    
+                """
+                try:
+                    self.wizard.cur.execute(command, (hashdic["station_hash"], hashdic["station_type"],
+                                                      hashdic["date"], hashdic["station_number"]))
+                except sqlite3.IntegrityError:
+                    pass
+                self.wizard.db.commit()
+
+                command2 = """                                                                          
+                           INSERT INTO samples(sample_hash, location, type, number)VALUES(?,?,?,?)      
+                """
+                try:
+                    self.wizard.cur.execute(command2, (hashdic["sample_hash"], hashdic["location"],
+                                                       hashdic["sample_type"], hashdic["sample_number"]))
+                except sqlite3.IntegrityError:
+                    pass
+
+                command3 = f'SELECT id FROM samples WHERE sample_hash="{hashdic["sample_hash"]}"'
+                self.wizard.cur.execute(command3)
+                record = self.wizard.cur.fetchall()[0][0]
+                command4 = f'INSERT INTO {dic["type"]}(sample_id, sample_hash, name)VALUES(?,?,?)'  #
+                try:
+                    self.wizard.cur.execute(command4, (record, hashdic["sample_hash"], dic["name"]))
+                except sqlite3.IntegrityError as e:
+                    pass
 
 
 
-    # ir raman uv
+    # IR RAMAN UV
     @staticmethod
     def fetch_iraman_data(filename):
 
@@ -604,6 +725,7 @@ class Importer:
         db.commit()
         db.close()
 
+    # AUXILIARY
     @staticmethod
     def extract_substances():
 
@@ -623,14 +745,9 @@ class Importer:
 
         return substances
 
-    @staticmethod
-    def refine_regular(namestring):
-        """A function getting the metainformation out of the name of a regular spectrum"""
-        pass
-
 
 class NaturalSampleExtension:
-    """This class will handle station and sample hashes, generate the station SQL tables"""
+    """This (static) class will handle station and sample hashes, generate the station SQL tables"""
 
     def __init__(self):
         pass
@@ -714,17 +831,12 @@ class NaturalSampleExtension:
         dic = NaturalSampleExtension.get_hashes(temp)
         return dic
 
+    @staticmethod
     def get_station_from_sample(sample_hash):
         temp = sample_hash[:4]+sample_hash[5]
         return temp
 
 # Friday:
-# todo: add the molar masses of the bxn species
-# todo: sort the boknis eck spetra in the folders
-# todo: sort the regular spectra in the folders
-# todo: sort the lt isotherms in the folders
-# todo: build a parser for the metainformation of the regular sfg spectra
-# todo: comment all functions written so far, set todos for ugly parts of code
 # todo: reorganize the scm: clear functions for getting data from database
 # todo: rebase the refine operations on views
 # todo: separation between the data in sql queries and the final cast into objects
@@ -747,4 +859,4 @@ class NaturalSampleExtension:
 t = "20180628_0608_r4_p_2"
 
 I = Importer()
-I.map_samples()
+print(I.refine_regular("20180315_SA_10.3_BX12_10_x2_#3_25p_mixedlayer0.5zu1mM"))
