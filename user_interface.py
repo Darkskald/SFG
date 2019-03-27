@@ -19,6 +19,7 @@ class DatabaseManager:
 
         self.current_request = None
 
+
     def do_command(self, command):
         self.cur.execute(command)
 
@@ -131,6 +132,7 @@ class SessionControlManager:
         self.active_view = None
         self.views = []
         self.refined = False
+        self.anonymous_count = 0
 
     def get(self, command, view="def"):
         self.dm.new_request(command, view=view)
@@ -138,6 +140,10 @@ class SessionControlManager:
         self.refined = False
 
     def ref(self, command, view=None):
+        if view is None:
+            self.anonymous_count += 1
+            view = "unnamed" + str(self.anonymous_count)
+
         self.dm.new_request(command, table=self.active_view, view=view)
         self.refined = True
 
@@ -149,6 +155,13 @@ class SessionControlManager:
         if view == "default":
             self.dm.restore(self.views[-1])
             self.active_view = self.views [-1]
+            self.views.remove(self.views[-1])
+        else:
+            for item in self.views:
+                if item == view:
+                    self.dm.restore(item)
+                    self.active_view = item
+                    self.views.remove(item)
 
     def rm(self, command):
         pass
@@ -167,12 +180,16 @@ class SessionControlManager:
         pass
 
     def clear(self):
-        pass
+        self.active_view = None
+        self.refined = False
+        self.dm.current_request = []
 
 #testcode section
 
 S = SessionControlManager()
 S.get("su BX12")
 S.ref("p y", view="photo")
-S.ref("d 20171101 20180101")
+S.ref("d 20171101 20171231")
 S.show()
+S.rec("def")
+print(S.views, S.active_view)
