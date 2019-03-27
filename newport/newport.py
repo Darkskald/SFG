@@ -38,7 +38,8 @@ class SqlWizard:
                     sample_id INTEGER,
                     sample_hash TEXT,
                     FOREIGN KEY (name) REFERENCES sfg(name),
-                    FOREIGN KEY(sample_id) REFERENCES samples(id)
+                    FOREIGN KEY(sample_id) REFERENCES samples(id),
+                    CONSTRAINT unique_name UNIQUE(name)
                    """,
 
             "regular_sfg": """
@@ -53,7 +54,8 @@ class SqlWizard:
                     sensitizer_conc TEXT,
                     photolysis TEXT,
                     comment TEXT,
-                    FOREIGN KEY (specid) REFERENCES sfg(id)
+                    FOREIGN KEY (specid) REFERENCES sfg(id),
+                    CONSTRAINT unique_name UNIQUE(name)
                 """,
 
             "lt": """
