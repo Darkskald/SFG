@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import csv
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy import stats
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
@@ -58,9 +59,14 @@ class AbstractSpectrum(ABC):
     def __str__(self):
         return self._name
 
+    def smooth(self, a=9, b=3):
+        """Performs a smooth operation of the measured pressure involving a Savitzky-Golay-filter"""
+        return savgol_filter(self._y, a, b)
+
     # have to be overriden by the inheriting classes
     def drop_ascii(self):
         pass
+
 
 # todo: ensure correct creation time injection and meta dictionary creation
 class SfgSpectrum(AbstractSpectrum):
@@ -78,11 +84,13 @@ class SfgSpectrum(AbstractSpectrum):
         self.normalized_intensity = self.raw_intensity / (self.vis_intensity * self.ir_intensity)
         self.baseline_corrected = None
 
+        self.setup_spec()
+
     def setup_spec(self):
         self._name = self.meta["name"]
         self._x = self.wavenumbers
         self._y = self.normalized_intensity
-        self._x_unit ="wavenumber/ $cm^{-1}$"
+        self._x_unit ="wavenumber/ cm$^{-1}$"
         self._y_unit = "SHG intensity/ arb. u."
 
     def __lt__(self, SFG2):
@@ -104,11 +112,6 @@ class SfgSpectrum(AbstractSpectrum):
             norm_factor = external_norm
 
         return (intensity / norm_factor)
-
-    def smooth(self, points=9, order=5):
-        """Apply a smooth routine to the normalized_intensity"""
-        y = savgol_filter(self.normalized_intensity, points, order)
-        return y
 
     def integrate_peak(self, x_array, y_array):
         """Numpy integration routine for numerical peak integration with the trapezoidal rule"""
@@ -162,7 +165,7 @@ class SfgSpectrum(AbstractSpectrum):
 
     def drop_ascii(self):
         """Create an ascii file with the wavenumbers and normalized intensities"""
-        with open(self.name.full_name[:-4] + ".csv", "w") as outfile:
+        with open(self._name + ".csv", "w") as outfile:
             writer = csv.writer(outfile, delimiter=";")
             for i in zip(self.wavenumbers, self.normalized_intensity):
                 writer.writerow((i[0], i[1]))
@@ -394,9 +397,7 @@ class LtIsotherm(AbstractSpectrum):
 
         return np.array(out[::-1])
 
-    def smooth(self):
-        """Performs a smooth operation of the measured pressure involving a Savitzky-Golay-filter"""
-        return savgol_filter(self.pressure, 9, 3)
+
 
     def cut_away_decay(self, x_array):
 
@@ -419,5 +420,22 @@ class LtIsotherm(AbstractSpectrum):
         return index
 
 
-s = SfgSpectrum(0,1,2,3,4)
-t = LtIsotherm(0,1,2,3,4,5)
+class DummyPlotter:
+    """A test class to monitor the interaction of the subclasses of AbstractSpectrum with plotting routines."""
+    def __init__(self, speclist):
+        self.speclist = speclist
+
+    def plot_all(self):
+        for spectrum in self.speclist:
+            plt.plot(spectrum.x, spectrum.y, label=spectrum.name)
+
+        plt.xlabel(spectrum.x_unit)
+        plt.ylabel(spectrum.y_unit)
+        plt.legend()
+        plt.show()
+
+
+s= SfgSpectrum(np.array([0,1,2,3,4,5,6,7,8,9]), np.array([100,2,40,6,7,8,20,6,9,2]), 1, 1, {"name":"blubb"})
+
+d = DummyPlotter([s])
+d.plot_all()
