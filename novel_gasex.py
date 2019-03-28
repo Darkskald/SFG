@@ -13,8 +13,8 @@ class Station:
         self.data = data
         self.samples = []
 
-        # calculate average coverage, tension, max_pressure, lift_off
-        # for sml, screen, plate and deep
+        # todo: calculate average coverage, tension, max_pressure, lift_off
+        # todo: for sml, screen, plate and deep
 
     def get_date(self):
         date = datetime.strptime(self.data["date"], '%Y-%m-%d').date()
@@ -32,8 +32,8 @@ class Sample:
         self.sfg_spectra = None
         self.lt_isotherms = None
 
-    # generate the objects from the dataframes
-    # invoke the calculations necessary for the station
+    # todo: generate the objects from the dataframes
+    # todo: invoke the calculations necessary for the station
 
     def get_tension(self):
         if len(self.tension) > 1:
@@ -58,7 +58,13 @@ class Sample:
         pass
 
 
-# select all stations
+
+# todo: encapsulate SQL interaction to class --> replace session controll manager
+# todo: generate sfg and lt objects from sql query results, be careful about creation time!
+# todo: reimplement a top-level function which provides DPPC calibration data for each day of measurement
+
+
+# functional part of the module to operate on the database
 
 def get_stations():
     cmd = "SELECT * FROM stations"
@@ -95,6 +101,8 @@ def get_stations():
 
 q = get_stations()
 
+
+# testcode section
 for stat in q:
     for sample in stat.samples:
         print(sample.get_tension())
