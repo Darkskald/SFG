@@ -299,7 +299,7 @@ class LtIsotherm(AbstractSpectrum):
     """A class to represent experimental Langmuir trough isotherms, handling time, area, area per molecule and
     surface pressure"""
 
-    def __init__(self, name, measured_time, time, area, apm, pressure, correct=True):
+    def __init__(self, name, measured_time, time, area, apm, pressure, lift_off=None, correct=True):
         self._name = name
         self.measured_time = measured_time
         self.time = time
@@ -311,7 +311,7 @@ class LtIsotherm(AbstractSpectrum):
         self.speed = None
         self.measurement_number = None
 
-        self.lift_off = None
+        self.lift_off = lift_off
 
         if correct is True:
             p = np.min(self.pressure)
@@ -435,7 +435,3 @@ class DummyPlotter:
         plt.show()
 
 
-s= SfgSpectrum(np.array([0,1,2,3,4,5,6,7,8,9]), np.array([100,2,40,6,7,8,20,6,9,2]), 1, 1, {"name":"blubb"})
-
-d = DummyPlotter([s])
-d.plot_all()
