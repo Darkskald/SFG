@@ -131,8 +131,10 @@ class SqlWizard:
                 type TEXT,
                 date TIMESTAMP,
                 number INTEGER,
+                label TEXT,
+                longitude TEXT,
+                latitude TEXT,
                 CONSTRAINT unique_name UNIQUE(hash)
-                
             """,
 
             "samples": """

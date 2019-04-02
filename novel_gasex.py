@@ -97,7 +97,7 @@ class Sample:
             self.lt_isotherms.append(l)
 
 
-# todo: encapsulate SQL interaction to class --> replace session controll manager
+# todo: encapsulate SQL interaction to class --> replace session control manager
 # todo: reimplement a top-level function which provides DPPC calibration data for each day of measurement
 
 
@@ -136,7 +136,13 @@ def get_stations():
     return out
 
 def get_dppc_data():
-    pass
+    cmd = "SELECT * FROM sfg WHERE name GLOB '*DPPC_*.*' AND measured_time BETWEEN '2018-01-01' AND '2018-12-31'"
+    dppc_specs = pd.read_sql(cmd, conn)
+    #todo: generate spectra from pandas dataframe
+    #todo: calculate the ch integrals for each spectrum (gernot baseline correction)
+    #todo: caluclate the average ch integral for reach day
+    #todo: return a dataframe containing the average integral mapped to the day of measurement
+    #todo: for normalization: root(divide Integral/Integral_dppc)
 
 q = get_stations()
 
