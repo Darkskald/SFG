@@ -844,23 +844,14 @@ class NaturalSampleExtension:
 # todo: reorganize the scm: clear functions for getting data from database
 # todo: rebase the refine operations on views
 # todo: separation between the data in sql queries and the final cast into objects
-
-
-
-
-
-
-
-
-
-
+# todo: add a column for polarization in the sfg table and parse the name for "ppp"
 
 
 
 
 # testcode section
-# todo: insert data of lt and sfg in database
+
 t = "20180628_0608_r4_p_2"
 
 I = Importer()
-print(I.refine_regular("20180315_SA_10.3_BX12_10_x2_#3_25p_mixedlayer0.5zu1mM"))
+
