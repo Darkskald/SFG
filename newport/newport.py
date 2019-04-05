@@ -4,6 +4,7 @@ import datetime
 import numpy as np
 import csv
 import re
+import pandas as pd
 
 
 class SqlWizard:
@@ -134,6 +135,8 @@ class SqlWizard:
                 label TEXT,
                 longitude TEXT,
                 latitude TEXT,
+                surface_salinity,
+                deep_salinity,
                 CONSTRAINT unique_name UNIQUE(hash)
             """,
 
@@ -651,6 +654,9 @@ class Importer:
                 except sqlite3.IntegrityError as e:
                     pass
 
+    def add_salinity(self):
+        data = pd.read_excel("stationsplan.xlsx")
+        # todo: add data to sql station table
 
 
     # IR RAMAN UV
