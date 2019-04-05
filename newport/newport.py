@@ -362,6 +362,8 @@ class Importer:
         self.map_tensions()
 
         self.add_regular_info()
+        self.add_salinity()
+        self.wizard.db.commit()
 
     # SFG
     def import_sfg(self, folder):
@@ -655,8 +657,25 @@ class Importer:
                     pass
 
     def add_salinity(self):
-        data = pd.read_excel("stationsplan.xlsx")
-        # todo: add data to sql station table
+        sal = pd.read_excel("stationsplan.xls")
+
+        for row in range(len(sal)):
+            sur_sal = sal.loc[row, "Salinity surface"]
+            dep_sal = sal.loc[row, "Salinity depth"]
+            _hash = "'"+'0'+str(sal.loc[row, "hash"])+"'"
+            label = "'" + sal.loc[row, "Leg"] + "-" + str(sal.loc[row, "Station Number"]) + "'"
+            lat = sal.loc[row, "Latitude"]
+            long = sal.loc[row, "Longitude"]
+
+            dic = {"surface_salinity": sur_sal, "deep_salinity": dep_sal,
+                   "label": label, "longitude": long, "latitude": lat}
+
+            for item in dic:
+                cmd = f'UPDATE stations SET {item}={dic[item]} WHERE hash={_hash}'
+                print(cmd)
+                self.wizard.cur.execute(cmd)
+                self.wizard.db.commit()
+
 
 
     # IR RAMAN UV
