@@ -810,7 +810,7 @@ class NaturalSampleExtension:
     @staticmethod
     def process_station_hash(hash):
         date = hash[:4]
-        date = datetime.date(2019, int(date[0:2]), int(date[2:]))
+        date = datetime.date(2018, int(date[0:2]), int(date[2:]))
         temp = hash[4]
 
         if temp in ("c", "r"):
