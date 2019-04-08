@@ -81,6 +81,13 @@ class GasexManager:
         for station in self.stations:
             for sample in station.samples:
                 sample.calc_values(self.dates)
+                if sample.tension is not None:
+                    if sample.data["type"] == "deep":
+                        sample.tension += GasexManager.correct_salinity(station.data["deep_salinity"])
+                    else:
+                        sample.tension += GasexManager.correct_salinity(station.data["surface_salinity"])
+                    sample.tension = round(sample.tension, 2)
+
             station.get_all_stats()
 
     def set_new_pd_columns(self):
@@ -98,7 +105,7 @@ class GasexManager:
         self.station_table.to_excel("stations.xlsx")
 
     @staticmethod
-    def correct_salinty(salinity):
+    def correct_salinity(salinity):
         return 0.5225-0.0391*salinity
 
 
@@ -126,8 +133,7 @@ class Station:
             "deep_tension": None,
             "deep_max_pressure": None
         }
-        # todo: calculate average coverage, tension, max_pressure, lift_off
-        # todo: for sml, screen, plate and deep
+
 
     def get_date(self):
         date = datetime.strptime(self.data["date"], '%Y-%m-%d').date()
@@ -291,7 +297,100 @@ out4 = f'The correlation between coverage and lift_off is {p4} (linear) and {s4}
 out5 = f'The correlation between tension and lift_off is {p5} (linear) and {s5} (nonlinear)'
 out6 = f'The correlation between tension and max_pressure is {p6} (linear) and {s6} (nonlinear)'
 
-test = scipy.stats.ttest_ind(G.station_table["plate_coverage"].values, G.station_table["screen_coverage"].values,
+
+pst = scipy.stats.ttest_ind(G.station_table["plate_tension"].values, G.station_table["screen_tension"].values,
                              equal_var=False, nan_policy='omit')
 
-print(test)
+psc = scipy.stats.ttest_ind(G.station_table["plate_coverage"].values, G.station_table["screen_coverage"].values,
+                             equal_var=False, nan_policy='omit')
+
+psl = scipy.stats.ttest_ind(G.station_table["plate_lift_off"].values, G.station_table["screen_lift_off"].values,
+                             equal_var=False, nan_policy='omit')
+
+psp = scipy.stats.ttest_ind(G.station_table["plate_max_pressure"].values, G.station_table["screen_max_pressure"].values,
+                             equal_var=False, nan_policy='omit')
+
+sdt = scipy.stats.ttest_ind(G.station_table["deep_tension"].values, G.station_table["sml_tension"].values,
+                             equal_var=False, nan_policy='omit')
+
+sdc = scipy.stats.ttest_ind(G.station_table["deep_coverage"].values, G.station_table["sml_coverage"].values,
+                             equal_var=False, nan_policy='omit')
+
+sdl = scipy.stats.ttest_ind(G.station_table["deep_lift_off"].values, G.station_table["sml_lift_off"].values,
+                             equal_var=False, nan_policy='omit')
+
+sdp = scipy.stats.ttest_ind(G.station_table["deep_max_pressure"].values, G.station_table["sml_max_pressure"].values,
+                             equal_var=False, nan_policy='omit')
+
+print(f'plate screen tension: {pst}')
+print(f'plate screen coverage: {psc}')
+print(f'plate screen lift_off: {psl}')
+print(f'plate screen pressure: {psp}')
+
+print(f'sml deep tension: {sdt}')
+print(f'sml deep coverage: {sdc}')
+print(f'sml deep lift_off: {sdl}')
+print(f'sml deep pressure: {sdp}')
+
+print(scipy.stats.ttest_ind(G.station_table["deep_lift_off"].values, G.station_table["sml_lift_off"].values,
+                             equal_var=False, nan_policy='omit'))
+
+
+
+G.station_table["date"] = pd.to_datetime(G.station_table["date"])
+mask1 = (G.station_table['date'] > '2018-6-1') & (G.station_table['date'] <= '2018-7-1')
+cruise1 = G.station_table.loc[mask1]
+
+mask2 = (G.station_table['date'] > '2018-9-1') & (G.station_table['date'] <= '2018-10-1')
+cruise2 = G.station_table.loc[mask2]
+
+cct = scipy.stats.ttest_ind(cruise1["sml_tension"].values, cruise2["sml_tension"].values,
+                             equal_var=False, nan_policy='omit')
+ccc = scipy.stats.ttest_ind(cruise1["sml_coverage"].values, cruise2["sml_coverage"].values,
+                             equal_var=False, nan_policy='omit')
+ccl = scipy.stats.ttest_ind(cruise1["sml_lift_off"].values, cruise2["sml_lift_off"].values,
+                             equal_var=False, nan_policy='omit')
+ccp = scipy.stats.ttest_ind(cruise1["sml_max_pressure"].values, cruise2["sml_max_pressure"].values,
+                             equal_var=False, nan_policy='omit')
+
+dcct = scipy.stats.ttest_ind(cruise1["deep_tension"].values, cruise2["deep_tension"].values,
+                             equal_var=False, nan_policy='omit')
+dccc = scipy.stats.ttest_ind(cruise1["deep_coverage"].values, cruise2["deep_coverage"].values,
+                             equal_var=False, nan_policy='omit')
+dccl = scipy.stats.ttest_ind(cruise1["deep_lift_off"].values, cruise2["deep_lift_off"].values,
+                             equal_var=False, nan_policy='omit')
+dccp = scipy.stats.ttest_ind(cruise1["deep_max_pressure"].values, cruise2["deep_max_pressure"].values,
+                             equal_var=False, nan_policy='omit')
+
+print(f'sml tension c1c2: {cct}')
+print(f'sml coverage c1c2: {ccc}')
+print(f'sml lift_off c1c2: {ccl}')
+print(f'sml pressure c1c2: {ccp}')
+print(f'deep tension c1c2: {dcct}')
+print(f'deep coverage c1c2: {dccc}')
+print(f'deep lift_off c1c2: {dccl}')
+print(f'deep pressure c1c2: {dccp}')
+
+small = G.station_table[G.station_table["type"] == "small"]
+big = G.station_table[G.station_table["type"] == "big"]
+
+bst = scipy.stats.ttest_ind(big["sml_tension"].values, small["sml_tension"].values,
+                             equal_var=False, nan_policy='omit')
+
+bsc = scipy.stats.ttest_ind(big["sml_coverage"].values, small["sml_coverage"].values,
+                             equal_var=False, nan_policy='omit')
+
+bsl = scipy.stats.ttest_ind(big["sml_lift_off"].values, small["sml_lift_off"].values,
+                             equal_var=False, nan_policy='omit')
+
+bsp = scipy.stats.ttest_ind(big["sml_max_pressure"].values, small["sml_max_pressure"].values,
+                             equal_var=False, nan_policy='omit')
+
+print(f'sml tension bs: {bst}')
+print(f'sml coverage bs: {bsc}')
+print(f'sml lift_off bs: {bsl}')
+print(f'sml pressure bs: {bsp}')
+
+#G.station_table.to_excel("gasex_data.xlsx", na_rep="-")
+G.station_table.plot.scatter(x="deep_tension", y="sml_tension")
+plt.show()
