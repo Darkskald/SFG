@@ -95,9 +95,13 @@ def plot_doy_by_attribute(manager, names):
         axes = broken_axis_errorbar([153, 167, 254, 266], label=labels[item])
 
     axes[1].xaxis.set_major_locator(MaxNLocator(integer=True))
+    i = 1
     for name in names:
         axes[0].scatter(manager.station_table["date"].dt.dayofyear, manager.station_table[name])
+
         axes[1].scatter(manager.station_table["date"].dt.dayofyear, manager.station_table[name], label=name)
+        i+=1
+
 
     axes[1].legend().draggable()
     plt.show()
@@ -105,7 +109,7 @@ def plot_doy_by_attribute(manager, names):
 
 if __name__ == "__main__":
     G = GasexManager("test.db", dppc_flag=True)
-    plot_doy_by_attribute(G, ("sml_coverage",))
+    plot_doy_by_attribute(G, ("sml_max_pressure", "deep_max_pressure"))
     # axes = broken_axis_errorbar([153, 167, 254, 266])
     # axes[1].xaxis.set_major_locator(MaxNLocator(integer=True))
     # axes[0].scatter(G.station_table["date"].dt.dayofyear, G.station_table["sml_tension"])
@@ -115,6 +119,12 @@ if __name__ == "__main__":
     # spec = G.stations[1].samples[1].sfg_spectra[0]
     # q = G.fetch_dppc_spec(spec)
     # baseline_demo_dppc(q[0], q[1])
+    # todo: -0.2155, -73.11
+    # todo: stationwise difference between sml_coverage and deep_coverage
+    # todo: what about lt isotherms for deep water in cruise 1?
+    # todo: change aspect ration
+    # todo: fourth row in sfg plot with doy vs coverage
+    # todo: bechriftung größer bei theresa
 
 
     # mask1 = (G.station_table['date'] > '2018-6-1') & (G.station_table['date'] <= '2018-7-1')
