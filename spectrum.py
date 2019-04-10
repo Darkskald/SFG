@@ -271,7 +271,7 @@ class SfgSpectrum(AbstractSpectrum):
 
     def slice_by_borders(self, upper, lower):
         """Takes a high (upper) and a low (lower) reciprocal centimeter value as argument. Returns
-        the indices o the wavenumber array of the spectrum that are the borders of this intervall."""
+        the indices of the wavenumber array of the spectrum that are the borders of this interval."""
 
         diff = 10000000
         upper_index = 0
