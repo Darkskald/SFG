@@ -24,8 +24,6 @@ class GasexManager:
         self.station_table["date"] = pd.to_datetime(self.station_table["date"])
 
 
-        print(self.dppc_flag)
-
     def get_dppc_reference(self):
         cmd = "SELECT * FROM sfg WHERE name GLOB '*DPPC_*.*' AND measured_time BETWEEN '2018-01-01' AND '2018-12-31'"
         dppc_specs = pd.read_sql(cmd, self.conn)
@@ -104,8 +102,10 @@ class GasexManager:
     def set_new_pd_columns(self):
 
         cols = [i for i in self.stations[0].stats]
+        cols.append("doy")
         self.station_table = self.station_table.reindex(columns=self.station_table.columns.tolist() + cols)
         for station in self.stations:
+            self.station_table.loc[self.station_table.id == station.data["id"], "doy"] = station.doy
             for stat in station.stats:
                 self.station_table.loc[self.station_table.id == station.data["id"], stat] = station.stats[stat]
 
@@ -150,7 +150,7 @@ class Station:
             "deep_tension": None,
             "deep_max_pressure": None
         }
-
+        self.doy = self.get_date().timetuple().tm_yday + (1-self.data["number"])*0.25
     def get_date(self):
         date = datetime.strptime(self.data["date"], '%Y-%m-%d').date()
         return date
@@ -263,6 +263,8 @@ class Sample:
             if integral < 0:
                 integral = 0
             self.coverage = round(np.sqrt(integral / factor), 4)
+            if self.coverage > 0.2:
+                self.coverage = np.nan
 
         except IndexError:
             pass
