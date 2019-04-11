@@ -55,7 +55,7 @@ def broken_axis_errorbar(lim, label="default"):
     fig, (ax, ax2) = plt.subplots(1, 2, sharey=True)
 
     ax.set_ylabel(label)
-    fig.text(0.5, 0.015, s="day of the year", ha="center", va="center", size=16)
+    fig.text(0.5, 0.03, s="day of the year", ha="center", va="center")
 
     ax.set_xlim(lim[0], lim[1])
     ax2.set_xlim(lim[2], lim[3])
@@ -200,42 +200,177 @@ def poster(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2s, 
     plt.show()
 
 
-def tension(manager, names):
+def newposter(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2s, lim=[153, 167, 254, 266]):
 
-    labels = {
-        "tension": "Surface tension/ mN $\cdot$ m$^{-1}$",
-        "pressure": "Max. surface pressure/ mN $\cdot$ m$^{-1}$",
-        "coverage": "% surface coverage",
-        "lift_off": "lift-off compression ration"
-    }
-    for item in labels:
-        if item in names[0]:
-            axes = broken_axis_errorbar([153, 167, 254, 266], label=labels[item])
+    fig = plt.figure()
+    gs = fig.add_gridspec(4, 2)
+    ax1 = fig.add_subplot(gs[0, :])
+    ax1.set_xlim(2750, 3100)
+    ax2 = fig.add_subplot(gs[1, :], sharex=ax1)
+    ax3 = fig.add_subplot(gs[2:, 0])
+    ax4 = fig.add_subplot(gs[2:, 1], sharey=ax3)
 
-    if not axes:
-        axes = broken_axis_errorbar([153, 167, 254, 266], label=labels[item])
+    norm_factor = np.max(ref.normalized_intensity)
 
+
+    #sfg data
+    spectrum.correct_baseline(average="gernot")
+    test = np.linspace(2750, 3050, 10000)
+    func = spectrum.make_ch_baseline(average="gernot")
+    borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
+
+
+
+    ax1.plot(ref.wavenumbers, ref.normalized_intensity, label="DPPC reference, coverage 100 %", linewidth=1.5,
+                  marker="o", markersize=3)
+
+    ref_borders = ref.slice_by_borders(3000, np.min(spectrum.wavenumbers))
+    ax1.fill_between(ref.wavenumbers[ref_borders[0]:ref_borders[1] + 1],
+                          ref.normalized_intensity[ref_borders[0]:ref_borders[1] + 1]/norm_factor)
+
+    ax1.legend(frameon=False)
+
+    ax1.xaxis.set_tick_params(labeltop='on', pad=2.)
+
+    ax1.xaxis.set_label_position('top')
+    ax1.set_xlabel("wavenumber/ cm$^{-1}$")
+    ax1.xaxis.tick_top()
+
+    ax2.plot(spectrum.wavenumbers, spectrum.normalized_intensity/norm_factor, label="GasEx sample", linewidth=1.5,
+             marker="o", markersize=3)
+
+    y1 = spectrum.normalized_intensity[borders[0]:borders[1] + 1]
+    y2 = func(spectrum.wavenumbers[borders[0]:borders[1] + 1])
+    ax2.fill_between(spectrum.wavenumbers[borders[0]:borders[1] + 1], y1/norm_factor, y2/norm_factor, where=y1 > y2, interpolate=True)
+    ax2.fill_between(spectrum.wavenumbers[borders[0]:borders[1] + 1], y1/norm_factor, y2/norm_factor, where=y1 < y2,
+                     interpolate=True, color="green", alpha=0.7)
+
+
+    ax2.tick_params(labelbottom=False)
+    ax2.plot(test, func(test)/norm_factor, color="r", label="baseline")
+    ax2.legend(frameon=False)
+
+    #ax3.tick_params(labelbottom=False)
+    fig.text(0.06, 0.7, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical')
+
+    #coverage data
+    ax3.set_ylabel("% surface \ncoverage")
+    fig.text(0.5, 0.03, s="day of the year", ha="center", va="center")
+
+    ax3.set_xlim(lim[0], lim[1])
+    ax4.set_xlim(lim[2], lim[3])
+
+    ax3.spines['right'].set_visible(False)
+    ax4.spines['left'].set_visible(False)
+    ax3.yaxis.tick_left()
+    ax3.tick_params(labeltop='off')  # don't put tick labels at the top
+    ax4.yaxis.tick_right()
+
+    d = .012  # how big to make the diagonal lines in axes coordinates
+    # arguments to pass plot, just so we don't keep repeating them
+    kwargs = dict(transform=ax4.transAxes, color='k', clip_on=False)
+    ax3.plot((1 - d, 1 + d), (-d, +d), **kwargs)
+    ax3.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+
+    kwargs.update(transform=ax4.transAxes)  # switch to the bottom axes
+    ax4.plot((-d, +d), (1 - d, 1 + d), **kwargs)
+    ax4.plot((-d, +d), (-d, +d), **kwargs)
+
+    ax3.scatter(doy1, coverage1*100)
+    ax3.axhline(c1s*100, linestyle="--", color="blue")
+    ax3.scatter(doy2, coverage2*100)
+    ax3.axhline(c1d*100, linestyle="--", color="orange")
+    ax4.scatter(doy1, coverage1*100, label="SML")
+    ax4.axhline(c2s*100, linestyle="--", color="blue")
+    ax4.scatter(doy2, coverage2*100, label="bulk water, depth > 10 m")
+    ax4.axhline(c2d*100, linestyle="--", color="orange")
+    ax4.set_ylabel("")
+
+    ax4.legend(prop={'size': 10}, frameon=True).draggable()
+    #ax3.get_yaxis().set_ticklabels([])
+
+    plt.show()
+
+
+def tension(manager, names, dt1, dt2, st1, st2):
+
+    axes = broken_axis_errorbar([153, 167, 254, 266], label="""$\Delta$($\sigma$(sample) - $\sigma$(pure water))mN $\cdot$ m$^{-1}$""")
     axes[1].xaxis.set_major_locator(MaxNLocator(integer=True))
+    axes[0].xaxis.set_major_locator(MaxNLocator(integer=True))
+    axes[0].axhline(0, linestyle="--", color="black", alpha=0.75)
+    axes[1].axhline(0, linestyle="--", color="black", alpha=0.75)
+    axes[1].text(254, -0.55, "accuracy $\\approx \pm$0.5 mN $\cdot$ m$^{-1}$")
 
     for name in names:
+
+
         if "deep" in name:
-            label = "temperature and salinity-corrected tension difference to pure water (depth > 10 m)"
+            label = "Bulk water, depth > 10 m (corrected to 21 °C and S = 17)"
             axes[0].scatter(manager.station_table["doy"], (manager.station_table[name]-0.2155)-73.11)
+            axes[0].axhline(dt1, linestyle="--", color="orange")
             axes[1].scatter(manager.station_table["doy"], (manager.station_table[name]-0.2155)-73.11, label=label)
+            axes[1].axhline(dt2, linestyle="--", color="orange")
         else:
-            label = "temperature and salinity-corrected tension difference to pure water (SML)"
+            label = "SML (corrected to 21 °C and S = 17)"
+            axes[0].axhline(st1, linestyle="--", color="blue")
             axes[0].scatter(manager.station_table["doy"], (manager.station_table[name] - 0.2155) - 73.11)
+            axes[1].axhline(st2, linestyle="--", color="blue")
             axes[1].scatter(manager.station_table["doy"], (manager.station_table[name] - 0.2155) - 73.11, label=label)
 
-        #-0.2155, -73.11
-
-
-    axes[1].legend().draggable()
+    axes[1].legend(frameon=True).draggable()
+    plt.show()
 
 
 if __name__ == "__main__":
+    rcParams['axes.labelsize'] = 18
+    rcParams['font.size'] = 18
+    rcParams['figure.subplot.bottom'] = 0.12
+
+
     G = GasexManager("test.db", dppc_flag=True)
-    plot_doy_by_attribute(G, ("sml_max_pressure", "deep_max_pressure"))
+    spec = G.stations[1].samples[1].sfg_spectra[0]
+    q = G.fetch_dppc_spec(spec)
+
+
+    mask1 = (G.station_table['date'] > '2018-6-1') & (G.station_table['date'] <= '2018-7-1')
+    cruise1 = G.station_table.loc[mask1]
+    mask2 = (G.station_table['date'] > '2018-9-1') & (G.station_table['date'] <= '2018-10-1')
+    cruise2 = G.station_table.loc[mask2]
+
+    # average for deep and sml
+    arr = (cruise1["deep_tension"] - 0.2155) - 73.11
+    mean2 = np.ma.masked_array(arr, mask=(arr < - 0.55))
+    dt1 = np.nanmean(mean2)
+
+    arr = (cruise2["deep_tension"] - 0.2155) - 73.11
+    mean2 = np.ma.masked_array(arr, mask=(arr < - 0.55))
+    dt2 = np.nanmean(mean2)
+
+    arr = (cruise1["sml_tension"] - 0.2155) - 73.11
+    mean2 = np.ma.masked_array(arr, mask=(arr < - 0.55))
+    st1 = np.nanmean(mean2)
+
+    arr = (cruise2["sml_tension"] - 0.2155) - 73.11
+    mean2 = np.ma.masked_array(arr, mask=(arr < - 0.55))
+    st2 = np.nanmean(mean2)
+
+    # average for coverage
+    dc1 = np.nanmean(cruise1["deep_coverage"])
+    dc2 = np.nanmean(cruise2["deep_coverage"])
+    sc1 = np.nanmean(cruise1["sml_coverage"])
+    sc2 = np.nanmean(cruise2["sml_coverage"])
+
+
+    #tension(G, ("sml_tension", "deep_tension"), dt1, dt2, st1, st2)
+    newposter(q[0], q[1], G.station_table['doy'], G.station_table['doy'],
+              G.station_table['sml_coverage'], G.station_table['deep_coverage'], dc1, sc1, dc2, sc2)
+
+
+
+
+
+
+
     # axes = broken_axis_errorbar([153, 167, 254, 266])
     # axes[1].xaxis.set_major_locator(MaxNLocator(integer=True))
     # axes[0].scatter(G.station_table["date"].dt.dayofyear, G.station_table["sml_tension"])
