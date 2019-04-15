@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.lines import Line2D
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import MaxNLocator, MultipleLocator
 import scipy.stats
 import seaborn as sns
 plt.style.use(['seaborn-ticks', 'seaborn-poster'])
@@ -44,7 +44,7 @@ def baseline_demo_dppc(spectrum, ref, name="default"):
     axarr[2].set_xlabel("wavenumber/ cm$^{-1}$")
 
     axarr[2].legend(frameon=False)
-    f.text(0.025, 0.5, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical', size=16)
+    f.text(0.025, 0.5, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical')
     for ax in axarr.flat:
         ax.set_xlim(2750, 3300)
     #plt.savefig(spectrum.name.full_name + ".png")
@@ -205,10 +205,10 @@ def newposter(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2
     fig = plt.figure()
     gs = fig.add_gridspec(4, 2)
     ax1 = fig.add_subplot(gs[0, :])
-    ax1.set_xlim(2750, 3100)
     ax2 = fig.add_subplot(gs[1, :], sharex=ax1)
     ax3 = fig.add_subplot(gs[2:, 0])
-    ax4 = fig.add_subplot(gs[2:, 1], sharey=ax3)
+    ax4 = fig.add_subplot(gs[2:, 1])
+    ax1.set_xlim(2750, 3100)
 
     norm_factor = np.max(ref.normalized_intensity)
 
@@ -235,6 +235,7 @@ def newposter(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2
     ax1.xaxis.set_label_position('top')
     ax1.set_xlabel("wavenumber/ cm$^{-1}$")
     ax1.xaxis.tick_top()
+    ax1.text(28000, 0.8, "CH vibrations")
 
     ax2.plot(spectrum.wavenumbers, spectrum.normalized_intensity/norm_factor, label="GasEx sample", linewidth=1.5,
              marker="o", markersize=3)
@@ -248,10 +249,12 @@ def newposter(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2
 
     ax2.tick_params(labelbottom=False)
     ax2.plot(test, func(test)/norm_factor, color="r", label="baseline")
-    ax2.legend(frameon=False)
+    ax2.legend(frameon=False).draggable()
 
     #ax3.tick_params(labelbottom=False)
-    fig.text(0.06, 0.7, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical')
+    fig.text(0.03, 0.7, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical')
+    ax2.text(2500, 0.02, "CH vibrations")
+
 
     #coverage data
     ax3.set_ylabel("% surface \ncoverage")
@@ -268,7 +271,7 @@ def newposter(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2
 
     d = .012  # how big to make the diagonal lines in axes coordinates
     # arguments to pass plot, just so we don't keep repeating them
-    kwargs = dict(transform=ax4.transAxes, color='k', clip_on=False)
+    kwargs = dict(transform=ax3.transAxes, color='k', clip_on=False)
     ax3.plot((1 - d, 1 + d), (-d, +d), **kwargs)
     ax3.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
 
@@ -277,29 +280,38 @@ def newposter(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2
     ax4.plot((-d, +d), (-d, +d), **kwargs)
 
     ax3.scatter(doy1, coverage1*100)
-    ax3.axhline(c1s*100, linestyle="--", color="blue")
+    ax3.axhline(c1s*100, linestyle="--", color="#1f77b4")
     ax3.scatter(doy2, coverage2*100)
     ax3.axhline(c1d*100, linestyle="--", color="orange")
     ax4.scatter(doy1, coverage1*100, label="SML")
-    ax4.axhline(c2s*100, linestyle="--", color="blue")
+    ax4.axhline(c2s*100, linestyle="--", color="#1f77b4")
     ax4.scatter(doy2, coverage2*100, label="bulk water, depth > 10 m")
     ax4.axhline(c2d*100, linestyle="--", color="orange")
     ax4.set_ylabel("")
 
-    ax4.legend(prop={'size': 10}, frameon=True).draggable()
-    #ax3.get_yaxis().set_ticklabels([])
+    ax4.legend(frameon=True).draggable()
+    ax4.get_yaxis().set_ticklabels([])
+    minorLocator = MaxNLocator(10)
+    ax3.yaxis.set_major_locator(minorLocator)
+    ax4.yaxis.set_major_locator(minorLocator)
+    ax3.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax4.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-    plt.show()
+    for label in ax3.yaxis.get_ticklabels()[::2]:
+        label.set_visible(False)
+
+    #plt.show()
+    plt.savefig("poster.png", dpi=600)
 
 
 def tension(manager, names, dt1, dt2, st1, st2):
 
-    axes = broken_axis_errorbar([153, 167, 254, 266], label="""$\Delta$($\sigma$(sample) - $\sigma$(pure water))mN $\cdot$ m$^{-1}$""")
+    axes = broken_axis_errorbar([153, 167, 254, 266], label="""$\Delta$( $\sigma$(sample) - $\sigma$ (surfactant-free seawater))/ mN $\cdot$ m$^{-1}$""")
     axes[1].xaxis.set_major_locator(MaxNLocator(integer=True))
     axes[0].xaxis.set_major_locator(MaxNLocator(integer=True))
     axes[0].axhline(0, linestyle="--", color="black", alpha=0.75)
     axes[1].axhline(0, linestyle="--", color="black", alpha=0.75)
-    axes[1].text(254, -0.55, "accuracy $\\approx \pm$0.5 mN $\cdot$ m$^{-1}$")
+    axes[1].text(254, -0.55, "accuracy $\\approx \pm$0.05 mN $\cdot$ m$^{-1}$")
 
     for name in names:
 
@@ -312,23 +324,28 @@ def tension(manager, names, dt1, dt2, st1, st2):
             axes[1].axhline(dt2, linestyle="--", color="orange")
         else:
             label = "SML (corrected to 21 °C and S = 17)"
-            axes[0].axhline(st1, linestyle="--", color="blue")
+            axes[0].axhline(st1, linestyle="--", color="#1f77b4")
             axes[0].scatter(manager.station_table["doy"], (manager.station_table[name] - 0.2155) - 73.11)
-            axes[1].axhline(st2, linestyle="--", color="blue")
+            axes[1].axhline(st2, linestyle="--", color="#1f77b4")
             axes[1].scatter(manager.station_table["doy"], (manager.station_table[name] - 0.2155) - 73.11, label=label)
+
+    minorLocator = MaxNLocator(10)
+    axes[0].yaxis.set_major_locator(minorLocator)
+    axes[1].yaxis.set_major_locator(minorLocator)
 
     axes[1].legend(frameon=True).draggable()
     plt.show()
 
 
 if __name__ == "__main__":
+    rcParams['figure.figsize'] = 10.8, 14.4
     rcParams['axes.labelsize'] = 18
     rcParams['font.size'] = 18
     rcParams['figure.subplot.bottom'] = 0.12
 
 
     G = GasexManager("test.db", dppc_flag=True)
-    spec = G.stations[1].samples[1].sfg_spectra[0]
+    spec = G.stations[6].samples[1].sfg_spectra[0]
     q = G.fetch_dppc_spec(spec)
 
 
