@@ -1,12 +1,10 @@
-from spectrum import SfgSpectrum, LtIsotherm, DummyPlotter
+from spectrum import SfgSpectrum, LtIsotherm
 import pandas as pd
 import sqlite3
 import numpy as np
-import matplotlib.pyplot as plt
+
 
 from datetime import datetime
-
-conn = sqlite3.connect("test.db")
 
 
 class GasexManager:
@@ -23,8 +21,8 @@ class GasexManager:
         self.set_new_pd_columns()
         self.station_table["date"] = pd.to_datetime(self.station_table["date"])
 
-
     def get_dppc_reference(self):
+        """Returns a dictionary with each day of measurement and the corresponding DPPC integrals"""
         cmd = "SELECT * FROM sfg WHERE name GLOB '*DPPC_*.*' AND measured_time BETWEEN '2018-01-01' AND '2018-12-31'"
         dppc_specs = pd.read_sql(cmd, self.conn)
         dates = {}
@@ -55,6 +53,8 @@ class GasexManager:
         return dates
 
     def get_stations(self):
+        """Get the station data from the SQL database and transform them to the corresponding objects and a suitable
+        Pandas dataframe which is used for the further data processing"""
         cmd = "SELECT * FROM stations"
         stations = pd.read_sql(cmd, self.conn)
 
@@ -64,20 +64,20 @@ class GasexManager:
         for item in stations["id"]:
             stat = Station(stations.loc[counter,])
             cmd2 = f'SELECT * from samples WHERE station_id = {item}'
-            samples = pd.read_sql(cmd2, conn)
+            samples = pd.read_sql(cmd2, self.conn)
 
             counter2 = 0
             for element in samples["id"]:
                 samp = Sample(samples.loc[counter2,])
 
                 cmd3 = f"""SELECT * from gasex_sfg INNER JOIN sfg on sfg.name = gasex_sfg.name WHERE sample_id = {element}"""
-                samp.sfg = pd.read_sql(cmd3, conn)
+                samp.sfg = pd.read_sql(cmd3, self.conn)
 
                 cmd4 = f"""SELECT * from gasex_surftens WHERE sample_id = {element}"""
-                samp.tension = pd.read_sql(cmd4, conn)
+                samp.tension = pd.read_sql(cmd4, self.conn)
 
                 cmd5 = cmd3.replace("sfg", "lt")
-                samp.lt = pd.read_sql(cmd5, conn)
+                samp.lt = pd.read_sql(cmd5, self.conn)
                 stat.samples.append(samp)
                 counter2 += 1
 
@@ -87,6 +87,8 @@ class GasexManager:
         return out, stations
 
     def calculate_sample_values(self):
+        """Convenience function to call the stations (and, therefore, samples) functions and collect the average data
+        from the raw single measurements."""
         for station in self.stations:
             for sample in station.samples:
                 sample.calc_values(self.dates)
@@ -100,6 +102,7 @@ class GasexManager:
             station.get_all_stats()
 
     def set_new_pd_columns(self):
+        """Add the calculated per-station average values to the Pandas station table dataframe."""
 
         cols = [i for i in self.stations[0].stats]
         cols.append("doy")
@@ -110,12 +113,16 @@ class GasexManager:
                 self.station_table.loc[self.station_table.id == station.data["id"], stat] = station.stats[stat]
 
     def to_sql(self, name):
-        pass
+        """Futute function to export the final station table to SQL"""
+        raise NotImplementedError
 
     def to_excel(self):
+        """Converts the final station table to an Excel file."""
         self.station_table.to_excel("stations.xlsx")
 
     def fetch_dppc_spec(self, spec):
+        """A function which returns the suitable SFG spectrum object for the reference measurement of the input spectrum
+        spec."""
         for item in self.dppc:
             if item.meta["time"].date() == spec.meta["time"].date():
                 return spec, item
@@ -123,7 +130,16 @@ class GasexManager:
 
     @staticmethod
     def correct_salinity(salinity):
+        """A function yielding a salinity-dependent correction factor for the surface tension. The reference salinity where
+        the factor equals zero is 17 PSU."""
         return 0.5225-0.0391*salinity
+
+
+class Cruise:
+    """The class taking care of statistics between the two cruises"""
+    def __init__(self, station_frame):
+        # calculate sml, deep, screen, plate averages and standard deviations
+        pass
 
 
 class Station:
@@ -150,12 +166,15 @@ class Station:
             "deep_tension": None,
             "deep_max_pressure": None
         }
-        self.doy = self.get_date().timetuple().tm_yday + (1-self.data["number"])*0.25
+        self.doy = self.get_date().timetuple().tm_yday + (1-self.data["number"])*0.2
+
     def get_date(self):
+        """Generate a datetime.date object from the raw date string."""
         date = datetime.strptime(self.data["date"], '%Y-%m-%d').date()
         return date
 
     def calc_stat(self, var, var2):
+        """A generic function to calculate all necessary station attributes (eg. SML coverage, deep tension..)."""
         value = [getattr(i, var) for i in self.samples if i.data["type"] in var2]
         value = [float(i) for i in value if i is not None]
         n = int(len(value))
@@ -164,6 +183,8 @@ class Station:
         return av, std, n
 
     def get_all_stats(self):
+        """Function to collect the station's values including standard deviation and number of samples included
+        in the average."""
 
         dic1 = {"deep": ("deep",), "sml": ("p", "s"), "plate": ("p",), "screen": ("s",)}
         dic2 = {"tension": "tension", "lift": "lift_off", "max": "max_pressure", "coverage": "coverage"}
@@ -196,9 +217,9 @@ class Sample:
 
         self.get_tension()
 
-    # todo: invoke the calculations necessary for the station
-
     def get_tension(self):
+        """Calculates the sample's surface tension. Sets it to None if no tension measurement is available for
+        this sample."""
         if self.tension is None:
             pass
 
@@ -212,6 +233,7 @@ class Sample:
             self.tension = float(self.tension.loc[0, "surface_tension"])
 
     def make_sfg(self):
+        """Generate a list of SFG objects from the dataframe stored in self.sfg"""
 
         if len(self.sfg) > 1:
             raise ValueError(f'Invalid number of SFG spectra for {self.sfg["name"]}!')
@@ -231,6 +253,7 @@ class Sample:
                 self.sfg_spectra.append(s)
 
     def make_lt(self):
+        """Generate a list of LTbjects from the dataframe stored in self.lt"""
 
         for i in range(len(self.lt["name"])):
             name = self.lt.loc[i, "name"].values[0]
@@ -247,6 +270,7 @@ class Sample:
             self.lt_isotherms.append(l)
 
     def calc_pressure(self):
+        """Calculate the maximum surface pressure for the LT isotherm measurement of the sample."""
 
         try:
             temp = sorted(self.lt_isotherms, key=lambda x: x.measured_time)
@@ -270,6 +294,8 @@ class Sample:
             pass
 
     def get_lift_off(self):
+        """Extract the lift-off value from the dataframe and normalize it to the maximum initial area in order to make
+        it comparable."""
         try:
             temp = sorted(self.lt_isotherms, key=lambda x: x.measured_time)
             # divide the raw lift-off point by the start area of compression
@@ -279,6 +305,7 @@ class Sample:
             pass
 
     def calc_values(self, dates):
+        """Top level function to call all data-collecting routines."""
         self.get_tension()
         self.make_lt()
         self.make_sfg()
@@ -287,7 +314,3 @@ class Sample:
         self.calc_coverage(dates)
         self.get_lift_off()
 
-#G = GasexManager("test.db")
-
-#plt.scatter(G.station_table["date"].dt.dayofyear, G.station_table["sml_tension"])
-#plt.show()

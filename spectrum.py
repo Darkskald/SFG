@@ -69,7 +69,7 @@ class AbstractSpectrum(ABC):
         pass
 
 
-# todo: ensure correct creation time injection and meta dictionary creation
+
 class SfgSpectrum(AbstractSpectrum):
     """The SFG spectrum class is the foundation of all analysis and plotting tools. It contains a class
     SystematicName (or a derived class) which carries most of the metainformation. Besides holding the
