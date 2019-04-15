@@ -220,3 +220,5 @@ class SpectraManager:
     def query(self, table):
         """Extract the data from the table"""
         pass
+
+# blubb
