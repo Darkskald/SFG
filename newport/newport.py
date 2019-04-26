@@ -389,7 +389,13 @@ class Importer:
                            "wavenumbers": extract[0], "sfg": extract[1], "ir": extract[2], "vis": extract[3]}
 
                     if "dppc" in dic["name"] or "DPPC" in dic["name"]:
-                        dic["type"] = "regular"
+
+                        if folder == "boknis":
+                            dic["type"] = "boknis_ref"
+
+                        else:
+                            dic["type"] = "regular"
+
 
                     out.append(dic)
 
