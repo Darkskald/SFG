@@ -7,7 +7,7 @@ from matplotlib import rcParams
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator, MultipleLocator
 import scipy.stats
-import seaborn as sns
+
 plt.style.use(['seaborn-ticks', 'seaborn-poster'])
 
 
@@ -315,7 +315,6 @@ def tension(manager, names, dt1, dt2, st1, st2):
 
     for name in names:
 
-
         if "deep" in name:
             label = "Bulk water, depth > 10 m (corrected to 21 °C and S = 17)"
             axes[0].scatter(manager.station_table["doy"], (manager.station_table[name]-0.2155)-73.11)
@@ -372,20 +371,32 @@ if __name__ == "__main__":
     st2 = np.nanmean(mean2)
 
     # average for coverage
-    dc1 = np.nanmean(cruise1["deep_coverage"])
-    dc2 = np.nanmean(cruise2["deep_coverage"])
-    sc1 = np.nanmean(cruise1["sml_coverage"])
-    sc2 = np.nanmean(cruise2["sml_coverage"])
+    dc1 = np.nanmean(cruise1["deep_coverage"].values)
+    dstd1 = np.nanstd(cruise1["deep_coverage"].values)
+
+    dc2 = np.nanmean(cruise2["deep_coverage"].values)
+    dstd2 = np.nanstd(cruise2["deep_coverage"].values)
+
+    sc1 = np.nanmean(cruise1["sml_coverage"].values)
+    sstd1 = np.nanstd(cruise1["sml_coverage"].values)
+
+    sc2 = np.nanmean(cruise2["sml_coverage"].values)
+    sstd2 = np.nanstd(cruise2["sml_coverage"].values)
+
+
+
+    from datetime import date
+    out_sml = {date(2018, 6, 1): (sc1, sstd1), date(2018, 9, 1): (sc2, sstd2)}
+    out_deep = {date(2018, 6, 1): (dc1, dstd1), date(2018, 9, 1): (dc2, dstd2)}
+
+    print(out_sml)
+    print(out_deep)
+
 
 
     #tension(G, ("sml_tension", "deep_tension"), dt1, dt2, st1, st2)
-    newposter(q[0], q[1], G.station_table['doy'], G.station_table['doy'],
-              G.station_table['sml_coverage'], G.station_table['deep_coverage'], dc1, sc1, dc2, sc2)
-
-
-
-
-
+    #newposter(q[0], q[1], G.station_table['doy'], G.station_table['doy'],
+              #G.station_table['sml_coverage'], G.station_table['deep_coverage'], dc1, sc1, dc2, sc2)
 
 
     # axes = broken_axis_errorbar([153, 167, 254, 266])
