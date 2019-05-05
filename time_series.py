@@ -1,4 +1,4 @@
-from spectrum import SfgSpectrum
+from spectrum import SfgSpectrum, SfgAverager
 
 import re
 import sqlite3
@@ -32,8 +32,14 @@ class SampleNameParser:
     sep = "*"*90+"\n"
 
     def __init__(self):
+        # inital attributes
         self.log = ""
         self.sample_counter = 0
+        self.sfg = None
+        self.sfg_deep = None
+
+        self.coverages_noav = None
+        self.deep_coverages_noav = None
 
         # read the master excel sheet
         self.df = pd.read_excel("Wasserproben_komplett.xlsx", header=2, sheet_name="Samples")
@@ -56,29 +62,28 @@ class SampleNameParser:
         # connect to the sample database with the raw SFG data
         self.conn = sqlite3.connect("test.db")
         self.samples = pd.read_sql("SELECT * from sfg where type = \"boknis\"", self.conn)
-        self.sfg = []
+
 
         # calculate the daily dppc averages
-        self.reference_per_date = (self.get_dppc_intensities())
+        self.reference_per_date = self.get_dppc_intensities()
 
         # initial data preparation
         self.new_df_cols()
         self.process()
         self.samples["sampling_date"] = pd.to_datetime(self.samples["sampling_date"])
 
-        # match the master table entries to the raw data, extract the coverages
-        self.coverages = self.match_test(self.df)
-        self.deep_coverages = self.match_test(self.deep)
+        self.calc_coverage_averaging()
 
-        # add the GasEx cruise results to the coverages dictionary
-        self.coverages.update(self.gasex_sml)
-        self.deep_coverages.update(self.gasex_deep)
 
-        # visualize the coverage as a function of date
-        self.plot_coverage()
+        #add the GasEx cruise results to the coverages dictionary
+        #self.coverages.update(self.gasex_sml)
+        #self.deep_coverages.update(self.gasex_deep)
+
+        #visualize the coverage as a function of date
+        #self.plot_coverage()
 
         # write the log file (for debugging and finding corrupted data)
-        self.write_log()
+        #self.write_log()
 
     def new_df_cols(self):
         """Add new dataframe columns for the sampling date and number extracted from the filename via regex"""
@@ -156,6 +161,7 @@ class SampleNameParser:
                     data = ("wavenumbers", "sfg", "ir", "vis")
                     tup = map(lambda x: np.fromstring(match.loc[j, x], sep=";"), data)
                     s = SfgSpectrum(*tup, meta)
+                    self.sfg.append(s)
 
                     info = f"""sample number {target.loc[i, "Sample"]} from sampling date {target.loc[i, "Date"]}
                     matched to {match.head()} \n"""
@@ -212,6 +218,70 @@ class SampleNameParser:
 
         return out
 
+    def map_spectra_dates(self, target):
+        """The second central method of this class. Instead of calculating the coverage for each spectrum separately,
+        the spectra of one sampling day are averaged and afterwards the baseline is generated once. This method
+        returns a dictionary of sampling dates with a list of associated SFG spectra objects as values."""
+
+        out = {}
+
+        for i in range(len(target)):
+
+            try:
+                # boolean indexing of the master dataframe to search for a specific date and sample number
+                mask1 = (self.samples["sampling_date"] == target.loc[i, "Date"])
+                mask2 = (self.samples["number"] == target.loc[i, "Sample"])
+                sampling_date = target.loc[i, "Date"]
+                match = self.samples[mask1 & mask2].reset_index(drop=True)
+                self.sample_counter += 1
+
+                for j in range(len(match)):
+                    name = match.loc[j, "name"]
+                    time = datetime.strptime((match.loc[j, "measured_time"]), '%Y-%m-%d %H:%M:%S')
+                    meta = {"name": name, "time": time}
+                    data = ("wavenumbers", "sfg", "ir", "vis")
+                    tup = map(lambda x: np.fromstring(match.loc[j, x], sep=";"), data)
+                    s = SfgSpectrum(*tup, meta)
+
+
+                    info = f"""sample number {target.loc[i, "Sample"]} from sampling date {target.loc[i, "Date"]}
+                    matched to {match.head()} \n"""
+                    self.log += SampleNameParser.sep
+                    self.log += f'Sample counter: {self.sample_counter}\n'
+                    self.log += info
+
+                    # now get the coverage
+                    try:
+
+                        # if the sample was measured during the night, take the DPPC average from the day before
+                        if 0 < s.meta["time"].hour < 8:
+                            s.meta["time"] -= timedelta(days=1)
+                        if s.meta["time"].date() in self.reference_per_date:
+                            # append the result to a dictionary mapping the coverages to the sampling dates
+                            if sampling_date not in out:
+                                out[sampling_date] = [s]
+                            else:
+                                out[sampling_date].append(s)
+                        else:
+                            print(s.meta["time"].date())
+
+
+                    except IndexError:
+                        self.log += SampleNameParser.sep
+                        errstr = f'Error occurred in inner block of match_test with {s.meta["name"]}\n'
+                        self.log += errstr
+
+                    except KeyError:
+                        self.log += SampleNameParser.sep
+                        errstr = f'No DPPC reference found for spectrum {s.meta["name"]}\n'
+                        self.log += errstr
+
+            except TypeError:
+                self.log += SampleNameParser.sep
+                errstr = f'Type Error occurred in outer block of match_test for {target.iloc[i]}\n'
+                self.log += errstr
+        return out
+
     def get_dppc_intensities(self):
         """Returns a dictionary with each day of measurement and the corresponding DPPC integrals"""
 
@@ -248,16 +318,16 @@ class SampleNameParser:
         months = MonthLocator(range(1, 13), bymonthday=1, interval=3)
         monthsFmt = DateFormatter("%b '%y")
 
-        for item in self.coverages:
+        for item in self.coverages_noav:
 
-            ax.errorbar(item, self.coverages[item][0]*100, yerr=self.coverages[item][1]*100,
+            ax.errorbar(item, self.coverages_noav[item][0] * 100, yerr=self.coverages_noav[item][1] * 100,
                         markerfacecolor="red", marker="o", ecolor="red", capsize=5,
                         capthick=10, mec="black", mew=0.3, aa=True, elinewidth=1)
 
-        for item in self.deep_coverages:
+        for item in self.deep_coverages_noav:
 
-            ax.errorbar(item, self.deep_coverages[item][0]*100, yerr=self.deep_coverages[item][1]*100,
-                        markerfacecolor="blue",  marker="o", ecolor="blue", capsize=5,
+            ax.errorbar(item, self.deep_coverages_noav[item][0] * 100, yerr=self.deep_coverages_noav[item][1] * 100,
+                        markerfacecolor="blue", marker="o", ecolor="blue", capsize=5,
                         capthick=10, mec="black", mew=0.3, aa=True, elinewidth=1)
 
         for i in range(8, 20, 1):
@@ -290,6 +360,30 @@ class SampleNameParser:
 
         with open("log.txt", "w") as outfile:
             outfile.write(self.log)
+
+    def calc_coverage_no_averaging(self):
+        self.coverages_noav = self.match_test(self.df)
+        self.deep_coverages_noav = self.match_test(self.deep)
+
+        # add the GasEx cruise results to the coverages dictionary
+        self.coverages_noav.update(self.gasex_sml)
+        self.deep_coverages_noav.update(self.gasex_deep)
+
+    def calc_coverage_averaging(self):
+
+        self.sfg = self.map_spectra_dates(self.df)
+        self.sfg_deep = self.map_spectra_dates(self.deep)
+
+        self.sfg = self.convert_to_coverage(self.sfg)
+        self.sfg_deep = self.convert_to_coverage(self.sfg_deep)
+
+    def convert_to_coverage(self, spectra_dic):
+
+        for date in spectra_dic:
+            temp = SfgAverager(spectra_dic[date], self.reference_per_date)
+            spectra_dic[date] = temp.coverage
+        return spectra_dic
+
 
 
 def baseline_demo_dppc(spectrum, integral= "", coverage= ""):
@@ -334,6 +428,7 @@ rcParams['figure.subplot.bottom'] = 0.12
 
 if __name__ == "__main__":
     s = SampleNameParser()
+
 
 # todo: remove outliers (with more than 100 % coverage), eventually adjust basement correction routine
 # todo: check the logfile for duplicates of sample measurements

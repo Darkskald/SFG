@@ -16,9 +16,11 @@ class AbstractSpectrum(ABC):
     def setup_spec(self, x, y, x_unit=None, y_unit=None):
         """This method has to make sure that x and y values and the corresponding units are set properly"""
         pass
+
     @property
     def x(self):
         return self._x
+
     @x.setter
     def set_x(self, value):
         self._x = value
@@ -34,6 +36,7 @@ class AbstractSpectrum(ABC):
     @property
     def y(self):
         return self._y
+
     @y.setter
     def set_y(self, value):
         self._x = value
@@ -69,7 +72,6 @@ class AbstractSpectrum(ABC):
         pass
 
 
-
 class SfgSpectrum(AbstractSpectrum):
     """The SFG spectrum class is the foundation of all analysis and plotting tools. It contains a class
     SystematicName (or a derived class) which carries most of the metainformation. Besides holding the
@@ -91,7 +93,7 @@ class SfgSpectrum(AbstractSpectrum):
         self._name = self.meta["name"]
         self._x = self.wavenumbers
         self._y = self.normalized_intensity
-        self._x_unit ="wavenumber/ cm$^{-1}$"
+        self._x_unit = "wavenumber/ cm$^{-1}$"
         self._y_unit = "SHG intensity/ arb. u."
 
     def __lt__(self, SFG2):
@@ -162,6 +164,9 @@ class SfgSpectrum(AbstractSpectrum):
         increment = [borders, stepsize]
         return increment
 
+    def yield_density(self):
+        return len(self.wavenumbers) / (np.max(self.wavenumbers) - np.min(self.wavenumbers))
+
     # info functions
 
     def drop_ascii(self):
@@ -193,7 +198,7 @@ class SfgSpectrum(AbstractSpectrum):
 
         if average == "min":
             slope = (interval[min_index] - l_interval[l_min_index]) / (
-                        interval_wl[min_index] - l_interval_wl[l_min_index])
+                    interval_wl[min_index] - l_interval_wl[l_min_index])
             intercept = l_interval[l_min_index] - slope * l_interval_wl[l_min_index]
 
         elif average == "min_reg":
@@ -296,6 +301,15 @@ class SfgSpectrum(AbstractSpectrum):
         return upper_index, lower_index
 
 
+class AverageSpectrum(SfgSpectrum):
+
+    def __init__(self, wavenumbers, intensities, meta):
+        self.wavenumbers = wavenumbers
+        self.normalized_intensity = intensities
+        self.meta = meta
+        super().setup_spec()
+
+
 class LtIsotherm(AbstractSpectrum):
     """A class to represent experimental Langmuir trough isotherms, handling time, area, area per molecule and
     surface pressure"""
@@ -353,7 +367,7 @@ class LtIsotherm(AbstractSpectrum):
 
     def calc_compression_factor(self):
         max = np.max(self.area)
-        return (self.area/max)
+        return (self.area / max)
 
     def derive_pressure(self):
         """Calculates the difference quotient of the surface pressure with respect to the area.
@@ -398,12 +412,10 @@ class LtIsotherm(AbstractSpectrum):
 
         return np.array(out[::-1])
 
-
-
     def cut_away_decay(self, x_array):
 
         max = self.get_maximum_pressure()
-        index = int(np.where(self.pressure==max)[0][0])
+        index = int(np.where(self.pressure == max)[0][0])
         return self.get_slice(x_array, 0, index)
 
     @staticmethod
@@ -423,8 +435,13 @@ class LtIsotherm(AbstractSpectrum):
 
 class DummyPlotter:
     """A test class to monitor the interaction of the subclasses of AbstractSpectrum with plotting routines."""
-    def __init__(self, speclist):
+
+    def __init__(self, speclist, save=False, savedir="", savename="Default"):
         self.speclist = speclist
+
+        self.save = save
+        self.savedir = savedir
+        self.savename = savename
 
     def plot_all(self):
         for spectrum in self.speclist:
@@ -433,6 +450,128 @@ class DummyPlotter:
         plt.xlabel(spectrum.x_unit)
         plt.ylabel(spectrum.y_unit)
         plt.legend()
-        plt.show()
+
+        if self.save is False:
+            plt.show()
+
+        else:
+            path = self.savedir + "/" + self.savename + ".png"
+            plt.savefig(path)
+            plt.close()
 
 
+class SfgAverager:
+
+    def __init__(self, spectra, references=None):
+        self.failure_count = 0
+        self.log = ""
+        self.log += "Log file for averaging spectra\n"
+
+        self.spectra = spectra
+        self.references = references
+
+        self.day_counter = {}
+        self.average_spectrum = self.average_spectra()
+
+        self.integral = self.average_spectrum.calculate_ch_integral(average="gernot")
+        self.coverage = self.calc_coverage()
+
+       # self.benchmark()
+
+    def average_spectra(self):
+        to_average = []
+
+        # sort spectra by density (lambda)
+        self.spectra.sort(key=lambda x: x.yield_density(), reverse=True)
+
+        root_x_scale = self.spectra[0].x[::-1]
+
+        # get y values by interpolation and collect the y values in a list
+        # collect the dates of measurement for DPPC referencing
+        for item in self.spectra:
+            date = item.meta["time"].date()
+
+            if date not in self.day_counter:
+                self.day_counter[date] = 1
+            else:
+                self.day_counter[date] += 1
+
+            new_intensity = np.interp(root_x_scale, item.x[::-1], item.y[::-1])
+            to_average.append(new_intensity)
+
+        to_average = np.array(to_average)
+        average = np.mean(to_average, axis=0)
+        std = np.std(to_average, axis=0)
+
+        # prepare meta data for average spectrum
+        newname = self.spectra[0].name + "baseAV"
+        in_new = [n.name for n in self.spectra]
+        s_meta = {"name": newname, "made_from": in_new, "std": std}
+        s = AverageSpectrum(root_x_scale[::-1], average[::-1], s_meta)
+
+        return s
+
+    def calc_reference_part(self):
+
+        spec_number = len(self.spectra)
+        total = 0
+        self.log += f'Start of the reference calculating section: \n'
+
+        for date in self.day_counter:
+            # divide by total number of spectra in the average
+            self.log += f'date {date} divided by the number of spectra {spec_number}\n'
+            self.day_counter[date] /= spec_number
+
+            # multiply the weighting factor by the integral of the day
+            try:
+                self.log += f"""Now multiplying the factor{self.day_counter[date]} 
+                by the reference integral {self.references[date]}\n"""
+
+                self.day_counter[date] *= self.references[date]
+                total += self.day_counter[date]
+            except KeyError:
+                self.failure_count += 1
+                self.log += f'Error: no suitable DPPC reference found four date {date}\n'
+
+        self.log += f'Finalizing calculation. The total factor now is {total}.\n'
+
+        return total
+
+    def calc_coverage(self):
+
+        if self.references is not None:
+            dppc_factor = self.calc_reference_part()
+            coverage = np.sqrt(self.integral / dppc_factor)
+            return coverage
+
+        else:
+            print("Coverage not available for reference samples!")
+
+    def benchmark(self):
+        self.create_log()
+        l = [i for i in self.spectra]
+        l.append(self.average_spectrum)
+        p = DummyPlotter(l, save=True, savedir="benchmark", savename=self.spectra[0].name)
+        p.plot_all()
+
+    def create_log(self):
+
+        name = "benchmark/" + self.spectra[0].name + ".log"
+
+        s = f'This average contains {len(self.spectra)} SFG spectra:\n'
+
+        self.log += 80 * "-" + "\n"
+        self.log += s
+        for i in self.spectra:
+            self.log += (i.name + "\n")
+
+        self.log += 80 * "-" + "\n"
+        s = f'integral: {self.integral}\ncoverage: {self.coverage}\n'
+
+        with open(name, "w") as outfile:
+            outfile.write(self.log)
+
+
+"""TEST"""
+# density: print spectral range, increment, density
+# sorting by density - does it work?
