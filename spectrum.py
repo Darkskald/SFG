@@ -77,8 +77,11 @@ class SfgSpectrum(AbstractSpectrum):
     SystematicName (or a derived class) which carries most of the metainformation. Besides holding the
     experimental data, it gives access to a variety of functions like normalization, peak picking etc."""
 
+
+
     # magic methods
     def __init__(self, wavenumbers, intensity, ir_intensity, vis_intensity, meta):
+
         self.wavenumbers = wavenumbers
         self.raw_intensity = intensity
         self.vis_intensity = vis_intensity
@@ -86,8 +89,10 @@ class SfgSpectrum(AbstractSpectrum):
         self.meta = meta
         self.normalized_intensity = self.raw_intensity / (self.vis_intensity * self.ir_intensity)
         self.baseline_corrected = None
-
         self.setup_spec()
+
+        self.regions = None
+        self.set_regions()
 
     def setup_spec(self):
         self._name = self.meta["name"]
@@ -185,7 +190,7 @@ class SfgSpectrum(AbstractSpectrum):
         else:
             left = self.slice_by_borders(2805, 2800)
 
-        right = self.slice_by_borders(3020, 3000)
+        right = self.slice_by_borders(3010, 3000)
 
         left_x = self.wavenumbers[left[0]:left[1] + 1]
         left_y = self.normalized_intensity[left[0]:left[1] + 1]
@@ -222,20 +227,27 @@ class SfgSpectrum(AbstractSpectrum):
 
         return baseline
 
-    def correct_baseline(self, func="CH", borders=(2750, 3000)):
+    def correct_baseline(self, func="CH", borders=(2750, 3000), flag="CH"):
+
+        borders = self.regions[flag][0]
 
         if func == "CH":
             func = self.make_ch_baseline()
         else:
             func = func
 
-        temp = copy.deepcopy(self.normalized_intensity)
+        if self.baseline_corrected is None and self.regions[flag][-1] is False:
+            temp = copy.deepcopy(self.normalized_intensity)
+
+        else:
+            return
 
         for i in range(*borders):
             index = np.where(self.wavenumbers == i)
             correction = func(self.wavenumbers[index])
             temp[index] = temp[index] - correction
 
+        self.regions[flag][-1] = True
         self.baseline_corrected = temp
 
     def calculate_ch_integral(self):
@@ -282,6 +294,11 @@ class SfgSpectrum(AbstractSpectrum):
 
         return upper_index, lower_index
 
+    def set_regions(self):
+        self.regions = {"CH": [(int(np.min(self.wavenumbers)), 3000), (0, 0), False],
+                        "dangling": [(3670, 3760), ((3625, 3600), (3785, 3760)), False],
+                        "OH": [(3005, 3665), ((3035, 3000), (3600, 3555)), False]}
+
 
 class AverageSpectrum(SfgSpectrum):
 
@@ -289,7 +306,10 @@ class AverageSpectrum(SfgSpectrum):
         self.wavenumbers = wavenumbers
         self.normalized_intensity = intensities
         self.meta = meta
+        self.baseline_corrected = None
+        self.regions = None
         super().setup_spec()
+        super().set_regions()
 
 
 class LtIsotherm(AbstractSpectrum):
