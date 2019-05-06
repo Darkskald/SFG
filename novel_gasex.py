@@ -37,7 +37,7 @@ class GasexManager:
 
             # if sr[0] < 2800 and sr[1] > 3010 and name.split("_")[-1] != "ppp":
             if name.split("_")[-1] != "ppp":
-                q = s.calculate_ch_integral(average="gernot")
+                q = s.calculate_ch_integral()
                 if time.date() not in dates:
                     dates[time.date()] = [q]
                 else:
@@ -283,7 +283,7 @@ class Sample:
 
         try:
             factor = dates[self.sfg_spectra[0].meta["time"].date()]
-            integral = self.sfg_spectra[0].calculate_ch_integral(average="gernot")
+            integral = self.sfg_spectra[0].calculate_ch_integral()
             if integral < 0:
                 integral = 0
             self.coverage = round(np.sqrt(integral / factor), 4)

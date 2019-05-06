@@ -165,7 +165,7 @@ class SfgSpectrum(AbstractSpectrum):
         return increment
 
     def yield_density(self):
-        return len(self.wavenumbers) / (np.max(self.wavenumbers) - np.min(self.wavenumbers))
+        return np.max(self.wavenumbers) - np.min(self.wavenumbers)
 
     # info functions
 
@@ -178,87 +178,69 @@ class SfgSpectrum(AbstractSpectrum):
 
     # CH baseline correction and integration
 
-    def make_ch_baseline(self, average="min"):
+    def make_ch_baseline(self):
 
-        if np.min(self.wavenumbers > 2760):
-            l_interval = self.slice_by_borders(2805, np.min(self.wavenumbers))
-
+        if np.min(self.wavenumbers) > 2760:
+            left = self.slice_by_borders(2760, 2750)
         else:
-            l_interval = self.slice_by_borders(2800, 2750)
+            left = self.slice_by_borders(2805, 2800)
 
-        l_interval_wl = self.wavenumbers[l_interval[0]:l_interval[1] + 1]
-        l_interval = self.normalized_intensity[l_interval[0]:l_interval[1] + 1]
+        right = self.slice_by_borders(3020, 3000)
 
-        interval = self.slice_by_borders(2960, 2895)
-        interval_wl = self.wavenumbers[interval[0]:interval[1] + 1]
-        interval = self.normalized_intensity[interval[0]:interval[1] + 1]
+        left_x = self.wavenumbers[left[0]:left[1] + 1]
+        left_y = self.normalized_intensity[left[0]:left[1] + 1]
 
-        min_index = np.argmin(interval)
-        l_min_index = np.argmin(l_interval)
+        right_x = self.wavenumbers[right[0]:right[1] + 1]
+        right_y = self.normalized_intensity[right[0]:right[1] + 1]
 
-        if average == "min":
-            slope = (interval[min_index] - l_interval[l_min_index]) / (
-                    interval_wl[min_index] - l_interval_wl[l_min_index])
-            intercept = l_interval[l_min_index] - slope * l_interval_wl[l_min_index]
+        slope = (np.average(right_y) - np.average(left_y)) / \
+                (np.average(right_x) - np.average(left_x))
 
-        elif average == "min_reg":
-            y2 = []
-            x2 = []
-
-            q = np.sort(l_interval)
-
-            for i in range(3):
-                y2.append(q[i])
-                index = int((np.where(l_interval == q[i]))[0])
-                x2.append(l_interval_wl[index])
-
-            q = np.sort(interval)
-
-            for i in range(3):
-                y2.append(q[i])
-                index = int((np.where(interval == q[i]))[0])
-                x2.append(interval_wl[index])
-
-            slope, intercept, r_value, p_value, std_err = stats.linregress(x2, y2)
-
-        elif average == "gernot":
-
-            if np.min(self.wavenumbers) > 2760:
-                left = self.slice_by_borders(2760, 2750)
-            else:
-                left = self.slice_by_borders(2805, 2800)
-
-            right = self.slice_by_borders(3010, 2990)
-
-            left_x = self.wavenumbers[left[0]:left[1] + 1]
-            left_y = self.normalized_intensity[left[0]:left[1] + 1]
-
-            right_x = self.wavenumbers[right[0]:right[1] + 1]
-            right_y = self.normalized_intensity[right[0]:right[1] + 1]
-
-            slope = (np.average(right_y) - np.average(left_y)) / \
-                    (np.average(right_x) - np.average(left_x))
-
-            intercept = np.average(left_y) - slope * np.average(left_x)
+        intercept = np.average(left_y) - slope * np.average(left_x)
 
         baseline = lambda x: slope * x + intercept
         return baseline
 
-    def correct_baseline(self, average="min"):
+    def make_baseline(self, left, right):
 
-        func = self.make_ch_baseline(average=average)
+        left = self.slice_by_borders(*left)
+        right = self.slice_by_borders(*right)
+
+        left_x = self.wavenumbers[left[0]:left[1] + 1]
+        left_y = self.normalized_intensity[left[0]:left[1] + 1]
+
+        right_x = self.wavenumbers[right[0]:right[1] + 1]
+        right_y = self.normalized_intensity[right[0]:right[1] + 1]
+
+        slope = (np.average(right_y) - np.average(left_y)) / \
+                (np.average(right_x) - np.average(left_x))
+
+        intercept = np.average(left_y) - slope * np.average(left_x)
+
+        def baseline(x):
+            return slope * x + intercept
+
+        return baseline
+
+    def correct_baseline(self, func="CH", borders=(2750, 3000)):
+
+        if func == "CH":
+            func = self.make_ch_baseline()
+        else:
+            func = func
+
         temp = copy.deepcopy(self.normalized_intensity)
 
-        for i in range(2750, 3000):
+        for i in range(*borders):
             index = np.where(self.wavenumbers == i)
             correction = func(self.wavenumbers[index])
             temp[index] = temp[index] - correction
 
         self.baseline_corrected = temp
 
-    def calculate_ch_integral(self, average="min"):
+    def calculate_ch_integral(self):
 
-        self.correct_baseline(average=average)
+        self.correct_baseline()
         borders = self.slice_by_borders(3000, np.min(self.wavenumbers))
         x_array = self.wavenumbers[borders[0]:borders[1] + 1]
         y_array = self.baseline_corrected[borders[0]:borders[1] + 1]
@@ -436,19 +418,26 @@ class LtIsotherm(AbstractSpectrum):
 class DummyPlotter:
     """A test class to monitor the interaction of the subclasses of AbstractSpectrum with plotting routines."""
 
-    def __init__(self, speclist, save=False, savedir="", savename="Default"):
+    def __init__(self, speclist, save=False, savedir="", savename="Default", special=None):
         self.speclist = speclist
-
+        self.special = special
         self.save = save
         self.savedir = savedir
         self.savename = savename
 
     def plot_all(self):
         for spectrum in self.speclist:
-            plt.plot(spectrum.x, spectrum.y, label=spectrum.name)
+            if self.special is None:
+                plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", linestyle="-")
+            else:
+                if self.special not in spectrum.name:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", alpha=0.3)
+                else:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", linestyle="-", color="r")
 
         plt.xlabel(spectrum.x_unit)
         plt.ylabel(spectrum.y_unit)
+        plt.minorticks_on()
         plt.legend()
 
         if self.save is False:
@@ -473,10 +462,10 @@ class SfgAverager:
         self.day_counter = {}
         self.average_spectrum = self.average_spectra()
 
-        self.integral = self.average_spectrum.calculate_ch_integral(average="gernot")
+        self.integral = self.average_spectrum.calculate_ch_integral()
         self.coverage = self.calc_coverage()
 
-       # self.benchmark()
+        self.benchmark()
 
     def average_spectra(self):
         to_average = []
@@ -551,7 +540,7 @@ class SfgAverager:
         self.create_log()
         l = [i for i in self.spectra]
         l.append(self.average_spectrum)
-        p = DummyPlotter(l, save=True, savedir="benchmark", savename=self.spectra[0].name)
+        p = DummyPlotter(l, save=True, savedir="benchmark", savename=self.spectra[0].name, special="AV")
         p.plot_all()
 
     def create_log(self):
@@ -573,5 +562,4 @@ class SfgAverager:
 
 
 """TEST"""
-# density: print spectral range, increment, density
 # sorting by density - does it work?
