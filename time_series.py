@@ -66,13 +66,14 @@ class SampleNameParser:
 
         # calculate the daily dppc averages
         self.reference_per_date = self.get_dppc_intensities()
-
         # initial data preparation
         self.new_df_cols()
         self.process()
         self.samples["sampling_date"] = pd.to_datetime(self.samples["sampling_date"])
 
         self.calc_coverage_averaging()
+
+        # self.calc_coverage_no_averaging()
 
 
         #add the GasEx cruise results to the coverages dictionary
@@ -161,7 +162,6 @@ class SampleNameParser:
                     data = ("wavenumbers", "sfg", "ir", "vis")
                     tup = map(lambda x: np.fromstring(match.loc[j, x], sep=";"), data)
                     s = SfgSpectrum(*tup, meta)
-                    self.sfg.append(s)
 
                     info = f"""sample number {target.loc[i, "Sample"]} from sampling date {target.loc[i, "Date"]}
                     matched to {match.head()} \n"""
@@ -178,7 +178,7 @@ class SampleNameParser:
                             measure_date -= timedelta(days=1)
 
                         factor = self.reference_per_date[measure_date]
-                        integral = s.calculate_ch_integral(average="gernot")
+                        integral = s.calculate_ch_integral()
 
                         # if the baseline corrections leads to a negative value, set it to 0
                         if integral < 0:
@@ -235,6 +235,8 @@ class SampleNameParser:
                 match = self.samples[mask1 & mask2].reset_index(drop=True)
                 self.sample_counter += 1
 
+                counter = 0
+                specs = []
                 for j in range(len(match)):
                     name = match.loc[j, "name"]
                     time = datetime.strptime((match.loc[j, "measured_time"]), '%Y-%m-%d %H:%M:%S')
@@ -242,44 +244,49 @@ class SampleNameParser:
                     data = ("wavenumbers", "sfg", "ir", "vis")
                     tup = map(lambda x: np.fromstring(match.loc[j, x], sep=";"), data)
                     s = SfgSpectrum(*tup, meta)
+                    counter += 1
+                    specs.append(s)
 
+                #if counter > 1:
+                    #for s in specs:
+                       # baseline_demo_dppc(s)
 
-                    info = f"""sample number {target.loc[i, "Sample"]} from sampling date {target.loc[i, "Date"]}
-                    matched to {match.head()} \n"""
-                    self.log += SampleNameParser.sep
-                    self.log += f'Sample counter: {self.sample_counter}\n'
-                    self.log += info
+                info = f"""sample number {target.loc[i, "Sample"]} from sampling date {target.loc[i, "Date"]}
+                matched to {match.head()} \n"""
+                self.log += SampleNameParser.sep
+                self.log += f'Sample counter: {self.sample_counter}\n'
+                self.log += info
 
-                    # now get the coverage
-                    try:
+                # now get the coverage
+                try:
 
-                        # if the sample was measured during the night, take the DPPC average from the day before
-                        if 0 < s.meta["time"].hour < 8:
-                            s.meta["time"] -= timedelta(days=1)
-                        if s.meta["time"].date() in self.reference_per_date:
-                            # append the result to a dictionary mapping the coverages to the sampling dates
-                            if sampling_date not in out:
-                                out[sampling_date] = [s]
-                            else:
-                                out[sampling_date].append(s)
+                    # if the sample was measured during the night, take the DPPC average from the day before
+                    if 0 < s.meta["time"].hour < 8:
+                        s.meta["time"] -= timedelta(days=1)
+                    if s.meta["time"].date() in self.reference_per_date:
+                        # append the result to a dictionary mapping the coverages to the sampling dates
+                        if sampling_date not in out:
+                            out[sampling_date] = [s]
                         else:
-                            print(s.meta["time"].date())
+                            out[sampling_date].append(s)
+                    else:
+                        # print(s.meta["time"].date())
+                        pass
 
 
-                    except IndexError:
-                        self.log += SampleNameParser.sep
-                        errstr = f'Error occurred in inner block of match_test with {s.meta["name"]}\n'
-                        self.log += errstr
+                except IndexError:
+                    self.log += SampleNameParser.sep
+                    errstr = f'Error occurred in inner block of match_test with {s.meta["name"]}\n'
+                    self.log += errstr
 
-                    except KeyError:
-                        self.log += SampleNameParser.sep
-                        errstr = f'No DPPC reference found for spectrum {s.meta["name"]}\n'
-                        self.log += errstr
+                except KeyError:
+                    self.log += SampleNameParser.sep
+                    errstr = f'No DPPC reference found for spectrum {s.meta["name"]}\n'
+                    self.log += errstr
 
             except TypeError:
-                self.log += SampleNameParser.sep
-                errstr = f'Type Error occurred in outer block of match_test for {target.iloc[i]}\n'
-                self.log += errstr
+              print(target.loc[i, "Sample"])
+
         return out
 
     def get_dppc_intensities(self):
@@ -301,7 +308,7 @@ class SampleNameParser:
 
             # if sr[0] < 2800 and sr[1] > 3010 and name.split("_")[-1] != "ppp":
             if name.split("_")[-1] != "ppp":
-                q = s.calculate_ch_integral(average="gernot")
+                q = s.calculate_ch_integral()
                 if time.date() not in dates:
                     dates[time.date()] = [q]
                 else:
@@ -381,16 +388,27 @@ class SampleNameParser:
 
         for date in spectra_dic:
             temp = SfgAverager(spectra_dic[date], self.reference_per_date)
+            baseline_demo_dppc(temp.average_spectrum)
             spectra_dic[date] = temp.coverage
         return spectra_dic
 
 
-
 def baseline_demo_dppc(spectrum, integral= "", coverage= ""):
-    spectrum.correct_baseline(average="gernot")
+    spectrum.correct_baseline()
 
     test = np.linspace(2750, 3050, 10000)
-    func = spectrum.make_ch_baseline(average="gernot")
+    func = spectrum.make_ch_baseline()
+
+    if np.max(spectrum.x) > 3700:
+        func2 = spectrum.make_baseline((3625, 3600), (3785, 3760))
+        func3 = spectrum.make_baseline((3035, 3000), (3600, 3555))
+        spectrum.correct_baseline(func=func2, borders=(3625, 4760))
+        spectrum.correct_baseline(func=func2, borders=(3625, 3760))
+
+        test3 = np.linspace(2900, 3600, 10000)
+        test2 = np.linspace(3550, 3850, 10000)
+
+
     borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
 
     f, axarr = plt.subplots(2, sharex=True)
@@ -400,6 +418,10 @@ def baseline_demo_dppc(spectrum, integral= "", coverage= ""):
     axarr[0].plot(spectrum.wavenumbers, spectrum.normalized_intensity, label=spectrum.meta["name"], linewidth=1.5,
                   marker="o", markersize=3)
     axarr[0].plot(test, func(test), color="r", label="baseline")
+
+    if np.max(spectrum.x) > 3700:
+        axarr[0].plot(test2, func2(test2), color="b", label="baseline")
+        axarr[0].plot(test3, func3(test3), color="g", label="baseline")
 
     axarr[1].plot(spectrum.wavenumbers, spectrum.baseline_corrected, label=spectrum.meta["name"], linewidth=1.5,
                   marker="o", markersize=3)
@@ -413,7 +435,7 @@ def baseline_demo_dppc(spectrum, integral= "", coverage= ""):
     f.text(0.025, 0.5, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical')
 
     for ax in axarr.flat:
-        ax.set_xlim(2750, 3300)
+        ax.set_xlim(2750, 3800)
 
     plt.savefig("plots/"+spectrum.meta["name"] + ".png")
     plt.close()

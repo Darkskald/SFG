@@ -13,10 +13,10 @@ plt.style.use(['seaborn-ticks', 'seaborn-poster'])
 
 def baseline_demo_dppc(spectrum, ref, name="default"):
 
-    spectrum.correct_baseline(average="gernot")
+    spectrum.correct_baseline()
 
     test = np.linspace(2750, 3050, 10000)
-    func = spectrum.make_ch_baseline(average="gernot")
+    func = spectrum.make_ch_baseline()
     borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
 
 
@@ -120,9 +120,9 @@ def poster(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2s, 
     ax5 = fig.add_subplot(gs[3, 1])
 
     #sfg data
-    spectrum.correct_baseline(average="gernot")
+    spectrum.correct_baseline()
     test = np.linspace(2750, 3050, 10000)
-    func = spectrum.make_ch_baseline(average="gernot")
+    func = spectrum.make_ch_baseline()
     borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
 
 
@@ -214,9 +214,9 @@ def newposter(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2
 
 
     #sfg data
-    spectrum.correct_baseline(average="gernot")
+    spectrum.correct_baseline()
     test = np.linspace(2750, 3050, 10000)
-    func = spectrum.make_ch_baseline(average="gernot")
+    func = spectrum.make_ch_baseline()
     borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
 
 
