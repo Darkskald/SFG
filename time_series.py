@@ -488,20 +488,10 @@ def advanced_baseline_demo_dppc(spectrum, integral= "", coverage= ""):
     test = np.linspace(2750, 3050, 10000)
     func = spectrum.make_ch_baseline()
 
-    if np.max(spectrum.x) > 3700:
-        func2 = spectrum.make_baseline((3625, 3600), (3785, 3760))
-        func3 = spectrum.make_baseline((3035, 3000), (3600, 3555))
-
-        #spectrum.correct_baseline(func=func2, borders=(3670, 3760))
-        #spectrum.correct_baseline(func=func3, borders=(3005, 3665))
-
-        test3 = np.linspace(2900, 3600, 10000)
-        test2 = np.linspace(3550, 3850, 10000)
-
-
     borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
     dangling_borders = spectrum.slice_by_borders(3760, 3670)
-    oh_borders = spectrum.slice_by_borders(3670, 3000)
+    oh2_borders = spectrum.slice_by_borders(3670, 3350)
+    oh_borders = spectrum.slice_by_borders(3350, 3000)
 
     f, axarr = plt.subplots(2, sharex=True)
     axarr[0].ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
@@ -510,10 +500,6 @@ def advanced_baseline_demo_dppc(spectrum, integral= "", coverage= ""):
     axarr[0].plot(spectrum.wavenumbers, spectrum.normalized_intensity, label=spectrum.meta["name"], linewidth=1.5,
                   marker="o", markersize=3)
     axarr[0].plot(test, func(test), color="r", label="baseline")
-
-    if np.max(spectrum.x) > 3700:
-        axarr[0].plot(test2, func2(test2), color="b", label="baseline")
-        axarr[0].plot(test3, func3(test3), color="g", label="baseline")
 
     axarr[1].plot(spectrum.wavenumbers, spectrum.baseline_corrected, label=spectrum.meta["name"], linewidth=1.5,
                   marker="o", markersize=3, color="black")
@@ -527,6 +513,9 @@ def advanced_baseline_demo_dppc(spectrum, integral= "", coverage= ""):
     axarr[1].fill_between(spectrum.wavenumbers[oh_borders[0]:oh_borders[1] + 1],
                           spectrum.baseline_corrected[oh_borders[0]:oh_borders[1] + 1], color="g")
 
+    axarr[1].fill_between(spectrum.wavenumbers[oh2_borders[0]:oh2_borders[1] + 1],
+                          spectrum.baseline_corrected[oh2_borders[0]:oh2_borders[1] + 1], color="purple")
+
 
     axarr[1].set_xlabel("wavenumber/ cm$^{-1}$")
 
@@ -539,6 +528,10 @@ def advanced_baseline_demo_dppc(spectrum, integral= "", coverage= ""):
     # OH
     axarr[1].axvline(3005, color="g")
     axarr[1].axvline(3665, color="g")
+
+    # OH2
+    axarr[1].axvline(3350, color="purple")
+    axarr[1].axvline(3005, color="g")
 
     if type(integral) != str:
         integral = "{0:.4e}".format(integral)

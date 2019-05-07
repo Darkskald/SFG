@@ -185,12 +185,12 @@ class SfgSpectrum(AbstractSpectrum):
 
     def make_ch_baseline(self):
 
-        if np.min(self.wavenumbers) > 2760:
-            left = self.slice_by_borders(2760, 2750)
+        if np.min(self.wavenumbers) > 2800:
+            left = self.slice_by_borders(2810, np.min(self.wavenumbers))
         else:
-            left = self.slice_by_borders(2805, 2800)
+            left = self.slice_by_borders(2800, np.min(self.wavenumbers))
 
-        right = self.slice_by_borders(3010, 3000)
+        right = self.slice_by_borders(3030, 3000)
 
         left_x = self.wavenumbers[left[0]:left[1] + 1]
         left_y = self.normalized_intensity[left[0]:left[1] + 1]
@@ -202,6 +202,11 @@ class SfgSpectrum(AbstractSpectrum):
                 (np.average(right_x) - np.average(left_x))
 
         intercept = np.average(left_y) - slope * np.average(left_x)
+
+        #x = list(left_x) + list(right_x)
+        #y = list(left_y) + list(right_y)
+
+        #slope, intercept, r, p, std = stats.linregress(x, y)
 
         baseline = lambda x: slope * x + intercept
         return baseline
@@ -217,10 +222,15 @@ class SfgSpectrum(AbstractSpectrum):
         right_x = self.wavenumbers[right[0]:right[1] + 1]
         right_y = self.normalized_intensity[right[0]:right[1] + 1]
 
-        slope = (np.average(right_y) - np.average(left_y)) / \
-                (np.average(right_x) - np.average(left_x))
+        #slope = (np.average(right_y) - np.average(left_y)) / \
+                #(np.average(right_x) - np.average(left_x))
 
-        intercept = np.average(left_y) - slope * np.average(left_x)
+        #intercept = np.average(left_y) - slope * np.average(left_x)
+
+        x =  list(left_x) + list(right_x)
+        y = list(left_y) + list(right_y)
+
+        slope, intercept, r, p, std = stats.linregress(x, y)
 
         def baseline(x):
             return slope * x + intercept
@@ -236,11 +246,14 @@ class SfgSpectrum(AbstractSpectrum):
         else:
             func = func
 
-        if self.baseline_corrected is None and self.regions[flag][-1] is False:
+        if self.regions[flag][-1] is True:
+            return
+
+        if self.baseline_corrected is None:
             temp = copy.deepcopy(self.normalized_intensity)
 
         else:
-            return
+            temp = copy.deepcopy(self.baseline_corrected)
 
         for i in range(*borders):
             index = np.where(self.wavenumbers == i)
@@ -249,6 +262,7 @@ class SfgSpectrum(AbstractSpectrum):
 
         self.regions[flag][-1] = True
         self.baseline_corrected = temp
+
 
     def calculate_ch_integral(self):
 
