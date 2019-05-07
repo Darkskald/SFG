@@ -77,10 +77,10 @@ class SfgSpectrum(AbstractSpectrum):
     SystematicName (or a derived class) which carries most of the metainformation. Besides holding the
     experimental data, it gives access to a variety of functions like normalization, peak picking etc."""
 
-
-
     # magic methods
     def __init__(self, wavenumbers, intensity, ir_intensity, vis_intensity, meta):
+
+        # todo: invert the wavenunmber/ intensity scale to make it ascending
 
         self.wavenumbers = wavenumbers
         self.raw_intensity = intensity
@@ -185,12 +185,14 @@ class SfgSpectrum(AbstractSpectrum):
 
     def make_ch_baseline(self):
 
+        # todo: interchange high and low at the slice borders function
         if np.min(self.wavenumbers) > 2800:
             left = self.slice_by_borders(2810, np.min(self.wavenumbers))
         else:
             left = self.slice_by_borders(2800, np.min(self.wavenumbers))
 
         right = self.slice_by_borders(3030, 3000)
+
 
         left_x = self.wavenumbers[left[0]:left[1] + 1]
         left_y = self.normalized_intensity[left[0]:left[1] + 1]
@@ -203,68 +205,46 @@ class SfgSpectrum(AbstractSpectrum):
 
         intercept = np.average(left_y) - slope * np.average(left_x)
 
-        #x = list(left_x) + list(right_x)
-        #y = list(left_y) + list(right_y)
+        # x = list(left_x) + list(right_x)
+        # y = list(left_y) + list(right_y)
 
-        #slope, intercept, r, p, std = stats.linregress(x, y)
+        # slope, intercept, r, p, std = stats.linregress(x, y)
 
         baseline = lambda x: slope * x + intercept
         return baseline
 
-    def make_baseline(self, left, right):
+    def correct_baseline(self):
 
-        left = self.slice_by_borders(*left)
-        right = self.slice_by_borders(*right)
+        borders = (2750, 3000)
 
-        left_x = self.wavenumbers[left[0]:left[1] + 1]
-        left_y = self.normalized_intensity[left[0]:left[1] + 1]
-
-        right_x = self.wavenumbers[right[0]:right[1] + 1]
-        right_y = self.normalized_intensity[right[0]:right[1] + 1]
-
-        #slope = (np.average(right_y) - np.average(left_y)) / \
-                #(np.average(right_x) - np.average(left_x))
-
-        #intercept = np.average(left_y) - slope * np.average(left_x)
-
-        x =  list(left_x) + list(right_x)
-        y = list(left_y) + list(right_y)
-
-        slope, intercept, r, p, std = stats.linregress(x, y)
-
-        def baseline(x):
-            return slope * x + intercept
-
-        return baseline
-
-    def correct_baseline(self, func="CH", borders=(2750, 3000), flag="CH"):
-
-        borders = self.regions[flag][0]
-
-        if func == "CH":
-            func = self.make_ch_baseline()
-        else:
-            func = func
-
-        if self.regions[flag][-1] is True:
-            return
+        func = self.make_ch_baseline()
 
         if self.baseline_corrected is None:
             temp = copy.deepcopy(self.normalized_intensity)
 
         else:
-            temp = copy.deepcopy(self.baseline_corrected)
+            # if the baseline correction already was performed, return immediately
+            return
 
-        for i in range(*borders):
-            index = np.where(self.wavenumbers == i)
-            correction = func(self.wavenumbers[index])
-            temp[index] = temp[index] - correction
+        xvals = self.wavenumbers.copy()
+        corr = func(xvals)
 
-        self.regions[flag][-1] = True
+        # ensure that only the region of the spec defined in the borders is used
+        # xvals is a vector being 0 everywhere except in the to-correct area where it
+        # is 1 so that xvals*corr yields nonzero in the defined regions only
+        np.putmask(xvals, xvals < borders[0], 0)
+        np.putmask(xvals, xvals > borders[1], 0)
+        np.putmask(xvals, xvals != 0, 1)
+        corr *= xvals
+
+        # apply the correction
+        temp -= corr
+
         self.baseline_corrected = temp
 
-
     def calculate_ch_integral(self):
+
+        # todo: this must be changed to be proper numpy functions!
 
         self.correct_baseline()
         borders = self.slice_by_borders(3000, np.min(self.wavenumbers))
@@ -309,14 +289,15 @@ class SfgSpectrum(AbstractSpectrum):
         return upper_index, lower_index
 
     def set_regions(self):
-        self.regions = {"CH": [(int(np.min(self.wavenumbers)), 3000), (0, 0), False],
-                        "dangling": [(3670, 3760), ((3625, 3600), (3785, 3760)), False],
-                        "OH": [(3005, 3665), ((3035, 3000), (3600, 3555)), False]}
+        self.regions = {"CH": (int(np.min(self.wavenumbers)), 3000),
+                        "dangling": (3670, 3760),
+                        "OH": (3005, 3350), "OH2": (3350, 3670)}
 
 
 class AverageSpectrum(SfgSpectrum):
 
     def __init__(self, wavenumbers, intensities, meta):
+        # todo: invert the wavenunmber/ intensity scale to make it ascending
         self.wavenumbers = wavenumbers
         self.normalized_intensity = intensities
         self.meta = meta

@@ -443,8 +443,8 @@ def baseline_demo_dppc(spectrum, integral= "", coverage= ""):
     if np.max(spectrum.x) > 3700:
         func2 = spectrum.make_baseline((3625, 3600), (3785, 3760))
         func3 = spectrum.make_baseline((3035, 3000), (3600, 3555))
-        spectrum.correct_baseline(func=func2, borders=(3625, 3760))
-        spectrum.correct_baseline(func=func3, borders=(3625, 3550))
+        spectrum.correct_baseline()
+        spectrum.correct_baseline()
 
         test3 = np.linspace(2900, 3600, 10000)
         test2 = np.linspace(3550, 3850, 10000)
@@ -527,11 +527,11 @@ def advanced_baseline_demo_dppc(spectrum, integral= "", coverage= ""):
 
     # OH
     axarr[1].axvline(3005, color="g")
-    axarr[1].axvline(3665, color="g")
+    axarr[1].axvline(3350, color="g")
 
     # OH2
+    axarr[1].axvline(3670, color="purple")
     axarr[1].axvline(3350, color="purple")
-    axarr[1].axvline(3005, color="g")
 
     if type(integral) != str:
         integral = "{0:.4e}".format(integral)
