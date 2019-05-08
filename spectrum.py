@@ -82,16 +82,17 @@ class SfgSpectrum(AbstractSpectrum):
 
         # todo: invert the wavenunmber/ intensity scale to make it ascending
 
-        self.wavenumbers = wavenumbers
-        self.raw_intensity = intensity
-        self.vis_intensity = vis_intensity
-        self.ir_intensity = ir_intensity
+        self.wavenumbers = wavenumbers[::-1]
+        self.raw_intensity = intensity[::-1]
+        self.vis_intensity = vis_intensity[::-1]
+        self.ir_intensity = ir_intensity[::-1]
         self.meta = meta
         self.normalized_intensity = self.raw_intensity / (self.vis_intensity * self.ir_intensity)
         self.baseline_corrected = None
         self.setup_spec()
 
         self.regions = None
+        self.integrals = {}
         self.set_regions()
 
     def setup_spec(self):
@@ -126,8 +127,9 @@ class SfgSpectrum(AbstractSpectrum):
         try:
             area = sp(y_array, x_array)
             return area
+
         except:
-            return "Area  could not be calculated"
+            raise ValueError(f'Integration not possible for {self.name}')
 
     def root(self):
         return np.sqrt(self.normalized_intensity)
@@ -169,7 +171,7 @@ class SfgSpectrum(AbstractSpectrum):
         increment = [borders, stepsize]
         return increment
 
-    def yield_density(self):
+    def yield_wn_length(self):
         return np.max(self.wavenumbers) - np.min(self.wavenumbers)
 
     # info functions
@@ -187,12 +189,11 @@ class SfgSpectrum(AbstractSpectrum):
 
         # todo: interchange high and low at the slice borders function
         if np.min(self.wavenumbers) > 2800:
-            left = self.slice_by_borders(2810, np.min(self.wavenumbers))
+            left = self.slice_by_borders(np.min(self.wavenumbers), 2815)
         else:
-            left = self.slice_by_borders(2800, np.min(self.wavenumbers))
+            left = self.slice_by_borders( np.min(self.wavenumbers), 2800)
 
-        right = self.slice_by_borders(3030, 3000)
-
+        right = self.slice_by_borders(3000, 3030)
 
         left_x = self.wavenumbers[left[0]:left[1] + 1]
         left_y = self.normalized_intensity[left[0]:left[1] + 1]
@@ -205,12 +206,9 @@ class SfgSpectrum(AbstractSpectrum):
 
         intercept = np.average(left_y) - slope * np.average(left_x)
 
-        # x = list(left_x) + list(right_x)
-        # y = list(left_y) + list(right_y)
+        def baseline(x):
+            return x*slope+intercept
 
-        # slope, intercept, r, p, std = stats.linregress(x, y)
-
-        baseline = lambda x: slope * x + intercept
         return baseline
 
     def correct_baseline(self):
@@ -247,10 +245,10 @@ class SfgSpectrum(AbstractSpectrum):
         # todo: this must be changed to be proper numpy functions!
 
         self.correct_baseline()
-        borders = self.slice_by_borders(3000, np.min(self.wavenumbers))
+        borders = self.slice_by_borders(np.min(self.wavenumbers), 3000)
         x_array = self.wavenumbers[borders[0]:borders[1] + 1]
         y_array = self.baseline_corrected[borders[0]:borders[1] + 1]
-        integral = self.integrate_peak(x_array[::-1], y_array[::-1])
+        integral = self.integrate_peak(x_array, y_array)
         return integral
 
     # auxiliary functions
@@ -262,31 +260,12 @@ class SfgSpectrum(AbstractSpectrum):
 
         return output
 
-    def slice_by_borders(self, upper, lower):
+    def slice_by_borders(self, lower, upper):
         """Takes a high (upper) and a low (lower) reciprocal centimeter value as argument. Returns
         the indices of the wavenumber array of the spectrum that are the borders of this interval."""
-
-        diff = 10000000
-        upper_index = 0
-        lower_index = -1
-
-        for index, spectrum in enumerate(self.wavenumbers):
-
-            temp_diff = abs(upper - self.wavenumbers[index])
-            if temp_diff < diff:
-                diff = temp_diff
-                upper_index = index
-
-        diff = 10000000
-
-        for index, spectrum in enumerate(self.wavenumbers):
-
-            temp_diff = abs(lower - self.wavenumbers[index])
-            if temp_diff < diff:
-                diff = temp_diff
-                lower_index = index
-
-        return upper_index, lower_index
+        lower_index = np.argmax(self.wavenumbers >= lower)
+        upper_index = np.argmax(self.wavenumbers >= upper)
+        return int(lower_index), int(upper_index)
 
     def set_regions(self):
         self.regions = {"CH": (int(np.min(self.wavenumbers)), 3000),
@@ -303,6 +282,7 @@ class AverageSpectrum(SfgSpectrum):
         self.meta = meta
         self.baseline_corrected = None
         self.regions = None
+        self.integrals = {}
         super().setup_spec()
         super().set_regions()
 
@@ -480,15 +460,15 @@ class SfgAverager:
         self.integral = self.average_spectrum.calculate_ch_integral()
         self.coverage = self.calc_coverage()
 
-        self.benchmark()
+        #self.benchmark()
 
     def average_spectra(self):
         to_average = []
 
         # sort spectra by density (lambda)
-        self.spectra.sort(key=lambda x: x.yield_density(), reverse=True)
+        self.spectra.sort(key=lambda x: x.yield_wn_length(), reverse=True)
 
-        root_x_scale = self.spectra[0].x[::-1]
+        root_x_scale = self.spectra[0].x
 
         # get y values by interpolation and collect the y values in a list
         # collect the dates of measurement for DPPC referencing
@@ -500,7 +480,7 @@ class SfgAverager:
             else:
                 self.day_counter[date] += 1
 
-            new_intensity = np.interp(root_x_scale, item.x[::-1], item.y[::-1])
+            new_intensity = np.interp(root_x_scale, item.x, item.y)
             to_average.append(new_intensity)
 
         to_average = np.array(to_average)
@@ -511,7 +491,7 @@ class SfgAverager:
         newname = self.spectra[0].name + "baseAV"
         in_new = [n.name for n in self.spectra]
         s_meta = {"name": newname, "made_from": in_new, "std": std}
-        s = AverageSpectrum(root_x_scale[::-1], average[::-1], s_meta)
+        s = AverageSpectrum(root_x_scale, average, s_meta)
 
         return s
 

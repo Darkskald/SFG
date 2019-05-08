@@ -482,16 +482,16 @@ def baseline_demo_dppc(spectrum, integral= "", coverage= ""):
     plt.close()
 
 
-def advanced_baseline_demo_dppc(spectrum, integral= "", coverage= ""):
+def advanced_baseline_demo_dppc(spectrum, integral="", coverage= ""):
     spectrum.correct_baseline()
 
     test = np.linspace(2750, 3050, 10000)
     func = spectrum.make_ch_baseline()
 
-    borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
-    dangling_borders = spectrum.slice_by_borders(3760, 3670)
-    oh2_borders = spectrum.slice_by_borders(3670, 3350)
-    oh_borders = spectrum.slice_by_borders(3350, 3000)
+    borders = spectrum.slice_by_borders(2800, 3000)
+    dangling_borders = spectrum.slice_by_borders(3670, 3760)
+    oh2_borders = spectrum.slice_by_borders(3350, 3670)
+    oh_borders = spectrum.slice_by_borders(3000, 3350)
 
     f, axarr = plt.subplots(2, sharex=True)
     axarr[0].ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
@@ -528,6 +528,7 @@ def advanced_baseline_demo_dppc(spectrum, integral= "", coverage= ""):
     # OH
     axarr[1].axvline(3005, color="g")
     axarr[1].axvline(3350, color="g")
+
 
     # OH2
     axarr[1].axvline(3670, color="purple")
