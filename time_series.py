@@ -245,12 +245,13 @@ class SampleNameParser:
                     data = ("wavenumbers", "sfg", "ir", "vis")
                     tup = map(lambda x: np.fromstring(match.loc[j, x], sep=";"), data)
                     s = SfgSpectrum(*tup, meta)
+                    #baseline_demo_dppc(s)
                     counter += 1
                     specs.append(s)
 
                 if counter > 1:
                     for s in specs:
-                        baseline_demo_dppc(s)
+                        #baseline_demo_dppc(s)
                         print(s.name)
                         print(match["number"])
 
@@ -372,11 +373,15 @@ class SampleNameParser:
         monthsFmt = DateFormatter("%b '%y")
 
         for item in self.sfg:
+            if item.year == 2019:
+                print(item)
 
             ax.scatter(item, self.sfg[item]*100, color="red")
 
         for item in self.sfg_deep:
             ax.scatter(item, self.sfg_deep[item] * 100, color="blue")
+            if item.year == 2019:
+                print(item)
 
         for i in range(8, 20, 1):
             lower = date(2000+i, 3, 1)
@@ -393,12 +398,9 @@ class SampleNameParser:
                                    markerfacecolor='red', mew=0.3, mec="black", aa=True, linestyle='')
                             ]
         ax.legend(handles=legend_elements)
-        ax.grid(True)
+        #ax.grid(True)
         ax.set_xlabel("time ")
         ax.set_ylabel("Surface coverage/ %")
-
-        plt.title("Boknis Eck time series surface coverage measured by SFG",
-                  fontdict={'fontweight': "bold", 'fontsize': 18})
 
         plt.show()
         #plt.savefig("boknis.png")
@@ -429,7 +431,7 @@ class SampleNameParser:
 
         for date in spectra_dic:
             temp = SfgAverager(spectra_dic[date], self.reference_per_date)
-            advanced_baseline_demo_dppc(temp.average_spectrum)
+            #advanced_baseline_demo_dppc(temp.average_spectrum)
             spectra_dic[date] = temp.coverage
         return spectra_dic
 
@@ -440,31 +442,19 @@ def baseline_demo_dppc(spectrum, integral= "", coverage= ""):
     test = np.linspace(2750, 3050, 10000)
     func = spectrum.make_ch_baseline()
 
-    if np.max(spectrum.x) > 3700:
-        func2 = spectrum.make_baseline((3625, 3600), (3785, 3760))
-        func3 = spectrum.make_baseline((3035, 3000), (3600, 3555))
-        spectrum.correct_baseline()
-        spectrum.correct_baseline()
 
-        test3 = np.linspace(2900, 3600, 10000)
-        test2 = np.linspace(3550, 3850, 10000)
-
-
-    borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
+    borders = spectrum.slice_by_borders(np.min(spectrum.wavenumbers), 3000)
 
     f, axarr = plt.subplots(2, sharex=True)
     axarr[0].ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
     axarr[1].ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
 
-    axarr[0].plot(spectrum.wavenumbers, spectrum.normalized_intensity, label=spectrum.meta["name"], linewidth=1.5,
+    axarr[0].plot(spectrum.wavenumbers, spectrum.normalized_intensity, label=spectrum.meta["name"],
                   marker="o", markersize=3)
     axarr[0].plot(test, func(test), color="r", label="baseline")
 
-    if np.max(spectrum.x) > 3700:
-        axarr[0].plot(test2, func2(test2), color="b", label="baseline")
-        axarr[0].plot(test3, func3(test3), color="g", label="baseline")
 
-    axarr[1].plot(spectrum.wavenumbers, spectrum.baseline_corrected, label=spectrum.meta["name"], linewidth=1.5,
+    axarr[1].plot(spectrum.wavenumbers, spectrum.baseline_corrected, label=spectrum.meta["name"],
                   marker="o", markersize=3)
     axarr[1].fill_between(spectrum.wavenumbers[borders[0]:borders[1] + 1],
                           spectrum.baseline_corrected[borders[0]:borders[1] + 1])
@@ -473,7 +463,7 @@ def baseline_demo_dppc(spectrum, integral= "", coverage= ""):
         integral = "{0:.4e}".format(integral)
         axarr[1].plot([], [], label=f'integral: {integral}, coverage: {coverage}')
 
-    f.text(0.025, 0.5, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical')
+    f.text(0.07, 0.5, 'norm. intensity/ arb. u.', ha='center', va='center', rotation='vertical')
 
     for ax in axarr.flat:
         ax.set_xlim(2750, 3800)
@@ -546,12 +536,18 @@ def advanced_baseline_demo_dppc(spectrum, integral="", coverage= ""):
     plt.savefig("plots/"+spectrum.meta["name"] + ".png")
     plt.close()
 
-plt.style.use(['seaborn-ticks', 'seaborn-notebook'])
-
+#plt.style.use(['seaborn-ticks', 'seaborn-notebook'])
+"""
+rcParams['axes.labelsize'] = 18
+rcParams['font.size'] = 18
+rcParams['figure.subplot.bottom'] = 0.12
+"""
+plt.style.use("talk.mplstyle")
 rcParams['figure.figsize'] = 16.0, 8.0
 rcParams['axes.labelsize'] = 18
 rcParams['font.size'] = 18
 rcParams['figure.subplot.bottom'] = 0.12
+
 
 
 if __name__ == "__main__":
