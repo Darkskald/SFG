@@ -95,12 +95,14 @@ def plot_doy_by_attribute(manager, names):
         axes = broken_axis_errorbar([153, 167, 254, 266], label=labels[item])
 
     axes[1].xaxis.set_major_locator(MaxNLocator(integer=True))
+    axes[0].xaxis.set_major_locator(MaxNLocator(integer=True))
+
     i = 1
     for name in names:
         axes[0].scatter(manager.station_table["date"].dt.dayofyear, manager.station_table[name])
 
         axes[1].scatter(manager.station_table["date"].dt.dayofyear, manager.station_table[name], label=name)
-        i+=1
+        i += 1
 
 
     axes[1].legend().draggable()
@@ -217,14 +219,14 @@ def newposter(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2
     spectrum.correct_baseline()
     test = np.linspace(2750, 3050, 10000)
     func = spectrum.make_ch_baseline()
-    borders = spectrum.slice_by_borders(3000, np.min(spectrum.wavenumbers))
+    borders = spectrum.slice_by_borders(np.min(spectrum.wavenumbers), 3000)
 
 
 
     ax1.plot(ref.wavenumbers, ref.normalized_intensity, label="DPPC reference, coverage 100 %", linewidth=1.5,
                   marker="o", markersize=3)
 
-    ref_borders = ref.slice_by_borders(3000, np.min(spectrum.wavenumbers))
+    ref_borders = ref.slice_by_borders(np.min(spectrum.wavenumbers), 3000)
     ax1.fill_between(ref.wavenumbers[ref_borders[0]:ref_borders[1] + 1],
                           ref.normalized_intensity[ref_borders[0]:ref_borders[1] + 1]/norm_factor)
 
@@ -235,7 +237,7 @@ def newposter(spectrum, ref, doy1, doy2, coverage1, coverage2, c1d, c1s, c2d, c2
     ax1.xaxis.set_label_position('top')
     ax1.set_xlabel("wavenumber/ cm$^{-1}$")
     ax1.xaxis.tick_top()
-    ax1.text(28000, 0.8, "CH vibrations")
+    ax1.text(2800, 0.8, "CH vibrations")
 
     ax2.plot(spectrum.wavenumbers, spectrum.normalized_intensity/norm_factor, label="GasEx sample", linewidth=1.5,
              marker="o", markersize=3)
@@ -337,10 +339,11 @@ def tension(manager, names, dt1, dt2, st1, st2):
 
 
 if __name__ == "__main__":
-    rcParams['figure.figsize'] = 10.8, 14.4
-    rcParams['axes.labelsize'] = 18
-    rcParams['font.size'] = 18
-    rcParams['figure.subplot.bottom'] = 0.12
+    #rcParams['figure.figsize'] = 10.8, 14.4
+    #rcParams['axes.labelsize'] = 18
+    #rcParams['font.size'] = 18
+    #rcParams['figure.subplot.bottom'] = 0.12
+    plt.style.use("talk.mplstyle")
 
 
     G = GasexManager("test.db", dppc_flag=True)
@@ -352,6 +355,8 @@ if __name__ == "__main__":
     cruise1 = G.station_table.loc[mask1]
     mask2 = (G.station_table['date'] > '2018-9-1') & (G.station_table['date'] <= '2018-10-1')
     cruise2 = G.station_table.loc[mask2]
+
+    #plot_doy_by_attribute(G, ["sml_coverage", "deep_coverage"])
 
     # average for deep and sml
     arr = (cruise1["deep_tension"] - 0.2155) - 73.11
@@ -385,18 +390,17 @@ if __name__ == "__main__":
 
 
 
-    from datetime import date
-    out_sml = {date(2018, 6, 1): (sc1, sstd1), date(2018, 9, 1): (sc2, sstd2)}
-    out_deep = {date(2018, 6, 1): (dc1, dstd1), date(2018, 9, 1): (dc2, dstd2)}
-
-    print(out_sml)
-    print(out_deep)
 
 
 
     #tension(G, ("sml_tension", "deep_tension"), dt1, dt2, st1, st2)
     #newposter(q[0], q[1], G.station_table['doy'], G.station_table['doy'],
               #G.station_table['sml_coverage'], G.station_table['deep_coverage'], dc1, sc1, dc2, sc2)
+
+    eins = ["sml_coverage", "deep_coverage"]
+    zwei = ["sml_lift_off", "deep_lift_off"]
+    drei = ["sml_max_pressure", "deep_max_pressure"]
+    plot_doy_by_attribute(G, drei)
 
 
     # axes = broken_axis_errorbar([153, 167, 254, 266])
@@ -467,4 +471,4 @@ if __name__ == "__main__":
     # print(f'sml tension bs: {bst}')
     # print(f'sml coverage bs: {bsc}')
     # print(f'sml lift_off bs: {bsl}')
-    # print(f'sml pressure bs: {bsp}')
+    # print(f'sml pressure bs: {bsp}')"""

@@ -46,7 +46,6 @@ class GasexManager:
                 if self.dppc_flag is True:
                     self.dppc.append(s)
 
-
         for item in dates:
             dates[item] = np.average(np.array(dates[item]))
 

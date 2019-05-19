@@ -1,0 +1,18 @@
+font.size : 18
+font.family : arial
+
+
+axes.titlesize : 20
+axes.labelsize : 18
+axes.labelweight : normal
+axes.linewidth : 2
+axes.labelpad : 8
+
+lines.linewidth : 2
+lines.markersize : 10
+
+xtick.labelsize : 10
+ytick.labelsize : 18
+
+
+legend.frameon : True
