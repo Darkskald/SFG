@@ -9,7 +9,7 @@ axes.labelweight : normal
 axes.linewidth : 1.5
 axes.labelpad : 8
 axes.grid : False
-axes.formatter.limits : -3, 3
+axes.formatter.limits : -3, 4
 
 # lines2d settings
 lines.linewidth : 1.5

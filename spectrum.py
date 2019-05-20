@@ -241,9 +241,6 @@ class SfgSpectrum(AbstractSpectrum):
         self.baseline_corrected = temp
 
     def calculate_ch_integral(self):
-
-        # todo: this must be changed to be proper numpy functions!
-
         self.correct_baseline()
         borders = self.slice_by_borders(np.min(self.wavenumbers), 3000)
         x_array = self.wavenumbers[borders[0]:borders[1] + 1]
@@ -420,8 +417,18 @@ class DummyPlotter:
         self.savedir = savedir
         self.savename = savename
 
-    def plot_all(self):
+    def plot_all(self, base=False):
         for spectrum in self.speclist:
+
+            if base is True:
+                if isinstance(spectrum, AverageSpectrum):
+                    func = spectrum.make_ch_baseline()
+                    testx = np.linspace(2750, 3000, 1000)
+                    testy = func(testx)
+                    plt.plot(testx, testy, color="black")
+                    integral = spectrum.calculate_ch_integral()
+                    plt.title(str(round(integral, 4)))
+
             if self.special is None:
                 plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", linestyle="-")
             else:
@@ -445,20 +452,32 @@ class DummyPlotter:
 
 
 class SfgAverager:
-
+    # todo: throw an error and plot the spectra if the integral is NAN or zero!
+    # todo: the benchmark function MUST display the integral value and the baseline
     def __init__(self, spectra, references=None):
         self.failure_count = 0
         self.log = ""
         self.log += "Log file for averaging spectra\n"
-
         self.spectra = spectra
         self.references = references
 
-        self.day_counter = {}
-        self.average_spectrum = self.average_spectra()
+        if len(self.spectra) == 0:
+            print("Warning: zero spectra to average in SfgAverager!")
+            self.integral = None
+            self.coverage = None
 
-        self.integral = self.average_spectrum.calculate_ch_integral()
-        self.coverage = self.calc_coverage()
+        else:
+            self.day_counter = {}
+            self.average_spectrum = self.average_spectra()
+
+            self.integral = self.average_spectrum.calculate_ch_integral()
+            self.coverage = self.calc_coverage()
+
+            if self.integral < 0:
+                self.benchmark()
+                print("Warning: negative integral value in SfgAverager!")
+                self.integral = 0
+                self.coverage = 0
 
         #self.benchmark()
 
@@ -529,14 +548,15 @@ class SfgAverager:
             return coverage
 
         else:
-            print("Coverage not available for reference samples!")
+            #print(f'Coverage not available for reference samples, integral is {self.integral}!')
+            pass
 
     def benchmark(self):
         self.create_log()
         l = [i for i in self.spectra]
         l.append(self.average_spectrum)
         p = DummyPlotter(l, save=True, savedir="benchmark", savename=self.spectra[0].name, special="AV")
-        p.plot_all()
+        p.plot_all(base=True)
 
     def create_log(self):
 
