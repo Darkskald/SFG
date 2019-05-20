@@ -21,6 +21,8 @@ class GasexManager:
         self.set_new_pd_columns()
         self.station_table["date"] = pd.to_datetime(self.station_table["date"])
 
+        print("Initialization of GasEx Manager successful!")
+
     def get_dppc_reference(self):
         """Returns a dictionary with each day of measurement and the corresponding DPPC integrals"""
         cmd = "SELECT * FROM sfg WHERE name GLOB '*DPPC_*.*' AND measured_time BETWEEN '2018-01-01' AND '2018-12-31'"
@@ -47,7 +49,7 @@ class GasexManager:
                     self.dppc.append(s)
 
         for item in dates:
-            dates[item] = np.average(np.array(dates[item]))
+            dates[item] = np.nanmean(np.array(dates[item]))
 
         return dates
 
@@ -90,7 +92,9 @@ class GasexManager:
         from the raw single measurements."""
         for station in self.stations:
             for sample in station.samples:
+                #important: info about DPPC is passed here
                 sample.calc_values(self.dates)
+                
                 if sample.tension is not None:
                     if sample.data["type"] == "deep":
                         sample.tension += GasexManager.correct_salinity(station.data["deep_salinity"])
@@ -177,8 +181,9 @@ class Station:
         value = [getattr(i, var) for i in self.samples if i.data["type"] in var2]
         value = [float(i) for i in value if i is not None]
         n = int(len(value))
-        av = np.average(value)
-        std = np.std(value)
+        av = np.nanmean(value)
+        std = np.nanstd(value)
+
         return av, std, n
 
     def get_all_stats(self):
@@ -286,8 +291,7 @@ class Sample:
             if integral < 0:
                 integral = 0
             self.coverage = round(np.sqrt(integral / factor), 4)
-            if self.coverage > 0.2:
-                self.coverage = np.nan
+
 
         except IndexError:
             pass

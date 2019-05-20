@@ -1,0 +1,31 @@
+# font settings
+font.size : 10
+font.family : arial
+
+# axes settings
+axes.titlesize : 12
+axes.labelsize : 10
+axes.labelweight : normal
+axes.linewidth : 1.5
+axes.labelpad : 8
+axes.grid : False
+axes.formatter.limits : -3, 3
+
+# lines2d settings
+lines.linewidth : 1.5
+lines.markersize : 5
+
+# tick settings
+xtick.labelsize : 10
+ytick.labelsize : 10
+xtick.minor.visible : True
+ytick.minor.visible : True
+xtick.major.size : 5
+ytick.major.size : 5
+
+# figure settings
+figure.figsize   : 6.4, 4.8
+
+# legend settings
+legend.fancybox : True
+legend.shadow : False

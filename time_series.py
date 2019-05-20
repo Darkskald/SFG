@@ -74,6 +74,8 @@ class SampleNameParser:
         self.calc_coverage_averaging()
         self.plot_av_coverage()
 
+        print("Boknis Eck Manager initialization successful!")
+
         # self.calc_coverage_no_averaging()
 
 
@@ -213,8 +215,8 @@ class SampleNameParser:
 
         # calculate the average coverages and standard deviation per day
         for i in out:
-            av = np.average(np.array(out[i]))
-            std = np.std(np.array(out[i]))
+            av = np.nanmean(np.array(out[i]))
+            std = np.nanstd(np.array(out[i]))
             out[i] = av, std
 
         return out
