@@ -314,14 +314,19 @@ class SampleNameParser:
 
             # if sr[0] < 2800 and sr[1] > 3010 and name.split("_")[-1] != "ppp":
             if name.split("_")[-1] != "ppp":
-                q = s.calculate_ch_integral()
+                #q = s.calculate_ch_integral()
                 if time.date() not in dates:
-                    dates[time.date()] = [q]
+                    #dates[time.date()] = [q]
+                    dates[time.date()] = [s]
                 else:
-                    dates[time.date()].append(q)
+                    #dates[time.date()].append(q)
+                    dates[time.date()].append(s)
 
         for item in dates:
-            dates[item] = np.average(np.array(dates[item]))
+            #dates[item] = np.average(np.array(dates[item]))
+            dates[item] = SfgAverager(dates[item]).integral
+
+        dates = {k:v for k, v in dates.items() if not np.isnan(v)}
 
         return dates
 
@@ -403,6 +408,7 @@ class SampleNameParser:
         #ax.grid(True)
         ax.set_xlabel("time ")
         ax.set_ylabel("Surface coverage/ %")
+        rcParams['axes.labelsize'] = 10
 
         plt.show()
         #plt.savefig("boknis.png")
@@ -538,7 +544,6 @@ def advanced_baseline_demo_dppc(spectrum, integral="", coverage= ""):
     plt.savefig("plots/"+spectrum.meta["name"] + ".png")
     plt.close()
 
-#plt.style.use(['seaborn-ticks', 'seaborn-notebook'])
 """
 rcParams['axes.labelsize'] = 18
 rcParams['font.size'] = 18

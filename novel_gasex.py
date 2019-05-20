@@ -1,4 +1,4 @@
-from spectrum import SfgSpectrum, LtIsotherm
+from spectrum import SfgSpectrum, LtIsotherm, SfgAverager
 import pandas as pd
 import sqlite3
 import numpy as np
@@ -103,6 +103,7 @@ class GasexManager:
                     sample.tension = round(sample.tension, 2)
 
             station.get_all_stats()
+            station.calc_coverage(self.dates)
 
     def set_new_pd_columns(self):
         """Add the calculated per-station average values to the Pandas station table dataframe."""
@@ -202,6 +203,38 @@ class Station:
             newdic[item + "_n"] = value[2]
 
         self.stats = newdic
+
+    def calc_coverage(self, dppc_ref):
+
+        sml_specs = []
+        deep_specs = []
+        plate_specs = []
+        screen_specs = []
+        # todo: append to the lists above based on the sample properties
+        # todo: calculate coverages for all of this values
+        # todo: new dictionary value in the Station's dic with the new attributes (av_sml_coverage)
+        # todo: apply the averaging procedure to DPPC as well
+
+        for samp in self.samples:
+            if len(samp.sfg_spectra) > 0:
+                if samp.data["type"] == "p":
+                    plate_specs.append(samp.sfg_spectra[0])
+                    sml_specs.append(samp.sfg_spectra[0])
+
+                elif samp.data["type"] == "s":
+                    screen_specs.append(samp.sfg_spectra[0])
+                    sml_specs.append(samp.sfg_spectra[0])
+
+                elif samp.data["type"] == "deep":
+                    deep_specs.append(samp.sfg_spectra[0])
+
+        print(len(deep_specs))
+        self.av_sml_coverage = SfgAverager(sml_specs, references=dppc_ref).coverage
+        self.av_deep_coverage = SfgAverager(deep_specs, references=dppc_ref).integral
+        print(self.av_deep_coverage)
+        self.av_plate_coverage = SfgAverager(plate_specs, references=dppc_ref).coverage
+        self.av_screen_coverage = SfgAverager(screen_specs, references=dppc_ref).coverage
+
 
 
 class Sample:
