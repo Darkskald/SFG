@@ -249,10 +249,6 @@ class Station:
         av_screen_coverage = SfgAverager(screen_specs, references=dppc_ref)
 
 
-
-
-
-
 class Sample:
 
     def __init__(self, data):
