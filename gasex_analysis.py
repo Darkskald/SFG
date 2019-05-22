@@ -3,7 +3,7 @@ from novel_gasex import GasexManager
 # scientific libraries
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
+
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator, MultipleLocator
 import scipy.stats

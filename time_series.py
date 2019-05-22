@@ -72,6 +72,7 @@ class SampleNameParser:
         self.samples["sampling_date"] = pd.to_datetime(self.samples["sampling_date"])
 
         self.calc_coverage_averaging()
+        #self.normalize_by_year()
         self.plot_av_coverage()
 
         print("Boknis Eck Manager initialization successful!")
@@ -383,10 +384,10 @@ class SampleNameParser:
             if item.year == 2019:
                 print(item)
 
-            ax.scatter(item, self.sfg[item]*100, color="red")
+            ax.scatter(item, self.sfg[item][0]*100, color="red")
 
         for item in self.sfg_deep:
-            ax.scatter(item, self.sfg_deep[item] * 100, color="blue")
+            ax.scatter(item, self.sfg_deep[item][0] * 100, color="blue")
             if item.year == 2019:
                 print(item)
 
@@ -440,8 +441,32 @@ class SampleNameParser:
         for date in spectra_dic:
             temp = SfgAverager(spectra_dic[date], self.reference_per_date)
             #advanced_baseline_demo_dppc(temp.average_spectrum)
-            spectra_dic[date] = temp.coverage
+            spectra_dic[date] = [temp.coverage, temp]
+
         return spectra_dic
+
+    def normalize_by_year(self):
+        years = {}
+
+        for item in self.sfg:
+            if item.year not in years:
+                years[item.year] = self.sfg[item]
+            else:
+                if years[item.year] < self.sfg[item] and self.sfg[item] != np.inf:
+                    years[item.year] = self.sfg[item]
+
+        for item in self.sfg_deep:
+            if item.year not in years:
+                years[item.year] = self.sfg_deep[item]
+            else:
+                if years[item.year] < self.sfg_deep[item] and self.sfg_deep[item] != np.inf:
+                    years[item.year] = self.sfg_deep[item]
+
+        for item in self.sfg_deep:
+            self.sfg_deep[item] /= years[item.year]
+
+        for item in self.sfg:
+            self.sfg[item] /= years[item.year]
 
 
 def baseline_demo_dppc(spectrum, integral= "", coverage= ""):
