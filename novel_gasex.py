@@ -39,17 +39,19 @@ class GasexManager:
 
             # if sr[0] < 2800 and sr[1] > 3010 and name.split("_")[-1] != "ppp":
             if name.split("_")[-1] != "ppp":
-                q = s.calculate_ch_integral()
+                # q = s.calculate_ch_integral()
                 if time.date() not in dates:
-                    dates[time.date()] = [q]
+                    # dates[time.date()] = [q]
+                    dates[time.date()] = [s]
                 else:
-                    dates[time.date()].append(q)
-
-                if self.dppc_flag is True:
-                    self.dppc.append(s)
+                    # dates[time.date()].append(q)
+                    dates[time.date()].append(s)
 
         for item in dates:
-            dates[item] = np.nanmean(np.array(dates[item]))
+            # dates[item] = np.average(np.array(dates[item]))
+            dates[item] = SfgAverager(dates[item]).integral
+
+        dates = {k: v for k, v in dates.items() if not np.isnan(v)}
 
         return dates
 
@@ -206,6 +208,12 @@ class Station:
 
     def calc_coverage(self, dppc_ref):
 
+        average_coverages = {"sml": {"spec": None, "coverage": None},
+                             "plate": {"spec": None, "coverage": None},
+                             "screen": {"spec": None, "coverage": None},
+                             "deep": {"spec": None, "coverage": None}
+                             }
+
         sml_specs = []
         deep_specs = []
         plate_specs = []
@@ -228,12 +236,20 @@ class Station:
                 elif samp.data["type"] == "deep":
                     deep_specs.append(samp.sfg_spectra[0])
 
-        print(len(deep_specs))
+        #print(len(deep_specs))
         self.av_sml_coverage = SfgAverager(sml_specs, references=dppc_ref).coverage
         self.av_deep_coverage = SfgAverager(deep_specs, references=dppc_ref).integral
-        print(self.av_deep_coverage)
+        #print(self.av_deep_coverage)
         self.av_plate_coverage = SfgAverager(plate_specs, references=dppc_ref).coverage
         self.av_screen_coverage = SfgAverager(screen_specs, references=dppc_ref).coverage
+
+        av_sml_coverage = SfgAverager(sml_specs, references=dppc_ref)
+        av_deep_coverage = SfgAverager(deep_specs, references=dppc_ref)
+        av_plate_coverage = SfgAverager(plate_specs, references=dppc_ref)
+        av_screen_coverage = SfgAverager(screen_specs, references=dppc_ref)
+
+
+
 
 
 

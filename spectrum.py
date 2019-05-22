@@ -92,7 +92,6 @@ class SfgSpectrum(AbstractSpectrum):
         self.setup_spec()
 
         self.regions = None
-        self.integrals = {}
         self.set_regions()
 
     def setup_spec(self):
@@ -248,6 +247,15 @@ class SfgSpectrum(AbstractSpectrum):
         integral = self.integrate_peak(x_array, y_array)
         return integral
 
+    def calc_region_integral(self, region):
+        borders = self.regions[region]
+        borders = self.slice_by_borders(borders[0], borders[1])
+        x_array = self.wavenumbers[borders[0]:borders[1] + 1]
+        y_array = self.normalized_intensity[borders[0]:borders[1] + 1]
+        integral = self.integrate_peak(x_array, y_array)
+        return integral
+
+
     # auxiliary functions
     def create_pointlist(self, y_array):
 
@@ -279,7 +287,6 @@ class AverageSpectrum(SfgSpectrum):
         self.meta = meta
         self.baseline_corrected = None
         self.regions = None
-        self.integrals = {}
         super().setup_spec()
         super().set_regions()
 
@@ -454,6 +461,9 @@ class DummyPlotter:
 class SfgAverager:
     # todo: throw an error and plot the spectra if the integral is NAN or zero!
     # todo: the benchmark function MUST display the integral value and the baseline
+    """This class takes a list of SFG spectra and generates an average spectrum of them by interpolation and
+    averaging. It is possible to pass a dictionary of date:dppc_integral key-value-pairs in order to calculate
+    the coverage."""
     def __init__(self, spectra, references=None):
         self.failure_count = 0
         self.log = ""
@@ -463,6 +473,7 @@ class SfgAverager:
 
         if len(self.spectra) == 0:
             print("Warning: zero spectra to average in SfgAverager!")
+            self.average_spectrum = None
             self.integral = None
             self.coverage = None
 
@@ -482,9 +493,11 @@ class SfgAverager:
         #self.benchmark()
 
     def average_spectra(self):
+        """Function performing the averaging: it ensures that all spectra are interpolated to have the same shape,
+        then they are averaged. A AverageSpectrum  object is constructed and returned."""
         to_average = []
 
-        # sort spectra by density (lambda)
+        # sort spectra by length of the wavenumber array (lambda)
         self.spectra.sort(key=lambda x: x.yield_wn_length(), reverse=True)
 
         root_x_scale = self.spectra[0].x
@@ -503,8 +516,8 @@ class SfgAverager:
             to_average.append(new_intensity)
 
         to_average = np.array(to_average)
-        average = np.mean(to_average, axis=0)
-        std = np.std(to_average, axis=0)
+        average = np.nanmean(to_average, axis=0)
+        std = np.nanstd(to_average, axis=0)
 
         # prepare meta data for average spectrum
         newname = self.spectra[0].name + "baseAV"
@@ -515,6 +528,10 @@ class SfgAverager:
         return s
 
     def calc_reference_part(self):
+        """Calculate the participation of each DPPC references. This is important if the spectra to average are
+        measured on different sampling days. If, for example,  5 samples are to average and 3 of them are measured
+        on one day, 2 on another, the final coverage is calculated by dividing the AveragedSpectrum integral by the
+        weighted sum of the DPPC integrals of the corresponding days, in our example (2/5 * DPPC_1) + (3/5 * DPPC_2)"""
 
         spec_number = len(self.spectra)
         total = 0
@@ -541,6 +558,7 @@ class SfgAverager:
         return total
 
     def calc_coverage(self):
+        """A convenience function  to calculate the surface coverage"""
 
         if self.references is not None:
             dppc_factor = self.calc_reference_part()
