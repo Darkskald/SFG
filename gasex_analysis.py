@@ -401,6 +401,7 @@ if __name__ == "__main__":
     zwei = ["sml_lift_off", "deep_lift_off"]
     drei = ["sml_max_pressure", "deep_max_pressure"]
     plot_doy_by_attribute(G, drei)
+    G.station_table.to_excel()
 
 
     # axes = broken_axis_errorbar([153, 167, 254, 266])

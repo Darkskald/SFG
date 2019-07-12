@@ -245,7 +245,9 @@ class SqlWizard:
 
             except sqlite3.IntegrityError as e:
                 #print(f'Surface tension {tup} already in database!')
-                pass
+                with open("invalid_tens.txt", "a") as outfile:
+                    outfile.write(f'Surface tension {tup} already in database!\n')
+
         db.commit()
 
     # ir raman uv misc
@@ -731,14 +733,17 @@ class Importer:
 
                 if target_folder == "Raman":
                     y_data = "intensity"
+                    database = 'raman'
 
                 elif target_folder == "IR":
                     y_data = "transmission"
+                    database = 'ir'
 
             elif target_folder == "UV":
                 data = Importer.fetch_uv_dat(path)
                 x_data = "wavelength"
                 y_data = "absorbance"
+                database = 'uv'
 
             command = \
                 f"""
@@ -783,9 +788,6 @@ class Importer:
 
 class NaturalSampleExtension:
     """This (static) class will handle station and sample hashes, generate the station SQL tables"""
-
-    def __init__(self):
-        pass
 
     @staticmethod
     def get_hashes(name):
