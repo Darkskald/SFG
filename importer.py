@@ -9,9 +9,9 @@ class Importer:
     def __init__(self):
         os.chdir("newport")
         # sfgs
-        #self.regular_sfg = self.import_sfg("regular")
-        #self.gasex_sfg = self.import_sfg("gasex_sfg")
-        #self.boknis = self.import_sfg("boknis")
+        self.regular_sfg = self.import_sfg("regular")
+        self.gasex_sfg = self.import_sfg("gasex_sfg")
+        self.boknis = self.import_sfg("boknis")
 
         # lts
         #self.lt = self.import_lt("lt")
@@ -44,20 +44,22 @@ class Importer:
                         os.path.getmtime(parent_dir + "/" + directory + "/" + file))
                     name = date + "_" + file[:-4]
 
-                data = self.extract_sfg_file(parent_dir + "/" + directory + "/" + file)
+                    data = self.extract_sfg_file(parent_dir + "/" + directory + "/" + file)
 
-                dic = {"name": name, "type": parent_dir, "measured_time": creation_time, "measurer": measurer,
-                       "data": data}
+                    dic = {"name": name, "type": parent_dir, "measured_time": creation_time, "measurer": measurer,
+                           "data": data}
 
-                if "dppc" in dic["name"] or "DPPC" in dic["name"]:
+                    if "dppc" in dic["name"] or "DPPC" in dic["name"]:
 
-                    if parent_dir == "boknis":
-                        dic["type"] = "boknis_ref"
+                        if parent_dir == "boknis":
+                            dic["type"] = "boknis_ref"
 
-                    else:
-                        dic["type"] = "regular"
+                        else:
+                            dic["type"] = "regular"
 
-                out.append(dic)
+                    out.append(dic)
+                    with open("log.txt", "a") as outfile:
+                        outfile.write(dic["name"]+"\n")
 
         return out
 
@@ -89,7 +91,7 @@ class Importer:
 
     def extract_lt_file(self, file):
         """A function extracting the measurement data from a SFG spectral file """
-        col_names = ["time", "area", "apm", "surace_pressure"]
+        col_names = ["time", "area", "apm", "surface_pressure"]
         temp = pd.read_csv(file, comment="#", sep='\t', usecols=[1, 2, 3, 4], names=col_names)
         return temp
 
