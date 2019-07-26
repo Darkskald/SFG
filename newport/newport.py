@@ -684,8 +684,6 @@ class Importer:
                 self.wizard.cur.execute(cmd)
                 self.wizard.db.commit()
 
-
-
     # IR RAMAN UV
     @staticmethod
     def fetch_iraman_data(filename):

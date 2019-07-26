@@ -8,23 +8,29 @@ class Importer:
 
     def __init__(self):
         os.chdir("newport")
+
         # sfgs
         self.regular_sfg = self.import_sfg("regular")
         self.gasex_sfg = self.import_sfg("gasex_sfg")
         self.boknis = self.import_sfg("boknis")
 
         # lts
-        #self.lt = self.import_lt("lt")
-        #self.gasex_lt = self.import_lt("gasex_lt")
+        self.lt = self.import_lt("lt")
+        self.gasex_lt = self.import_lt("gasex_lt")
         self.gasex_lift_off = self.import_liftoffs("liftoff_points.csv")
 
         # spectra
-        #self.ir = None
-        #self.uv = None
-        #self.raman = None
+        self.ir = []
+        self.uv = []
+        self.raman = []
+        self.import_other_spectra()
 
-        # surface tension
+        # surface tension and salinity
         self.gasex_tension = self.import_tensions("gasex_surftens.txt")
+        self.salinity = self.import_salinity()
+
+        #substances
+        self.substances = self.import_substances("substances.txt")
 
     # SFG
     def import_sfg(self, parent_dir):
@@ -98,13 +104,13 @@ class Importer:
     def import_liftoffs(self, file):
         """Imports the lift-off points determined manually from a file"""
         col_names = ["name", "lift_off"]
-        temp = pd.read_csv(file, sep=';', names=col_names)
+        temp = pd.read_csv(file, sep=';', names=col_names, skiprows=1)
         return temp
 
     # other spectra
     def extract_other_spectra(self, file, sep='\t', skip=0):
         """Extracts the data from UV, IR and Raman measurements"""
-        temp = pd.read_csv(file, sep=sep, skiprows=skip)
+        temp = pd.read_csv(file, sep=sep, skiprows=skip, names=["x", "y"])
         return temp
 
     # other
@@ -118,3 +124,41 @@ class Importer:
         col_names = ["name", "tension"]
         temp = pd.read_csv(file, sep=';', names=col_names)
         return temp
+
+    def import_other_spectra(self):
+
+        for file in os.listdir("Raman"):
+            temp_df = self.extract_other_spectra("Raman/"+file)
+            dic = {"name":file, "data": temp_df}
+            self.raman.append(dic)
+
+        for file in os.listdir("IR"):
+            temp_df = self.extract_other_spectra("IR/"+file)
+            dic = {"name": file, "data": temp_df}
+            self.ir.append(dic)
+
+        for file in os.listdir("UV"):
+            temp_df = self.extract_other_spectra("UV/"+file, skip=2, sep=",")
+            dic = {"name": file, "data": temp_df}
+            self.uv.append(dic)
+
+    def import_salinity(self):
+        sal = pd.read_excel("stationsplan.xls")
+        salinities = []
+        for row in range(len(sal)):
+            sur_sal = sal.loc[row, "Salinity surface"]
+            dep_sal = sal.loc[row, "Salinity depth"]
+            _hash = '0' + str(sal.loc[row, "hash"])
+            label = sal.loc[row, "Leg"] + "-" + str(sal.loc[row, "Station Number"])
+            lat = sal.loc[row, "Latitude"]
+            long = sal.loc[row, "Longitude"]
+
+            dic = {"surface_salinity": sur_sal, "deep_salinity": dep_sal,
+                   "label": label, "longitude": long, "latitude": lat, "hash": _hash}
+            salinities.append(dic)
+        return salinities
+
+
+if __name__ == "__main__":
+    I = Importer()
+    print(I.salinity)
