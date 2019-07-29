@@ -9,7 +9,7 @@ ORM-part of SQlalchemy
 
 from importer import Importer
 
-from sqlalchemy import create_engine, Column, Integer, Text, DateTime, ForeignKey, UniqueConstraint, TIMESTAMP
+from sqlalchemy import create_engine, Column, Integer, Text, DateTime, ForeignKey, UniqueConstraint, TIMESTAMP, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
@@ -116,6 +116,80 @@ class DatabaseWizard:
         "latitude": Column(Text),
         "surface_salinity": Column(Text),
         "deep_salinity": Column(Text),
+
+
+    }
+
+    StationStat = {
+
+        "__tablename__": 'station_stats',
+        "id": Column(Integer, primary_key=True),
+        "station_id": Column(Integer, ForeignKey("stations.id")),
+
+        "plate_coverage": Column(Float),
+        "plate_coverage_std": Column(Float),
+        "plate_coverage_n": Column(Integer),
+
+        "plate_lift_off": Column(Float),
+        "plate_lift_off_std": Column(Float),
+        "plate_lift_off_n": Column(Integer),
+
+        "plate_tension": Column(Float),
+        "plate_tension_std": Column(Float),
+        "plate_tension_n": Column(Integer),
+
+        "plate_max_pressure": Column(Float),
+        "plate_max_pressure_std": Column(Float),
+        "plate_max_pressure_n": Column(Integer),
+
+        "screen_coverage": Column(Float),
+        "screen_coverage_std": Column(Float),
+        "screen_coverage_n": Column(Integer),
+
+        "screen_lift_off": Column(Float),
+        "screen_lift_off_std": Column(Float),
+        "screen_lift_off_n": Column(Integer),
+
+        "screen_tension": Column(Float),
+        "screen_tension_std": Column(Float),
+        "screen_tension_n": Column(Integer),
+
+        "screen_max_pressure": Column(Float),
+        "screen_max_pressure_std": Column(Float),
+        "screen_max_pressure_n": Column(Integer),
+
+        "sml_coverage": Column(Float),
+        "sml_coverage_std": Column(Float),
+        "sml_coverage_n": Column(Integer),
+
+        "sml_lift_off": Column(Float),
+        "sml_lift_off_std": Column(Float),
+        "sml_lift_off_n": Column(Integer),
+
+        "sml_tension": Column(Float),
+        "sml_tension_std": Column(Float),
+        "sml_tension_n": Column(Integer),
+
+        "sml_max_pressure": Column(Float),
+        "sml_max_pressure_std": Column(Float),
+        "sml_max_pressure_n": Column(Integer),
+
+        "deep_coverage": Column(Float),
+        "deep_coverage_std": Column(Float),
+        "deep_coverage_n": Column(Integer),
+
+        "deep_lift_off": Column(Float),
+        "deep_lift_off_std": Column(Float),
+        "deep_lift_off_n": Column(Integer),
+
+        "deep_tension": Column(Float),
+        "deep_tension_std": Column(Float),
+        "deep_tension_n": Column(Integer),
+
+        "deep_max_pressure": Column(Float),
+        "deep_max_pressure_std": Column(Float),
+        "deep_max_pressure_n": Column(Integer),
+
     }
 
     Samples = {
@@ -155,7 +229,7 @@ class DatabaseWizard:
     def __init__(self):
 
         # SQL init
-        engine = create_engine('sqlite:///orm.db', echo=True)
+        engine = create_engine('sqlite:///orm.db', echo=False)
         self.Base = declarative_base()
 
         # ORM object creation
@@ -168,6 +242,7 @@ class DatabaseWizard:
         self.substances = self.factory(DatabaseWizard.Substances)
 
         self.stations = self.factory(DatabaseWizard.Stations)
+        self.station_stats = self.factory(DatabaseWizard.StationStat)
         self.samples = self.factory(DatabaseWizard.Samples)
         self.gasex_surftens = self.factory(DatabaseWizard.GasexSurftens)
         self.gasex_lt = self.factory(DatabaseWizard.GasexLt)
@@ -641,6 +716,7 @@ class PostProcessor:
                     logfile.write(lift_off["name"]+"\n")
 
         self.db_wizard.session.commit()
+
 
 # URGENT:
 
