@@ -9,8 +9,7 @@ class WorkDatabaseWizard(DatabaseWizard):
 
     def __init__(self):
         super().__init__()
-        q_lt = self.session.query(self.lt)
-        d = self.get_dppc_references()
+        self.session.commit()
 
     def get_dppc_references(self):
         """A function querying the sfg table for DPPC reference spectra, generating the corresponding objects,
@@ -44,7 +43,10 @@ class WorkDatabaseWizard(DatabaseWizard):
     @staticmethod
     def to_array(string):
         """Converts the raw data stored as strings back to numpy float ndarrays."""
-        return np.fromstring(string, sep=",")
+        try:
+            return np.fromstring(string, sep=",")
+        except TypeError:
+            return np.nan
 
     @staticmethod
     def construct_sfg(or_object):
@@ -59,7 +61,7 @@ class WorkDatabaseWizard(DatabaseWizard):
     def construct_lt(or_object):
         """A function constructing the LT object from the orm declarative class."""
         args = (or_object.name, or_object.measured_time)
-        add_args = ["time", "area", "apm", "surface_pressure"]
+        add_args = ["time", "area", "apm", "surface_pressure", "lift_off"]
         add_args = [WorkDatabaseWizard.to_array(getattr(or_object, i)) for i in add_args]
         l = LtIsotherm(args[0], args[1], *add_args)
         return l
@@ -72,6 +74,7 @@ class SomeManager:
         self.wdw = WorkDatabaseWizard()
         self.stations = self.get_stations()
         self.calculate_sample_values()
+        self.persist_stations()
 
     def get_stations(self):
         stations = []
@@ -129,11 +132,17 @@ class SomeManager:
 
             station.get_all_stats()
 
+    def persist_stations(self):
+
+        for station in self.stations:
+            station.persist_stats(self.wdw)
+
     @staticmethod
     def correct_salinity(salinity):
         """A function yielding a salinity-dependent correction factor for the surface tension. The reference salinity where
         the factor equals zero is 17 PSU."""
         return 0.5225 - 0.0391 * salinity
+
 
 class Sample:
 
@@ -153,13 +162,11 @@ class Sample:
     def get_lift_off(self):
         """Extract the lift-off value from the dataframe and normalize it to the maximum initial area in order to make
         it comparable."""
-        try:
+
+        if len(self.lt_isotherms) > 0:
             temp = sorted(self.lt_isotherms, key=lambda x: x.measured_time)
             # divide the raw lift-off point by the start area of compression
-            self.lift_off = round(temp[0].lift_off/(np.max(temp[0].area)), 3)
-
-        except (IndexError, TypeError):
-            pass
+            self.lift_off = np.round(temp[0].lift_off/(np.max(temp[0].area)), 3)
 
     def calc_coverage(self, dates):
         """Calculates the surface coverage by normalizing the CH integral to the
@@ -170,7 +177,7 @@ class Sample:
             integral = self.sfg_spectra[0].calculate_ch_integral()
             if integral < 0:
                 integral = 0
-            self.coverage = round(np.sqrt(integral / factor), 4)
+            self.coverage = np.round(np.sqrt(integral / factor), 4)
 
         except IndexError:
             pass
@@ -222,9 +229,11 @@ class Station:
         """A generic function to calculate all necessary station attributes (eg. SML coverage, deep tension..)."""
         value = [getattr(i, value) for i in self.samples if i.data.type in sample_type]
         value = [float(i) for i in value if i is not None]
-        n = int(len(value))
-        av = np.nanmean(value)
-        std = np.nanstd(value)
+        len_ = [i for i in value if np.isnan(i) == False]
+
+        n = len(len_)
+        av = np.round(np.nanmean(value), decimals=2)
+        std = np.round(np.nanstd(value), decimals=4)
 
         return av, std, n
 
@@ -245,6 +254,16 @@ class Station:
             new_stats[item + "_n"] = value[2]
 
         self.stats = new_stats
+
+    def persist_stats(self, wizard):
+
+        stats = wizard.station_stats()
+        stats.station_id = self.data.id
+        for key in self.stats:
+            if self.stats[key] is not None:
+                setattr(stats, key, self.stats[key])
+        wizard.session.add(stats)
+        wizard.session.commit()
 
 SomeManager()
 
