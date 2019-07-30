@@ -125,12 +125,16 @@ class SomeManager:
 
                 if sample.tension is not None:
                     if sample.data.type == "deep":
+                        sample.raw_tension = sample.tension
                         sample.tension += SomeManager.correct_salinity(float(station.data.deep_salinity))
                     else:
+                        sample.raw_tension = sample.tension
                         sample.tension += SomeManager.correct_salinity(float(station.data.surface_salinity))
+
                     sample.tension = round(sample.tension, 2)
 
             station.get_all_stats()
+            station.reference_tension_temperature()
 
     def persist_stations(self):
 
@@ -141,7 +145,7 @@ class SomeManager:
     def correct_salinity(salinity):
         """A function yielding a salinity-dependent correction factor for the surface tension. The reference salinity where
         the factor equals zero is 17 PSU."""
-        return 0.5225 - 0.0391 * salinity
+        return 0.52552 - 0.0391 * salinity
 
 
 class Sample:
@@ -152,6 +156,7 @@ class Sample:
         self.data = data
 
         self.tension = None
+        self.raw_tension = None
         self.max_pressure = None
         self.lift_off = None
         self.coverage = None
@@ -221,9 +226,14 @@ class Station:
             "deep_coverage": None,
             "deep_lift_off": None,
             "deep_tension": None,
-            "deep_max_pressure": None
+            "deep_max_pressure": None,
+            "sml_rawtension": None,
+            "deep_rawtension": None,
         }
         self.doy = self.data.date.timetuple().tm_yday + (1-self.data.number)*0.2
+
+        self.temp_tension_deep = None
+        self.temp_tension_sml = None
 
     def calc_stat(self, value, sample_type):
         """A generic function to calculate all necessary station attributes (eg. SML coverage, deep tension..)."""
@@ -242,7 +252,8 @@ class Station:
         in the average."""
 
         types = {"deep": ("deep",), "sml": ("p", "s"), "plate": ("p",), "screen": ("s",)}
-        values = {"tension": "tension", "lift": "lift_off", "max": "max_pressure", "coverage": "coverage"}
+        values = {"tension": "tension", "lift": "lift_off", "max": "max_pressure", "coverage": "coverage",
+                  "rawtension": "raw_tension"}
         new_stats = {}
 
         for item in self.stats:
@@ -262,17 +273,55 @@ class Station:
         for key in self.stats:
             if self.stats[key] is not None:
                 setattr(stats, key, self.stats[key])
+
         wizard.session.add(stats)
         wizard.session.commit()
 
-SomeManager()
+    def reference_tension_temperature(self):
+        try:
+            temp1_hi = Station.calc_sal_tension(float(self.data.surface_temperature), float(self.data.surface_salinity))
+            temp1_lo = Station.calc_sal_tension(21, float(self.data.surface_salinity))
+            temp1 = self.stats["sml_rawtension"] + (temp1_hi - temp1_lo)
+            # print(f"""t: {self.data.surface_temperature} S: {self.data.surface_salinity}
+            # raw: {self.stats["sml_rawtension"]} after: {temp1}""")
+            self.stats["sml_rawtension"] = temp1
+        except:
+            pass
 
+        try:
+            temp2_hi = Station.calc_sal_tension(float(self.data.deep_temperature), float(self.data.deep_salinity))
+            temp2_lo = Station.calc_sal_tension(21, float(self.data.deep_salinity))
+            temp2 = self.stats["deep_rawtension"] + (temp2_hi - temp2_lo)
+            #print(f"""t: {self.data.deep_temperature} S: {self.data.deep_salinity}
+            #raw: {self.stats["deep_rawtension"]} after: {temp2}""")
+            self.stats["deep_rawtension"] = temp2
+        except:
+            pass
+
+    # auxiliary functions
+    @staticmethod
+    def calc_pure_tension(t):
+        temp = (1 - ((t + 273.15) / 647.096))
+        out = (235.8 * temp ** 1.256) * (1 - 0.625 * temp)
+        return out
+
+    @staticmethod
+    def calc_sal_tension(t, s):
+        temp = Station.calc_pure_tension(t)
+        factor = 1 + (3.766 * 10 ** -4) * s + (2.347 * 10 ** -6) * s * t
+        return temp * factor
+
+
+S = SomeManager()
+
+#for s in S.stations:
+    #print(f'sml: {s.stats["sml_tension"]} {s.stats["sml_rawtension"]} deep: {s.stats["deep_tension"]}\n {s.stats["deep_rawtension"]}')
 
 # Benchmark the new version
 # todo: compare the dictionary with DPPC references for gasex values produced by the old and the new routines
 # todo: compare the output values
 
-# todo: find a suitable name for the data attribute of sampes and stations
+# todo: find a suitable name for the data attribute of samples and stations
 # todo: make a new table with measurement days and the corresponding maximum dppc intensities
 # todo: the DPPC spectra have to be averaged on the station level and not on the sample level
 
