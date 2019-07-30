@@ -116,8 +116,8 @@ class DatabaseWizard:
         "latitude": Column(Text),
         "surface_salinity": Column(Text),
         "deep_salinity": Column(Text),
-
-
+        "surface_temperature": Column(Text),
+        "deep_temperature": Column(Text),
     }
 
     StationStat = {
@@ -190,6 +190,8 @@ class DatabaseWizard:
         "deep_max_pressure_std": Column(Float),
         "deep_max_pressure_n": Column(Integer),
 
+        "sml_rawtension":  Column(Float),
+        "deep_rawtension": Column(Float),
     }
 
     Samples = {

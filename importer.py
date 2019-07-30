@@ -148,49 +148,20 @@ class Importer:
         for row in range(len(sal)):
             sur_sal = sal.loc[row, "Salinity surface"]
             dep_sal = sal.loc[row, "Salinity depth"]
+            sur_temp = sal.loc[row, "Temperature surface"]
+            dep_temp = sal.loc[row, "Temperature depth"]
             _hash = '0' + str(sal.loc[row, "hash"])
             label = sal.loc[row, "Leg"] + "-" + str(sal.loc[row, "Station Number"])
             lat = sal.loc[row, "Latitude"]
             long = sal.loc[row, "Longitude"]
 
             dic = {"surface_salinity": sur_sal, "deep_salinity": dep_sal,
-                   "label": label, "longitude": long, "latitude": lat, "hash": _hash}
+                   "label": label, "longitude": long, "latitude": lat, "hash": _hash,
+                   "surface_temperature": sur_temp, "deep_temperature": dep_temp}
             salinities.append(dic)
         return salinities
 
     # auxiliary functions
-    @staticmethod
-    def load_ctd_data(file):
-
-        columns = [3, 5, 6, 17, 18, 19, 20, 21]
-        names = ["depth", "temperature", "salinity",
-                 "year", "month", "day", "hour", "minute"]
-        df = pd.read_csv(file, skiprows=34,
-                         delim_whitespace=True, usecols=columns, names=names)
-
-        return df
-
-    # todo: by_day is obsolete after automatic population of tables
-    @staticmethod
-    def by_day(df, day):
-        return df[df["day"] == day]
-
-    @staticmethod
-    def reorganize(df):
-        headers = df.columns.tolist() + ['date']
-        new_df = df.reindex(columns=headers)
-
-        for index, row in df.iterrows():
-            year = int(df.loc[index]["year"])
-            month = int(df.loc[index]["month"])
-            day = int(df.loc[index]["day"])
-            hour = int(df.loc[index]["hour"])
-            d = datetime(year, month, day, hour)
-            new_df.set_value(index, "date", d)
-
-        return new_df[["depth", "temperature", "salinity", "date"]]
-
-
 if __name__ == "__main__":
     I = Importer()
     print(I.salinity)
