@@ -1,80 +1,26 @@
-from orm import DatabaseWizard
-from spectrum import SfgSpectrum, LtIsotherm, SfgAverager
+from orm import WorkDatabaseWizard
 
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 
 
-class WorkDatabaseWizard(DatabaseWizard):
+class GasExManager:
+    """The GasExManager classes operates on the data recorded during and in connection with the Baltic GasEx
+    cruise in 2018. If instantiated with new=True, Samples and Stations classes are created from the raw data
+    stored in the database, connected to each other, values calculated and persisted. For everyday-use, the
+    new=False option is recommended. In this case, a Pandas dataframe containing the data of all Stations
+    is generated. This is suitable for plotting and data analysis."""
 
-    def __init__(self):
-        super().__init__()
-        self.session.commit()
-
-    def get_dppc_references(self):
-        """A function querying the sfg table for DPPC reference spectra, generating the corresponding objects,
-        calculating the CH integral making use of the SfgAverager class and returning a dictionary of date objects
-        with the corresponding intensities."""
-        dates = {}
-
-        q_dppc = self.session.query(self.sfg). \
-            filter(self.sfg.name.op('GLOB')('*DPPC_*.*')). \
-            filter(self.sfg.measured_time.between('2018-01-01', '2018-12-31')) \
-            .filter(~self.sfg.name.contains('ppp'))
-
-        for item in q_dppc:
-            s = WorkDatabaseWizard.construct_sfg(item)
-            _date = s.meta["time"].date()
-            if _date not in dates:
-                dates[_date] = [s]
-            else:
-                dates[_date].append(s)
-
-        for item in dates:
-            dates[item] = SfgAverager(dates[item]).integral
-
-        # get rid of days where no DPPC spectra were recorded
-        dates = {k: v for k, v in dates.items() if not np.isnan(v)}
-
-        return dates
-
-    # auxiliary functions
-
-    @staticmethod
-    def to_array(string):
-        """Converts the raw data stored as strings back to numpy float ndarrays."""
-        try:
-            return np.fromstring(string, sep=",")
-        except TypeError:
-            return np.nan
-
-    @staticmethod
-    def construct_sfg(or_object):
-        """A function constructing the SFG object from the orm declarative class."""
-        meta = {"name": or_object.name, "time": or_object.measured_time}
-        args = ("wavenumbers", "sfg", "vis", "ir")
-        args = [WorkDatabaseWizard.to_array(getattr(or_object, i)) for i in args]
-        s = SfgSpectrum(*args, meta)
-        return s
-
-    @staticmethod
-    def construct_lt(or_object):
-        """A function constructing the LT object from the orm declarative class."""
-        args = (or_object.name, or_object.measured_time)
-        add_args = ["time", "area", "apm", "surface_pressure", "lift_off"]
-        add_args = [WorkDatabaseWizard.to_array(getattr(or_object, i)) for i in add_args]
-        l = LtIsotherm(args[0], args[1], *add_args)
-        return l
-
-
-class SomeManager:
-
-    def __init__(self):
-
+    def __init__(self, new=True):
         self.wdw = WorkDatabaseWizard()
-        self.stations = self.get_stations()
-        self.calculate_sample_values()
-        self.persist_stations()
+
+        if new:
+            self.stations = self.get_stations()
+            self.calculate_sample_values()
+            self.persist_stations()
+
+        self.station_table = self.generate_station_table()
+        self.station_table["date"] = pd.to_datetime(self.station_table["date"])
 
     def get_stations(self):
         stations = []
@@ -126,10 +72,10 @@ class SomeManager:
                 if sample.tension is not None:
                     if sample.data.type == "deep":
                         sample.raw_tension = sample.tension
-                        sample.tension += SomeManager.correct_salinity(float(station.data.deep_salinity))
+                        sample.tension += GasExManager.correct_salinity(float(station.data.deep_salinity))
                     else:
                         sample.raw_tension = sample.tension
-                        sample.tension += SomeManager.correct_salinity(float(station.data.surface_salinity))
+                        sample.tension += GasExManager.correct_salinity(float(station.data.surface_salinity))
 
                     sample.tension = round(sample.tension, 2)
 
@@ -137,6 +83,8 @@ class SomeManager:
             station.reference_tension_temperature()
 
     def persist_stations(self):
+        """Invokes the persist_stat function of each station, ensuring that the calculated values are written to
+        the station_stats table in the database."""
 
         for station in self.stations:
             station.persist_stats(self.wdw)
@@ -147,9 +95,21 @@ class SomeManager:
         the factor equals zero is 17 PSU."""
         return 0.52552 - 0.0391 * salinity
 
+    def generate_station_table(self):
+        """Generates a pandas dataframe from the joint columns of stations and station_stats table."""
+        command = """
+        SELECT *
+        FROM stations
+        INNER JOIN station_stats
+        on stations.id = station_stats.station_id;
+        """
+        temp = pd.read_sql(command, self.wdw.session.bind)
+        return temp
+
 
 class Sample:
-
+    """The sample class unites all measurement data corresponding to a specific sample conveniently. It is used
+    by the Station class to calculate the corresponding values"""
     def __init__(self, data):
 
         # instead of the pandas dataframe, the or_class is used here
@@ -206,7 +166,8 @@ class Sample:
 
 
 class Station:
-
+    """This class represents a cruise station. It takes care about its samples, calculates average values and
+    makes them available for plotting purposes via its station table (a Pandas dataframe)"""
     def __init__(self, data):
         self.data = data
         self.samples = []
@@ -282,9 +243,7 @@ class Station:
             temp1_hi = Station.calc_sal_tension(float(self.data.surface_temperature), float(self.data.surface_salinity))
             temp1_lo = Station.calc_sal_tension(21, float(self.data.surface_salinity))
             temp1 = self.stats["sml_rawtension"] + (temp1_hi - temp1_lo)
-            # print(f"""t: {self.data.surface_temperature} S: {self.data.surface_salinity}
-            # raw: {self.stats["sml_rawtension"]} after: {temp1}""")
-            self.stats["sml_rawtension"] = temp1
+            self.stats["sml_rawtension"] = round(temp1, 2)
         except:
             pass
 
@@ -292,9 +251,7 @@ class Station:
             temp2_hi = Station.calc_sal_tension(float(self.data.deep_temperature), float(self.data.deep_salinity))
             temp2_lo = Station.calc_sal_tension(21, float(self.data.deep_salinity))
             temp2 = self.stats["deep_rawtension"] + (temp2_hi - temp2_lo)
-            #print(f"""t: {self.data.deep_temperature} S: {self.data.deep_salinity}
-            #raw: {self.stats["deep_rawtension"]} after: {temp2}""")
-            self.stats["deep_rawtension"] = temp2
+            self.stats["deep_rawtension"] = round(temp2, 2)
         except:
             pass
 
@@ -311,17 +268,6 @@ class Station:
         factor = 1 + (3.766 * 10 ** -4) * s + (2.347 * 10 ** -6) * s * t
         return temp * factor
 
-
-S = SomeManager()
-
-#for s in S.stations:
-    #print(f'sml: {s.stats["sml_tension"]} {s.stats["sml_rawtension"]} deep: {s.stats["deep_tension"]}\n {s.stats["deep_rawtension"]}')
-
-# Benchmark the new version
-# todo: compare the dictionary with DPPC references for gasex values produced by the old and the new routines
-# todo: compare the output values
-
-# todo: find a suitable name for the data attribute of samples and stations
 # todo: make a new table with measurement days and the corresponding maximum dppc intensities
-# todo: the DPPC spectra have to be averaged on the station level and not on the sample level
+# todo: the SFG spectra have to be averaged on the station level and not on the sample level
 
