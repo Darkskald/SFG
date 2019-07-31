@@ -8,11 +8,13 @@ ORM-part of SQlalchemy
 """
 
 from importer import Importer
+from spectrum import SfgSpectrum, SfgAverager, LtIsotherm
 
-from sqlalchemy import create_engine, Column, Integer, Text, DateTime, ForeignKey, UniqueConstraint, TIMESTAMP, Float
+from sqlalchemy import create_engine, Column, Integer, Text, ForeignKey, UniqueConstraint, TIMESTAMP, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
+import numpy as np
 
 import re
 import datetime
@@ -124,8 +126,7 @@ class DatabaseWizard:
 
         "__tablename__": 'station_stats',
         "id": Column(Integer, primary_key=True),
-        "station_id": Column(Integer, ForeignKey("stations.id")),
-
+        "station_id": Column(Integer, ForeignKey("stations.id"), unique=True),
         "plate_coverage": Column(Float),
         "plate_coverage_std": Column(Float),
         "plate_coverage_n": Column(Integer),
@@ -231,7 +232,7 @@ class DatabaseWizard:
     def __init__(self):
 
         # SQL init
-        engine = create_engine('sqlite:///orm.db', echo=False)
+        self.engine = create_engine('sqlite:///orm.db', echo=False)
         self.Base = declarative_base()
 
         # ORM object creation
@@ -255,8 +256,8 @@ class DatabaseWizard:
         self.uv = self.factory(DatabaseWizard.uv)
 
         # SQL creation
-        self.Base.metadata.create_all(engine)
-        Session = sessionmaker(bind=engine)
+        self.Base.metadata.create_all(self.engine)
+        Session = sessionmaker(bind=self.engine)
         self.session = Session()
 
     def factory(self, dic):
@@ -720,14 +721,71 @@ class PostProcessor:
         self.db_wizard.session.commit()
 
 
-# URGENT:
+class WorkDatabaseWizard(DatabaseWizard):
 
-# SOMETIMES
-# todo: take care about the "measurer" field in LT
+    def __init__(self):
+        super().__init__()
+        self.session.commit()
+
+    def get_dppc_references(self):
+        """A function querying the sfg table for DPPC reference spectra, generating the corresponding objects,
+        calculating the CH integral making use of the SfgAverager class and returning a dictionary of date objects
+        with the corresponding intensities."""
+        dates = {}
+
+        q_dppc = self.session.query(self.sfg). \
+            filter(self.sfg.name.op('GLOB')('*DPPC_*.*')). \
+            filter(self.sfg.measured_time.between('2018-01-01', '2018-12-31')) \
+            .filter(~self.sfg.name.contains('ppp'))
+
+        for item in q_dppc:
+            s = WorkDatabaseWizard.construct_sfg(item)
+            _date = s.meta["time"].date()
+            if _date not in dates:
+                dates[_date] = [s]
+            else:
+                dates[_date].append(s)
+
+        for item in dates:
+            dates[item] = SfgAverager(dates[item]).integral
+
+        # get rid of days where no DPPC spectra were recorded
+        dates = {k: v for k, v in dates.items() if not np.isnan(v)}
+
+        return dates
+
+    # auxiliary functions
+
+    @staticmethod
+    def to_array(string):
+        """Converts the raw data stored as strings back to numpy float ndarrays."""
+        try:
+            return np.fromstring(string, sep=",")
+        except TypeError:
+            return np.nan
+
+    @staticmethod
+    def construct_sfg(or_object):
+        """A function constructing the SFG object from the orm declarative class."""
+        meta = {"name": or_object.name, "time": or_object.measured_time}
+        args = ("wavenumbers", "sfg", "vis", "ir")
+        args = [WorkDatabaseWizard.to_array(getattr(or_object, i)) for i in args]
+        s = SfgSpectrum(*args, meta)
+        return s
+
+    @staticmethod
+    def construct_lt(or_object):
+        """A function constructing the LT object from the orm declarative class."""
+        args = (or_object.name, or_object.measured_time)
+        add_args = ["time", "area", "apm", "surface_pressure", "lift_off"]
+        add_args = [WorkDatabaseWizard.to_array(getattr(or_object, i)) for i in add_args]
+        l = LtIsotherm(args[0], args[1], *add_args)
+        return l
+
 
 if __name__ == "__main__":
     D = ImportDatabaseWizard()
     P = PostProcessor(D)
 
 
-
+# todo: take care about the "measurer" field in LT

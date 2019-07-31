@@ -162,6 +162,7 @@ class Importer:
         return salinities
 
     # auxiliary functions
-if __name__ == "__main__":
-    I = Importer()
-    print(I.salinity)
+
+
+# todo: decouple the Importer so it is not to tightly bound to boknis/gasex
+# todo: dacopuling by using a factory method for the importer?
