@@ -54,8 +54,8 @@ class DatabaseWizard:
         "__tablename__": 'regular_sfg',
         "id": Column(Integer, primary_key=True),
         "name": Column(Text),
-        "specid": Column(Integer),
-        "surfactant": Column(Text, ForeignKey('sfg.id')),
+        "specid": Column(Integer, ForeignKey('sfg.id')),
+        "surfactant": Column(Text),
         "surfactant_vol": Column(Text),
         "surfactant_conc": Column(Text),
         "sensitizer": Column(Text),
@@ -70,7 +70,7 @@ class DatabaseWizard:
     Lt = {
         "__tablename__": 'lt',
         "id": Column(Integer, primary_key=True),
-        "name": Column(Text, unique=True),
+        "name": Column(Text),
         "type": Column(Text),
         "measured_time": Column(TIMESTAMP),
         "measurer": Column(Text),
@@ -79,6 +79,21 @@ class DatabaseWizard:
         "apm": Column(Text),
         "surface_pressure": Column(Text),
         "lift_off": Column(Text),
+    }
+
+    RegularLt = {
+        "__tablename__": 'regular_lt',
+        "id": Column(Integer, primary_key=True),
+        "name": Column(Text),
+        "ltid": Column(Integer, ForeignKey('lt.id')),
+        "surfactant": Column(Text),
+        "sensitizer": Column(Text),
+        "ratio": Column(Text),
+        "conc": Column(Text),
+        "spreading_volume": Column(Text),
+        "speed": Column(Text),
+        "sample_no": Column(Text),
+        "measurement_no": Column(Text),
     }
 
     GasexLt = {
@@ -203,6 +218,10 @@ class DatabaseWizard:
         "location": Column(Text),
         "type": Column(Text),
         "number": Column(Integer),
+        "coverage": Column(Float),
+        "max_pressure": Column(Float),
+        "lift_off": Column(Float),
+        "surface_tension": Column(Float),
     }
 
     IR = {
@@ -237,9 +256,11 @@ class DatabaseWizard:
 
         # ORM object creation
         self.sfg = self.factory(DatabaseWizard.Sfg)
-
         self.regular_sfg = self.factory(DatabaseWizard.RegularSfg)
+
         self.lt = self.factory(DatabaseWizard.Lt)
+        self.regular_lt = self.factory(DatabaseWizard.RegularLt)
+
         self.boknis_eck = self.factory(DatabaseWizard.BoknisEck)
 
         self.substances = self.factory(DatabaseWizard.Substances)
@@ -267,6 +288,9 @@ class DatabaseWizard:
 
         if name == "sfg":
             dic["__table_args__"] = ((UniqueConstraint("name", "type")),)
+
+        elif name == "lt":
+            dic["__table_args__"] = ((UniqueConstraint("name", "measured_time")),)
 
         return type(name, (self.Base,), dic)
 
@@ -354,7 +378,7 @@ class ImportDatabaseWizard(DatabaseWizard):
         for _, row in self.importer.gasex_tension.iterrows():
             tension = self.gasex_surftens()
             tension.name = row["name"]
-            tension.surface_tension = row["tension"]
+            tension.surface_tension = row["tension"]*0.99703
             tensions.append(tension)
 
         self.session.add_all(tensions)
@@ -420,6 +444,7 @@ class PostProcessor:
         self.substances = self.get_substances()
 
         self.add_regular_info()
+        self.add_regular_lt_info()
 
         self.populate_gasex_tables()
         self.map_samples()
@@ -505,6 +530,28 @@ class PostProcessor:
             reg_spec = self.db_wizard.regular_sfg()
             reg_spec.name = name
             reg_spec.specid = item.id
+
+            for key in meta_info:
+                setattr(reg_spec, key, meta_info[key])
+
+            reg_specs.append(reg_spec)
+
+        self.db_wizard.session.add_all(reg_specs)
+        self.db_wizard.session.commit()
+
+    def add_regular_lt_info(self):
+        """This function iterates over all regular type SFG objects, performs the name refinement
+        provided in refine_regular() and persists this information in the regular_sfg table."""
+        q = self.db_wizard.session.query(self.db_wizard.lt).filter\
+            (self.db_wizard.lt.type == "lt")
+        reg_specs = []
+
+        for item in q:
+            name = item.name
+            meta_info = LtTokenizer.process(name)
+            reg_spec = self.db_wizard.regular_lt()
+            reg_spec.name = name
+            reg_spec.ltid = item.id
 
             for key in meta_info:
                 setattr(reg_spec, key, meta_info[key])
@@ -781,6 +828,30 @@ class WorkDatabaseWizard(DatabaseWizard):
         add_args = [WorkDatabaseWizard.to_array(getattr(or_object, i)) for i in add_args]
         l = LtIsotherm(args[0], args[1], *add_args)
         return l
+
+
+class LtTokenizer:
+
+    regex = {
+        "sample_no": re.compile(r'x\d'),
+        "measurement_no": re.compile(r'#\d'),
+        "ratio": re.compile(r'\dto\d'),
+        "surfactant": re.compile(r'\wA'),
+        "sensitizer": re.compile(r'BX\d'),
+        "speed": re.compile(r'\d.\d*'),
+        "spreading_volume": re.compile(r'\d\d'),
+        "conc": re.compile(r'\d+')
+    }
+
+    @staticmethod
+    def process(string):
+        out = {}
+        for token in string.split("_"):
+            for item in LtTokenizer.regex:
+                temp = re.match(LtTokenizer.regex[item], token)
+                if temp is not None:
+                    out[item] = token
+        return out
 
 
 if __name__ == "__main__":
