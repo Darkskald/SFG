@@ -39,6 +39,7 @@ class GasExManager:
                 or_sfg = self.wdw.session.query(self.wdw.sfg) \
                     .join(self.wdw.gasex_sfg, self.wdw.gasex_sfg.name == self.wdw.sfg.name). \
                     filter(self.wdw.gasex_sfg.sample_id == or_sample.id)
+
                 for or_spec in or_sfg:
                     s = self.wdw.construct_sfg(or_spec)
                     sample.sfg_spectra.append(s)
@@ -78,9 +79,12 @@ class GasExManager:
                         sample.tension += GasExManager.correct_salinity(float(station.data.surface_salinity))
 
                     sample.tension = round(sample.tension, 2)
+                sample.set_values()
+                self.wdw.session.commit()
 
             station.get_all_stats()
             station.reference_tension_temperature()
+
 
     def persist_stations(self):
         """Invokes the persist_stat function of each station, ensuring that the calculated values are written to
@@ -124,6 +128,10 @@ class Sample:
         self.sfg_spectra = []
         self.lt_isotherms = []
 
+    def __str__(self):
+        temp = f'\nhash: {self.data.sample_hash}\nnumber_sfg: {len(self.sfg_spectra)}\nnumber_lt: {len(self.lt_isotherms)}'
+        return temp
+
     def get_lift_off(self):
         """Extract the lift-off value from the dataframe and normalize it to the maximum initial area in order to make
         it comparable."""
@@ -145,7 +153,8 @@ class Sample:
             self.coverage = np.round(np.sqrt(integral / factor), 4)
 
         except IndexError:
-            pass
+            with open("errorlog.txt", "a") as outfile:
+                outfile.write(str(self))
 
     def calc_pressure(self):
         """Calculate the maximum surface pressure for the LT isotherm measurement of the sample."""
@@ -163,6 +172,12 @@ class Sample:
         self.calc_pressure()
         self.calc_coverage(dates)
         self.get_lift_off()
+
+    def set_values(self):
+        self.data.surface_tension = self.tension
+        self.data.max_pressure = self.max_pressure
+        self.data.lift_off = self.lift_off
+        self.data.coverage = self.coverage
 
 
 class Station:
@@ -268,6 +283,12 @@ class Station:
         factor = 1 + (3.766 * 10 ** -4) * s + (2.347 * 10 ** -6) * s * t
         return temp * factor
 
+
+if __name__ == "__main__":
+    GasExManager()
+
+
 # todo: make a new table with measurement days and the corresponding maximum dppc intensities
 # todo: the SFG spectra have to be averaged on the station level and not on the sample level
+# todo: map parameters like tension, lt_measures and coverage to samples
 

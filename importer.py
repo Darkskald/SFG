@@ -76,23 +76,26 @@ class Importer:
         return temp
 
     # LT
-    def import_lt(self, parent_dir):
+    def import_lt(self, head_dir):
         """Imports LT data and collects the raw data by calling the extract_lt_function().
         It adds addtional metadata like creation timestamp, measured and name."""
 
         out = []
 
-        for file in os.listdir(parent_dir):
+        for parent_dir in os.listdir(head_dir):
+            new_path = head_dir + "/" + parent_dir
+            if os.path.isdir(new_path):
 
-            if file.endswith(".dat"):
-                creation_time = datetime.datetime.fromtimestamp(os.path.getmtime(parent_dir + "/" + file))
-                name = file[:-4]
+                for file in os.listdir(new_path):
 
-                data = self.extract_lt_file(parent_dir + "/" + file)
-                dic = {"name": name, "type": parent_dir, "measured_time": creation_time, "data": data}
+                    if file.endswith(".dat"):
+                        creation_time = datetime.datetime.fromtimestamp(os.path.getmtime(new_path + "/" + file))
+                        name = file[:-4]
 
-                out.append(dic)
+                        data = self.extract_lt_file(new_path + "/" + file)
+                        dic = {"name": name, "type": head_dir, "measured_time": creation_time, "data": data}
 
+                        out.append(dic)
         return out
 
     def extract_lt_file(self, file):
