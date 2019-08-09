@@ -22,15 +22,15 @@ class AbstractSpectrum(ABC):
         return self._x
 
     @x.setter
-    def set_x(self, value):
+    def x(self, value):
         self._x = value
 
     @property
     def x_unit(self):
         return self._x_unit
 
-    @x.setter
-    def set_x_unit(self, value):
+    @x_unit.setter
+    def x_unit(self, value):
         self._x_unit = value
 
     @property
@@ -38,23 +38,23 @@ class AbstractSpectrum(ABC):
         return self._y
 
     @y.setter
-    def set_y(self, value):
-        self._x = value
+    def y(self, value):
+        self._y = value
 
     @property
     def name(self):
         return self._name
 
-    @x.setter
-    def set_name(self, value):
+    @name.setter
+    def name(self, value):
         self._name = value
 
     @property
     def y_unit(self):
         return self._y_unit
 
-    @x.setter
-    def set_x_unit(self, value):
+    @y_unit.setter
+    def y_unit(self, value):
         self._y_unit = value
 
     def __repr__(self):
