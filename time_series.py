@@ -60,7 +60,7 @@ class SampleNameParser:
         self.deep = self.deep.reset_index(drop=True)
 
         # connect to the sample database with the raw SFG data
-        self.conn = sqlite3.connect("test.db")
+        self.conn = sqlite3.connect("orm.db")
         self.samples = pd.read_sql("SELECT * from sfg where type = \"boknis\"", self.conn)
 
 
@@ -243,7 +243,7 @@ class SampleNameParser:
                 specs = []
                 for j in range(len(match)):
                     name = match.loc[j, "name"]
-                    time = datetime.strptime((match.loc[j, "measured_time"]), '%Y-%m-%d %H:%M:%S')
+                    time = datetime.strptime((match.loc[j, "measured_time"]), '%Y-%m-%d %H:%M:%S.%f')
                     meta = {"name": name, "time": time}
                     data = ("wavenumbers", "sfg", "ir", "vis")
                     tup = map(lambda x: np.fromstring(match.loc[j, x], sep=";"), data)
@@ -305,7 +305,7 @@ class SampleNameParser:
         for i in range(len(dppc_specs)):
             name = dppc_specs.loc[i, "name"]
 
-            time = datetime.strptime((dppc_specs.loc[i, "measured_time"]), '%Y-%m-%d %H:%M:%S')
+            time = datetime.strptime((dppc_specs.loc[i, "measured_time"]), '%Y-%m-%d %H:%M:%S.%f')
             meta = {"name": name, "time": time}
             data = ("wavenumbers", "sfg", "ir", "vis")
             tup = map(lambda x: np.fromstring(dppc_specs.loc[i, x], sep=";"), data)

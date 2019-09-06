@@ -29,3 +29,6 @@ figure.figsize   : 6.4, 4.8
 # legend settings
 legend.fancybox : True
 legend.shadow : False
+
+# boxplot
+

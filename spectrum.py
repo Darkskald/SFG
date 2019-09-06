@@ -394,10 +394,8 @@ class LtIsotherm(AbstractSpectrum):
         return np.array(out[::-1])
 
     def cut_away_decay(self, x_array):
-
-        max = self.get_maximum_pressure()
-        index = int(np.where(self.pressure == max)[0][0])
-        return self.get_slice(x_array, 0, index)
+        max_area = np.argmax(self.area < 31.2)
+        return self.get_slice(x_array, 0, max_area)
 
     @staticmethod
     def get_closest_index(array_datapoints, check):
@@ -412,6 +410,17 @@ class LtIsotherm(AbstractSpectrum):
                 index = point[2]
 
         return index
+
+
+class AverageLt(LtIsotherm):
+
+    def __init__(self, area, pressure, meta):
+        # todo: invert the wavenunmber/ intensity scale to make it ascending
+        self.area = area
+        self.pressure = pressure
+        self.meta = meta
+        self._name = self.meta["name"]
+        super().setup_spec()
 
 
 class DummyPlotter:
@@ -594,5 +603,46 @@ class SfgAverager:
             outfile.write(self.log)
 
 
-"""TEST"""
-# sorting by density - does it work?
+class LtAverager:
+
+    def __init__(self, spectra):
+
+        if len(spectra) == 0:
+            raise ValueError("Warning: zero spectra to average in LtAverager!")
+
+        self.spectra = spectra
+
+    def average_lt(self, apm=True):
+        """Function performing the averaging: it ensures that all spectra are interpolated to have the same shape,
+        then they are averaged. A AverageSpectrum  object is constructed and returned."""
+        to_average = []
+
+        # sort spectra by length of the wavenumber array (lambda)
+        self.spectra.sort(key=lambda x: np.min(x.area), reverse=True)
+
+        if apm:
+            area_var = 'apm'
+
+        else:
+            area_var = 'area'
+
+        root_x_scale, c = self.spectra[0].cut_away_decay(getattr(self.spectra[0], area_var))
+        # get y values by interpolation and collect the y values in a list
+        for item in self.spectra:
+            x_array = getattr(item, area_var)
+            area, pressure = item.cut_away_decay(x_array)
+            new_pressure = np.interp(root_x_scale[::-1], area[::-1],
+                                      pressure[::-1])
+            to_average.append(new_pressure)
+
+        to_average = np.array(to_average)
+        average = np.nanmean(to_average, axis=0)
+        std = np.nanstd(to_average, axis=0)
+
+        # prepare meta data for average spectrum
+        newname = self.spectra[0].name + "baseAV"
+        in_new = [n.name for n in self.spectra]
+        s_meta = {"name": newname, "made_from": in_new, "std": std}
+        s = AverageLt(root_x_scale[::-1], average, s_meta)
+
+        return s
