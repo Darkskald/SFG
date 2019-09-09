@@ -184,7 +184,7 @@ class SfgSpectrum(AbstractSpectrum):
 
     # CH baseline correction and integration
 
-    def make_ch_baseline(self):
+    def make_ch_baseline(self, debug=False):
 
         # todo: interchange high and low at the slice borders function
         if np.min(self.wavenumbers) > 2800:
@@ -192,7 +192,10 @@ class SfgSpectrum(AbstractSpectrum):
         else:
             left = self.slice_by_borders( np.min(self.wavenumbers), 2800)
 
-        right = self.slice_by_borders(3000, 3030)
+        if np.max(self.wavenumbers) >= 3030:
+            right = self.slice_by_borders(3000, 3030)
+        else:
+            right = self.slice_by_borders(self.wavenumbers[-4], self.wavenumbers[-1])
 
         left_x = self.wavenumbers[left[0]:left[1] + 1]
         left_y = self.normalized_intensity[left[0]:left[1] + 1]
@@ -205,6 +208,9 @@ class SfgSpectrum(AbstractSpectrum):
 
         intercept = np.average(left_y) - slope * np.average(left_x)
 
+        if debug:
+            print(f'intercept: {intercept}, slope: {slope}, left:{left}, right: {right}')
+
         def baseline(x):
             return x*slope+intercept
 
@@ -212,7 +218,10 @@ class SfgSpectrum(AbstractSpectrum):
 
     def correct_baseline(self):
 
-        borders = (2750, 3000)
+        if np.max(self.wavenumbers) >= 3000:
+            borders = (2750, 3000)
+        else:
+            borders = (2750, np.max(self.wavenumbers))
 
         func = self.make_ch_baseline()
 
@@ -226,12 +235,14 @@ class SfgSpectrum(AbstractSpectrum):
         xvals = self.wavenumbers.copy()
         corr = func(xvals)
 
+
         # ensure that only the region of the spec defined in the borders is used
         # xvals is a vector being 0 everywhere except in the to-correct area where it
         # is 1 so that xvals*corr yields nonzero in the defined regions only
         np.putmask(xvals, xvals < borders[0], 0)
         np.putmask(xvals, xvals > borders[1], 0)
         np.putmask(xvals, xvals != 0, 1)
+
         corr *= xvals
 
         # apply the correction
@@ -241,7 +252,11 @@ class SfgSpectrum(AbstractSpectrum):
 
     def calculate_ch_integral(self):
         self.correct_baseline()
-        borders = self.slice_by_borders(np.min(self.wavenumbers), 3000)
+        if max(self.wavenumbers) >= 3000:
+            borders = self.slice_by_borders(np.min(self.wavenumbers), 3000)
+        else:
+            borders = self.slice_by_borders(np.min(self.wavenumbers), max(self.wavenumbers))
+
         x_array = self.wavenumbers[borders[0]:borders[1] + 1]
         y_array = self.baseline_corrected[borders[0]:borders[1] + 1]
         integral = self.integrate_peak(x_array, y_array)
@@ -281,7 +296,6 @@ class SfgSpectrum(AbstractSpectrum):
 class AverageSpectrum(SfgSpectrum):
 
     def __init__(self, wavenumbers, intensities, meta):
-        # todo: invert the wavenunmber/ intensity scale to make it ascending
         self.wavenumbers = wavenumbers
         self.normalized_intensity = intensities
         self.meta = meta
@@ -443,7 +457,7 @@ class DummyPlotter:
                     testy = func(testx)
                     plt.plot(testx, testy, color="black")
                     integral = spectrum.calculate_ch_integral()
-                    plt.title(str(round(integral, 4)))
+                    plt.title(str(round(integral, 6)))
 
             if self.special is None:
                 plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", linestyle="-")

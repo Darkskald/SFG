@@ -10,7 +10,9 @@ ORM-part of SQlalchemy
 from importer import Importer
 from spectrum import SfgSpectrum, SfgAverager, LtIsotherm
 
-from sqlalchemy import create_engine, Column, Integer, Text, ForeignKey, UniqueConstraint, TIMESTAMP, Float
+from sqlalchemy import create_engine, Column, Integer, Text, ForeignKey, UniqueConstraint, TIMESTAMP, \
+    Float, Date, Boolean
+
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker, relationship
@@ -18,6 +20,7 @@ import numpy as np
 
 import re
 import datetime
+from datetime import timedelta
 
 Base = declarative_base()
 
@@ -43,6 +46,11 @@ class BoknisEck(Base):
     id = Column(Integer, primary_key=True)
     name = Column(Text, unique=True)
     specid = Column(Integer, ForeignKey('sfg.id'))
+    sample_type = Column(Text)
+    sampling_date = Column(Date)
+    sample_number = Column(Integer)
+    location_number = Column(Integer)
+    is_mapped = Column(Boolean)
 
 
 class GasExSfg(Base):
@@ -68,6 +76,13 @@ class RegularSfg(Base):
     sample_no = Column(Text)
     measurement_no = Column(Text)
     comment = Column(Text)
+
+
+class MeasurementDay(Base):
+    __tablename__ = 'measurement_days'
+    id = Column(Integer, primary_key=True)
+    date = Column(Date, unique=True)
+    dppc_integral = Column(Float)
 
 
 class Lt(Base):
@@ -276,6 +291,8 @@ class DatabaseWizard:
         self.regular_lt = RegularLt
 
         self.boknis_eck = BoknisEck
+
+        self.measurement_days = MeasurementDay
 
         self.substances = Substances
 
@@ -780,6 +797,9 @@ class PostProcessor:
 
         self.db_wizard.session.commit()
 
+    def disconnect(self):
+        self.db_wizard.session.close()
+
 
 class WorkDatabaseWizard(DatabaseWizard):
 
@@ -867,9 +887,12 @@ class LtTokenizer:
         return out
 
 
+
+
 if __name__ == "__main__":
     D = ImportDatabaseWizard()
     P = PostProcessor(D)
+    P.disconnect()
 
 
 # todo: take care about the "measurer" field in LT
