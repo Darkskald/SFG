@@ -81,14 +81,14 @@ class SampleNameParser:
 
 
         #add the GasEx cruise results to the coverages dictionary
-        #self.coverages.update(self.gasex_sml)
-        #self.deep_coverages.update(self.gasex_deep)
+        self.coverages.update(self.gasex_sml)
+        self.deep_coverages.update(self.gasex_deep)
 
         #visualize the coverage as a function of date
         #self.plot_coverage()
 
         # write the log file (for debugging and finding corrupted data)
-        #self.write_log()
+        self.write_log()
 
     def new_df_cols(self):
         """Add new dataframe columns for the sampling date and number extracted from the filename via regex"""
@@ -279,7 +279,6 @@ class SampleNameParser:
                     else:
                         # print(s.meta["time"].date())
                         pass
-
 
                 except IndexError:
                     self.log += SampleNameParser.sep
