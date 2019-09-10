@@ -1,10 +1,12 @@
 from orm import WorkDatabaseWizard
-from spectrum import SfgAverager
+from spectrum import SfgAverager, DummyPlotter
 
 from datetime import timedelta
 import datetime
 import pandas as pd
 import re
+
+import matplotlib.pyplot as plt
 
 
 class BoknisEckExtension:
@@ -25,23 +27,28 @@ class BoknisEckExtension:
     datereg = [d1, d2, d3, d4, d5]
     sep = "*" * 90 + "\n"
 
-    def __init__(self):
+    def __init__(self, new=False):
         self.wz = WorkDatabaseWizard()
         #self.write_references()
 
         # read the master excel sheet
         self.df = pd.read_excel("Wasserproben_komplett.xlsx", header=2, sheet_name="Samples")
 
-        # separate deep water samples taken by CTD cast from SML samples
-        #self.deep = self.df[(self.df["Sampler no."] == 4) | (self.df["Sampler no."] == 3)]
-        #self.df = self.df[(self.df["Sampler no."] == 1) | (self.df["Sampler no."] == 2)]
-        #self.df = self.df.reset_index(drop=True)
-        #self.deep = self.deep.reset_index(drop=True)
+        """
+        don't forget the GasEx data!
+        """
 
-        #self.process()
-        #self.match_to_table()
+        if new:
+            self.process()
+            self.match_to_table()
 
         test = self.add_spectrum(self.get_boknis_specs())
+        ref = self.retrieve_reference()
+
+        specs = [i.sfg_spectrum for i in test]
+        S = SfgAverager(specs[0:5], references=ref)
+        #plt.plot(S.average_spectrum.x, S.average_spectrum.y)
+        p = S.benchmark()
 
     def get_references(self):
 
@@ -160,13 +167,16 @@ class BoknisEckExtension:
                 pass
 
     def get_boknis_specs(self):
-
+        """This function retrieves all Boknis Eck samples from the boknis_eck SQL table."""
         q = self.wz.session.query(self.wz.boknis_eck).\
             filter(self.wz.boknis_eck.is_mapped == 1).\
             filter(self.wz.boknis_eck.location_number == 3)
         return q
 
     def add_spectrum(self, query):
+        """This function retrieves via Foreign-Key-relationship the spectral data of the SFG
+        spectrum from the database and constructs the actual SFG object, setting it as attribute
+        of the corresponding boknis_eck object."""
 
         out = []
         for item in query.all():
@@ -175,6 +185,18 @@ class BoknisEckExtension:
             out.append(item)
 
         return out
+
+    def retrieve_reference(self):
+        """This function creates a dictionary of DPPC integrals mapped to days of measurement
+        from the measurement_days SQL table."""
+
+        reference_integrals = {}
+        query = self.wz.session.query(self.wz.measurement_days).all()
+        for item in query:
+            reference_integrals[item.date] = item.dppc_integral
+        return reference_integrals
+
+
 
     # auxiliary functions
 

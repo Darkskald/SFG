@@ -567,7 +567,7 @@ class SfgAverager:
 
             # multiply the weighting factor by the integral of the day
             try:
-                self.log += f"""Now multiplying the factor{self.day_counter[date]} 
+                self.log += f"""Now multiplying the factor {self.day_counter[date]} 
                 by the reference integral {self.references[date]}\n"""
 
                 self.day_counter[date] *= self.references[date]
@@ -597,7 +597,7 @@ class SfgAverager:
         l = [i for i in self.spectra]
         l.append(self.average_spectrum)
         p = DummyPlotter(l, save=True, savedir="benchmark", savename=self.spectra[0].name, special="AV")
-        p.plot_all(base=True)
+        p.plot_all()
 
     def create_log(self):
 
