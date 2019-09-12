@@ -99,7 +99,7 @@ class SfgSpectrum(AbstractSpectrum):
         self._x = self.wavenumbers
         self._y = self.normalized_intensity
         self._x_unit = "wavenumber/ cm$^{-1}$"
-        self._y_unit = "SHG intensity/ arb. u."
+        self._y_unit = "SFG intensity/ arb. u."
 
     def __lt__(self, SFG2):
         """Returns true if the current spectrum was measured before SFG2"""
@@ -267,11 +267,15 @@ class SfgSpectrum(AbstractSpectrum):
         borders = self.slice_by_borders(borders[0], borders[1])
         x_array = self.wavenumbers[borders[0]:borders[1] + 1]
         y_array = self.normalized_intensity[borders[0]:borders[1] + 1]
-        integral = self.integrate_peak(x_array, y_array)
-        return integral
+        try:
+            integral = self.integrate_peak(x_array, y_array)
+            return integral
 
+        except ValueError:
+            return np.nan
 
-    # auxiliary functions
+    # auxiliary function
+
     def create_pointlist(self, y_array):
 
         output = []
@@ -521,7 +525,7 @@ class SfgAverager:
         to_average = []
 
         # sort spectra by length of the wavenumber array (lambda)
-        self.spectra.sort(key=lambda x: x.yield_wn_length(), reverse=True)
+        self.spectra.sort(key=lambda x: x.yield_wn_length())
 
         root_x_scale = self.spectra[0].x
 

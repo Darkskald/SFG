@@ -84,6 +84,28 @@ class MeasurementDay(Base):
     date = Column(Date, unique=True)
     dppc_integral = Column(Float)
 
+class BoknisEckData(Base):
+
+    __tablename__ = 'be_data'
+    id = Column(Integer, primary_key=True)
+    sampling_date = Column(Date, unique=True)
+    bulk_no = Column(Integer)
+    sml_no = Column(Integer)
+
+    sml_coverage = Column(Float)
+    sml_ch = Column(Float)
+    sml_oh1 = Column(Float)
+    sml_oh2 = Column(Float)
+    sml_dangling = Column(Float)
+
+    bulk_coverage = Column(Float)
+    bulk_ch = Column(Float)
+    bulk_oh1 = Column(Float)
+    bulk_oh2 = Column(Float)
+    bulk_dangling = Column(Float)
+
+    chlorophyll = Column(Float)
+
 
 class Lt(Base):
     __tablename__ = 'lt'
@@ -293,6 +315,7 @@ class DatabaseWizard:
         self.boknis_eck = BoknisEck
 
         self.measurement_days = MeasurementDay
+        self.be_data = BoknisEckData
 
         self.substances = Substances
 
