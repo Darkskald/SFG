@@ -5,6 +5,7 @@ from datetime import timedelta
 import datetime
 import pandas as pd
 import re
+import numpy as np
 
 import matplotlib.pyplot as plt
 
@@ -29,27 +30,24 @@ class BoknisEckExtension:
 
     def __init__(self, new=False):
         self.wz = WorkDatabaseWizard()
-        #self.write_references()
-
         # read the master excel sheet
         self.df = pd.read_excel("Wasserproben_komplett.xlsx", header=2, sheet_name="Samples")
+        self.references = self.get_references()
 
         """
         don't forget the GasEx data!
         """
 
         if new:
+            self.write_references()
             self.process()
             self.match_to_table()
+            self.chlorophyll = BoknisEckExtension.prepare_chorophyll_data()
+            data = self.map_to_sampling_date(self.references)
+            self.persist_average_data(data[0], data[1])
 
-        test = self.add_spectrum(self.get_boknis_specs())
-        ref = self.retrieve_reference()
 
-        specs = [i.sfg_spectrum for i in test]
-        S = SfgAverager(specs[0:5], references=ref)
-        #plt.plot(S.average_spectrum.x, S.average_spectrum.y)
-        p = S.benchmark()
-
+    # setting up the data
     def get_references(self):
 
         results = self.wz.session.query(self.wz.sfg).filter(self.wz.sfg.type == "boknis_ref").all()
@@ -166,6 +164,7 @@ class BoknisEckExtension:
             except:
                 pass
 
+    # operating on the data
     def get_boknis_specs(self):
         """This function retrieves all Boknis Eck samples from the boknis_eck SQL table."""
         q = self.wz.session.query(self.wz.boknis_eck).\
@@ -196,7 +195,86 @@ class BoknisEckExtension:
             reference_integrals[item.date] = item.dppc_integral
         return reference_integrals
 
+    def map_to_sampling_date(self, references):
 
+        sml = self.add_spectrum(self.get_boknis_specs().filter(self.wz.boknis_eck.sample_type == 'sml'))
+        deep = self.add_spectrum(self.get_boknis_specs().filter(self.wz.boknis_eck.sample_type == 'deep'))
+
+        out = []
+        for item in (sml, deep):
+            dates = {}
+            for spectrum in item:
+                date = spectrum.sampling_date
+                if date not in dates:
+                    dates[date] = [spectrum]
+                else:
+                    dates[date].append(spectrum)
+            dates = self.average_sampling_dates(dates, references)
+            out.append(dates)
+
+        return out
+
+    def average_sampling_dates(self, date_dict, references):
+        new_dict = {}
+        for key in date_dict:
+            to_average = [i.sfg_spectrum for i in date_dict[key]]
+            av = SfgAverager(to_average, references)
+            if av.coverage == np.inf:
+                av.benchmark()
+            new_dict[key] = av
+        return new_dict
+
+    def persist_average_data(self, sml_dates, bulk_dates):
+
+        for date in sml_dates:
+            be_data_orm = self.wz.be_data()
+            be_data_orm. sampling_date = date
+
+            # sml
+            be_data_orm.sml_no = len(sml_dates[date].spectra)
+            be_data_orm.sml_coverage = sml_dates[date].coverage
+            be_data_orm.sml_ch = sml_dates[date].average_spectrum.calc_region_integral("CH")
+            be_data_orm.sml_oh1 = sml_dates[date].average_spectrum.calc_region_integral("OH")
+            be_data_orm.sml_oh2 = sml_dates[date].average_spectrum.calc_region_integral("OH2")
+            be_data_orm.sml_dangling = sml_dates[date].average_spectrum.calc_region_integral("dangling")
+
+            be_data_orm.chlorophyll = BoknisEckExtension.get_mean_by_date(self.chlorophyll, date)
+
+            # bulk
+            try:
+                be_data_orm.bulk_no = len(bulk_dates[date].spectra)
+                be_data_orm.bulk_coverage = bulk_dates[date].coverage
+                be_data_orm.bulk_ch = bulk_dates[date].average_spectrum.calc_region_integral("CH")
+                be_data_orm.bulk_oh1 = bulk_dates[date].average_spectrum.calc_region_integral("OH")
+                be_data_orm.bulk_oh2 = bulk_dates[date].average_spectrum.calc_region_integral("OH2")
+                be_data_orm.bulk_dangling = bulk_dates[date].average_spectrum.calc_region_integral("dangling")
+            except KeyError:
+                pass
+
+            finally:
+                self.wz.session.add(be_data_orm)
+
+        # todo: bacpopulate spectra table
+        self.wz.session.commit()
+
+    def provide_dataframe(self):
+        query = self.wz.session.query(self.wz.be_data)
+        df = pd.read_sql(query.statement, query.session.bind)
+        return df
+
+    @staticmethod
+    def prepare_chorophyll_data():
+        be = pd.read_csv("newport/be_data.csv", sep=",", header=0)
+        be["chlora"] = be["chlora"].mask(be["chlora"] < 0)
+        be = be[be["chlora"].notnull()]
+        be["Time"] = pd.to_datetime(be["Time"])
+        be["Time"] = be["Time"].apply(lambda x: x.date())
+        return be
+
+    @staticmethod
+    def get_mean_by_date(df, date):
+        temp = df[df["Time"] == date]
+        return temp["chlora"].mean()
 
     # auxiliary functions
 
@@ -209,6 +287,5 @@ class BoknisEckExtension:
 
         return datetime.date(year, month, day)
 
-
-
-BoknisEckExtension()
+if __name__ == "__main__":
+    BoknisEckExtension(new=True)
