@@ -2,23 +2,24 @@ font.size : 18
 font.family : arial
 
 # fig
-figure.figsize : 14.0, 7.0
+figure.figsize : 10.0, 5.0
 figure.subplot.bottom : 0.12
 
 # axes
-axes.titlesize : 20
-axes.labelsize : 18
+axes.titlesize : 18
+axes.labelsize : 16
 axes.labelweight : normal
 axes.linewidth : 2
 axes.labelpad : 8
 axes.formatter.limits : -3, 3
 
-lines.linewidth : 2
-lines.markersize : 10
+lines.linewidth : 1.5
+lines.markersize : 7
 
 # ticks
-xtick.labelsize : 18
-ytick.labelsize : 18
+xtick.labelsize : 12
+ytick.labelsize : 12
 
 
 legend.frameon : True
+legend.fontsize: xx-small

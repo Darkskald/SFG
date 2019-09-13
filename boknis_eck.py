@@ -1,8 +1,11 @@
 from orm import WorkDatabaseWizard
 from spectrum import SfgAverager, DummyPlotter
 
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import NoResultFound
 from datetime import timedelta
 import datetime
+import functools
 import pandas as pd
 import re
 import numpy as np
@@ -32,20 +35,22 @@ class BoknisEckExtension:
         self.wz = WorkDatabaseWizard()
         # read the master excel sheet
         self.df = pd.read_excel("Wasserproben_komplett.xlsx", header=2, sheet_name="Samples")
-        self.references = self.get_references()
 
         """
         don't forget the GasEx data!
         """
-
         if new:
             self.write_references()
+            self.persist_gasex_references()
+            self.references = self.fetch_dppc_integrals()
             self.process()
             self.match_to_table()
             self.chlorophyll = BoknisEckExtension.prepare_chorophyll_data()
             data = self.map_to_sampling_date(self.references)
             self.persist_average_data(data[0], data[1])
+            self.include_gasex_average()
 
+        self.references = self.fetch_dppc_integrals()
 
     # setting up the data
     def get_references(self):
@@ -86,6 +91,41 @@ class BoknisEckExtension:
 
         self.wz.session.add_all(temp)
         self.wz.session.commit()
+
+    def fetch_dppc_integrals(self):
+        measurement_days = self.wz.session.query(self.wz.measurement_days).all()
+        out = {i.date: i.dppc_integral for i in measurement_days}
+        return out
+
+    def fetch_gasex_references(self):
+        dates = {}
+        q = self.wz.session.query(self.wz.sfg).filter(self.wz.sfg.measured_time.between("2018-06-01", "2018-12-31"))
+        q = q.filter(self.wz.sfg.name.like("%DPPC%"))
+
+        for item in q.all():
+            date = item.measured_time.date()
+            if date not in dates:
+                dates[date] = [self.wz.construct_sfg(item)]
+            else:
+                dates[date].append(self.wz.construct_sfg(item))
+
+        for key in dates:
+            dates[key] = SfgAverager(dates[key]).integral
+
+        return dates
+
+    def persist_gasex_references(self):
+
+        d = self.fetch_gasex_references()
+        for key in d:
+            try:
+                measurement_day = self.wz.measurement_days()
+                measurement_day.date = key
+                measurement_day.dppc_integral = d[key]
+                self.wz.session.add(measurement_day)
+                self.wz.session.commit()
+            except IntegrityError:
+                self.wz.session.rollback()
 
     def process(self):
 
@@ -262,6 +302,79 @@ class BoknisEckExtension:
         df = pd.read_sql(query.statement, query.session.bind)
         return df
 
+    # include gasex measurements
+    def calculate_gasex_average(self):
+
+        sml = self.wz.session.query(self.wz.samples).filter(self.wz.samples.type.in_(("s", "p")))
+        deep = self.wz.session.query(self.wz.samples).filter(self.wz.samples.type == "deep")
+
+        sml_june = sml.filter(self.wz.samples.sample_hash.like('06%'))
+        sml_september = sml.filter(self.wz.samples.sample_hash.like('09%'))
+
+        deep_june = deep.filter(self.wz.samples.sample_hash.like('06%'))
+        deep_september = deep.filter(self.wz.samples.sample_hash.like('09%'))
+
+        input = [self.construct_gasex_sfgs(i) for i in (sml_june, sml_september, deep_june, deep_september)]
+        func = functools.partial(BoknisEckExtension.get_average_spectrum, references=self.references)
+        output = map(func, input)
+        return list(output)
+
+    def construct_gasex_sfgs(self, query):
+
+        samples = query.all()
+        to_average = []
+        for sample in samples:
+            try:
+                spec = self.wz.session.query(self.wz.gasex_sfg).filter(self.wz.gasex_sfg.sample_hash == sample.sample_hash).one()
+                spec_raw = self.wz.session.query(self.wz.sfg).filter(self.wz.sfg.name == spec.name).one()
+                spec = self.wz.construct_sfg(spec_raw)
+                to_average.append(spec)
+            except NoResultFound:
+                pass
+        return to_average
+
+    def include_gasex_average(self):
+        average_spectra = self.calculate_gasex_average()
+
+        # setup new sampling dates for database
+        june = self.wz.be_data()
+        september = self.wz.be_data()
+        june.sampling_date = datetime.date(2018, 6, 21)
+        september.sampling_date = datetime.date(2018, 9, 20)
+
+        # set the necessary values for june
+        june.sml_no = 1
+        june.sml_coverage = average_spectra[0].coverage
+        june.sml_ch = average_spectra[0].integral
+        june.sml_oh1 = average_spectra[0].calc_region_integral("OH")
+        june.sml_oh2 = average_spectra[0].calc_region_integral("OH2")
+        june.sml_dangling = average_spectra[0].calc_region_integral("dangling")
+        june.bulk_no = 1
+        june.bulk_coverage = average_spectra[2].coverage
+        june.bulk_ch = average_spectra[2].integral
+        june.bulk_oh1 = average_spectra[2].calc_region_integral("OH")
+        june.bulk_oh2 = average_spectra[2].calc_region_integral("OH2")
+        june.bulk_dangling = average_spectra[2].calc_region_integral("dangling")
+        june.chlorophyll = BoknisEckExtension.get_mean_by_date(self.chlorophyll, june.sampling_date)
+        
+        # set the values for september
+        september.sml_no = 1
+        september.sml_coverage = average_spectra[1].coverage
+        september.sml_ch = average_spectra[1].integral
+        september.sml_oh1 = average_spectra[1].calc_region_integral("OH")
+        september.sml_oh2 = average_spectra[1].calc_region_integral("OH2")
+        september.sml_dangling = average_spectra[1].calc_region_integral("dangling")
+        september.bulk_no = 1
+        september.bulk_coverage = average_spectra[3].coverage
+        september.bulk_ch = average_spectra[3].integral
+        september.bulk_oh1 = average_spectra[3].calc_region_integral("OH")
+        september.bulk_oh2 = average_spectra[3].calc_region_integral("OH2")
+        september.bulk_dangling = average_spectra[3].calc_region_integral("dangling")
+        september.chlorophyll = BoknisEckExtension.get_mean_by_date(self.chlorophyll, september.sampling_date)
+
+        self.wz.session.add_all([june, september])
+        self.wz.session.commit()
+
     @staticmethod
     def prepare_chorophyll_data():
         be = pd.read_csv("newport/be_data.csv", sep=",", header=0)
@@ -286,6 +399,14 @@ class BoknisEckExtension:
         day = int(temp[6:])
 
         return datetime.date(year, month, day)
+
+    @staticmethod
+    def get_average_spectrum(speclist, references):
+        s = SfgAverager(speclist, references=references)
+        av = s.average_spectrum
+        av.integral = s.integral
+        av.coverage = s.coverage
+        return av
 
 if __name__ == "__main__":
     BoknisEckExtension(new=True)
