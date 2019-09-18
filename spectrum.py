@@ -2,10 +2,12 @@ from abc import ABC, abstractmethod
 import copy
 import csv
 import numpy as np
+import datetime
 import matplotlib.pyplot as plt
 from scipy import stats
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
+from scipy.integrate import trapz as tp
 
 
 class AbstractSpectrum(ABC):
@@ -122,9 +124,11 @@ class SfgSpectrum(AbstractSpectrum):
         return (intensity / norm_factor)
 
     def integrate_peak(self, x_array, y_array):
-        """Numpy integration routine for numerical peak integration with the trapezoidal rule"""
+        """Numpy integration routine for numerical peak integration with the trapezoidal rule."""
         try:
             area = sp(y_array, x_array)
+            if np.isnan(area):
+                area = tp(y_array, x_array)
             return area
 
         except:
@@ -269,9 +273,12 @@ class SfgSpectrum(AbstractSpectrum):
         y_array = self.normalized_intensity[borders[0]:borders[1] + 1]
         try:
             integral = self.integrate_peak(x_array, y_array)
+            if np.isnan(integral):
+                print(f'x: {x_array}, y: {y_array}')
             return integral
 
         except ValueError:
+            print(f'Integration not possible in {self.name} in region{region}')
             return np.nan
 
     # auxiliary function
@@ -305,6 +312,11 @@ class AverageSpectrum(SfgSpectrum):
         self.meta = meta
         self.baseline_corrected = None
         self.regions = None
+
+        # ensure nan-values in intensity and their corresponding wavenumbers are removed
+        mask = np.isfinite(self.normalized_intensity)
+        self.normalized_intensity = self.normalized_intensity[mask]
+        self.wavenumbers = self.wavenumbers[mask]
         super().setup_spec()
         super().set_regions()
 
@@ -491,12 +503,13 @@ class SfgAverager:
     """This class takes a list of SFG spectra and generates an average spectrum of them by interpolation and
     averaging. It is possible to pass a dictionary of date:dppc_integral key-value-pairs in order to calculate
     the coverage."""
-    def __init__(self, spectra, references=None):
+    def __init__(self, spectra, references=None, enforce_scale=False):
         self.failure_count = 0
         self.log = ""
         self.log += "Log file for averaging spectra\n"
         self.spectra = spectra
         self.references = references
+        self.enforce_scale = enforce_scale
 
         if len(self.spectra) == 0:
             print("Warning: zero spectra to average in SfgAverager!")
@@ -525,13 +538,19 @@ class SfgAverager:
         to_average = []
 
         # sort spectra by length of the wavenumber array (lambda)
-        self.spectra.sort(key=lambda x: x.yield_wn_length())
-
-        root_x_scale = self.spectra[0].x
+        if self.enforce_scale is False:
+            self.spectra.sort(key=lambda x: x.yield_wn_length(), reverse=True)
+            root_x_scale = self.spectra[0].x
+        else:
+            root_x_scale = SfgAverager.enforce_base()
 
         # get y values by interpolation and collect the y values in a list
         # collect the dates of measurement for DPPC referencing
         for item in self.spectra:
+
+            if 0 < item.meta["time"].hour < 8:
+                item.meta["time"] -= datetime.timedelta(days=1)
+
             date = item.meta["time"].date()
 
             if date not in self.day_counter:
@@ -540,6 +559,8 @@ class SfgAverager:
                 self.day_counter[date] += 1
 
             new_intensity = np.interp(root_x_scale, item.x, item.y)
+            mask = (root_x_scale > np.max(item.x)) | (root_x_scale < np.min(item.x))
+            new_intensity[mask] = np.nan
             to_average.append(new_intensity)
 
         to_average = np.array(to_average)
@@ -550,6 +571,10 @@ class SfgAverager:
         newname = self.spectra[0].name + "baseAV"
         in_new = [n.name for n in self.spectra]
         s_meta = {"name": newname, "made_from": in_new, "std": std}
+
+        #with open("blabla.txt", "a") as outfile:
+           #outfile.write(f'name: {newname} x: {root_x_scale}, y: {average}\n')
+
         s = AverageSpectrum(root_x_scale, average, s_meta)
 
         return s
@@ -619,6 +644,14 @@ class SfgAverager:
 
         with open(name, "w") as outfile:
             outfile.write(self.log)
+
+    @staticmethod
+    def enforce_base():
+        reg1 = np.arange(2750, 3055, 5)
+        reg2 = np.arange(3050, 3670, 20)
+        reg3 = np.arange(3650, 3845, 5)
+        new = np.concatenate((reg1, reg2, reg3), axis=None)
+        return new
 
 
 class LtAverager:
