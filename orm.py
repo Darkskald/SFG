@@ -84,6 +84,7 @@ class MeasurementDay(Base):
     date = Column(Date, unique=True)
     dppc_integral = Column(Float)
 
+
 class BoknisEckData(Base):
 
     __tablename__ = 'be_data'
@@ -749,19 +750,20 @@ class PostProcessor:
                 except IntegrityError:
                     self.db_wizard.session.rollback()
 
-                sample_id = self.db_wizard.session.query(self.db_wizard.samples)\
-                    .filter(self.db_wizard.samples.sample_hash == hashdic["sample_hash"])
+                finally:
+                    sample_id = self.db_wizard.session.query(self.db_wizard.samples)\
+                        .filter(self.db_wizard.samples.sample_hash == hashdic["sample_hash"])
 
-                if dataset == q_lt:
-                    temp = self.db_wizard.gasex_lt()
-                elif dataset == q_sfg:
-                    temp = self.db_wizard.gasex_sfg()
+                    if dataset == q_lt:
+                        temp = self.db_wizard.gasex_lt()
+                    elif dataset == q_sfg:
+                        temp = self.db_wizard.gasex_sfg()
 
-                temp.sample_id = sample_id.all()[0].id
-                temp.sample_hash = hashdic["sample_hash"]
-                temp.name = item.name
-                self.db_wizard.session.add(temp)
-                self.db_wizard.session.commit()
+                    temp.sample_id = sample_id.all()[0].id
+                    temp.sample_hash = hashdic["sample_hash"]
+                    temp.name = item.name
+                    self.db_wizard.session.add(temp)
+                    self.db_wizard.session.commit()
 
     def map_samples(self):
         """Maps the sample table to the corresponding station id (foreign key"""
@@ -858,6 +860,27 @@ class WorkDatabaseWizard(DatabaseWizard):
         return dates
 
     # auxiliary functions
+
+    def fetch_by_specid(self, specid):
+        """Fetches the SFG spectrum with the id specid from the database and retuns it as an SFG spectrum object."""
+        spec = self.session.query(self.sfg).filter(self.sfg.id == specid).one()
+        return self.construct_sfg(spec)
+
+    def get_spectrum_by_name(self, name):
+        """Returns the SFG spectrum object for a given file name"""
+        temp = self.session.query(self.sfg).filter(self.sfg.name == name).one()
+        return self.construct_sfg(temp)
+
+    def get_spectrum_by_property(self, property_, target):
+        """A convenience function to collect spectra based on properties like surfactant, sensitizer etc."""
+        temp = self.session.query(self.regular_sfg). \
+            filter(getattr(self.regular_sfg, property_) == target).all()
+        out = []
+        for item in temp:
+            out.append(self.get_spectrum_by_name(item.name))
+        return out
+
+
 
     @staticmethod
     def to_array(string):

@@ -258,7 +258,7 @@ class BoknisEckExtension:
         new_dict = {}
         for key in date_dict:
             to_average = [i.sfg_spectrum for i in date_dict[key]]
-            av = SfgAverager(to_average, references)
+            av = SfgAverager(to_average, references, enforce_scale=True)
             if av.coverage == np.inf:
                 av.benchmark()
             new_dict[key] = av
@@ -268,7 +268,7 @@ class BoknisEckExtension:
 
         for date in sml_dates:
             be_data_orm = self.wz.be_data()
-            be_data_orm. sampling_date = date
+            be_data_orm.sampling_date = date
 
             # sml
             be_data_orm.sml_no = len(sml_dates[date].spectra)
@@ -293,9 +293,9 @@ class BoknisEckExtension:
 
             finally:
                 self.wz.session.add(be_data_orm)
+                self.wz.session.commit()
 
         # todo: bacpopulate spectra table
-        self.wz.session.commit()
 
     def provide_dataframe(self):
         query = self.wz.session.query(self.wz.be_data)
@@ -402,11 +402,60 @@ class BoknisEckExtension:
 
     @staticmethod
     def get_average_spectrum(speclist, references):
-        s = SfgAverager(speclist, references=references)
+        s = SfgAverager(speclist, references=references, enforce_scale=True)
         av = s.average_spectrum
         av.integral = s.integral
         av.coverage = s.coverage
         return av
+
+
+class BEDatabaseWizard(WorkDatabaseWizard):
+    def __init__(self):
+        super().__init__()
+        self.df = BoknisEckExtension().provide_dataframe()
+
+        # convert to datetime
+        self.df["sampling_date"] = pd.to_datetime(self.df["sampling_date"])
+
+        # remove outliers
+        self.df["sml_coverage"] = self.df["sml_coverage"].mask(self.df["sml_coverage"] > 1)
+        self.df["bulk_coverage"] = self.df["bulk_coverage"].mask(self.df["bulk_coverage"] > 1)
+        self.df["sml_coverage"] = self.df["sml_coverage"].replace([np.inf, -np.inf], np.nan)
+        self.df["bulk_coverage"] = self.df["bulk_coverage"].replace([np.inf, -np.inf], np.nan)
+
+        # remove nans in coverage
+        self.df = self.df[self.df["sml_coverage"].notna()]
+        self.df = self.df[self.df["bulk_coverage"].notna()]
+
+    def filter_date(self, beginning, end):
+        """Get all BE samples taken between beginning and end and returns them as a dataframe"""
+        beginning = pd.Timestamp(beginning)
+        end = pd.Timestamp(end)
+        mask = (self.df["sampling_date"] > beginning) & (self.df["sampling_date"] < end)
+        return self.df[mask]
+
+    def filter_year(self, year):
+        """Returns a dataframe containing all samples taken in a specified year"""
+        beginning = datetime.date(year, 1, 1)
+        end = datetime.date(year, 12, 31)
+        return self.filter_date(beginning, end)
+
+    def filter_month(self, month):
+        """Returns a dataframe containing all samples taken in a specified month"""
+        mask = (self.df["sampling_date"].dt.month == month)
+        return self.df[mask]
+
+    def get_be_spectra_monthwise(self):
+        out = {}
+        temp = self.session.query(self.boknis_eck).all()
+        for item in temp:
+            if item.sampling_date.month not in out:
+                out[item.sampling_date.month] = [self.fetch_by_specid(item.specid)]
+            else:
+                out[item.sampling_date.month].append(self.fetch_by_specid(item.specid))
+
+        return out
+
 
 if __name__ == "__main__":
     BoknisEckExtension(new=True)
