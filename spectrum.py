@@ -530,7 +530,6 @@ class SfgAverager:
                 self.integral = 0
                 self.coverage = 0
 
-        #self.benchmark()
 
     def average_spectra(self):
         """Function performing the averaging: it ensures that all spectra are interpolated to have the same shape,
