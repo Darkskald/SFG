@@ -3,7 +3,8 @@ from spectrum import SfgAverager, DummyPlotter
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
-from datetime import timedelta
+# todo: fix the double import
+from datetime import datetime, date, timedelta
 import datetime
 import functools
 import pandas as pd
@@ -11,6 +12,9 @@ import re
 import numpy as np
 
 import matplotlib.pyplot as plt
+from matplotlib import rcParams
+from matplotlib.dates import MonthLocator, DateFormatter
+from matplotlib.lines import Line2D
 
 
 class BoknisEckExtension:
@@ -274,6 +278,8 @@ class BoknisEckExtension:
         return new_dict
 
     def persist_average_data(self, sml_dates, bulk_dates):
+        """Write the data obtained by the average spectra to the database"""
+        # todo: this is the right place for intense debugging and plotting
 
         for date in sml_dates:
             be_data_orm = self.wz.be_data()
@@ -307,12 +313,14 @@ class BoknisEckExtension:
         # todo: bacpopulate spectra table
 
     def provide_dataframe(self):
+        """A convenience function providing the compiled Boknis Eck data SQL table as Pandas dataframe"""
         query = self.wz.session.query(self.wz.be_data)
         df = pd.read_sql(query.statement, query.session.bind)
         return df
 
     # include gasex measurements
     def calculate_gasex_average(self):
+        """Calculates the average SML and bulk spectra for the GasEx cruise, both for June and September"""
 
         sml = self.wz.session.query(self.wz.samples).filter(self.wz.samples.type.in_(("s", "p")))
         deep = self.wz.session.query(self.wz.samples).filter(self.wz.samples.type == "deep")
@@ -329,6 +337,7 @@ class BoknisEckExtension:
         return list(output)
 
     def construct_gasex_sfgs(self, query):
+        """Collects the spectra specified in query and converts them to actual SfgSpectrum objects for averaging"""
 
         samples = query.all()
         to_average = []
@@ -343,6 +352,8 @@ class BoknisEckExtension:
         return to_average
 
     def include_gasex_average(self):
+        """Creates an artificial set of Boknis Eck sampling days to store the information calculated by the GasEx
+        average spectra"""
         average_spectra = self.calculate_gasex_average()
 
         # setup new sampling dates for database
@@ -386,6 +397,7 @@ class BoknisEckExtension:
 
     @staticmethod
     def prepare_chorophyll_data():
+        """Reads in the csv sheet with chlorophyll measurement data and removes all nan values"""
         be = pd.read_csv("newport/be_data.csv", sep=",", header=0)
         be["chlora"] = be["chlora"].mask(be["chlora"] < 0)
         be = be[be["chlora"].notnull()]
@@ -419,6 +431,7 @@ class BoknisEckExtension:
 
 
 class BEDatabaseWizard(WorkDatabaseWizard):
+
     def __init__(self):
         super().__init__()
         self.df = BoknisEckExtension().provide_dataframe()
@@ -433,6 +446,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         self.df["bulk_coverage"] = self.df["bulk_coverage"].replace([np.inf, -np.inf], np.nan)
 
         # remove nans in coverage
+        # todo: fix this
         self.df = self.df[self.df["sml_coverage"].notna()]
         self.df = self.df[self.df["bulk_coverage"].notna()]
 
@@ -466,11 +480,11 @@ class BEDatabaseWizard(WorkDatabaseWizard):
 
         return out
 
-    def process_years(self):
+    def process_years(self, lower=2009, upper=2018):
         """Returns a dictionary of dataframes with the BE data and additional normalized to the year's maximum value
         columns"""
         out = {}
-        years = (i for i in range(2009, 2019) if i != 2016)
+        years = (i for i in range(lower, upper+1) if i != 2016)
         for year in years:
             out[year] = BEDatabaseWizard.normalize_year_records(self.filter_year(year))
         return out
@@ -482,6 +496,147 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         for i in ("sml_coverage", "bulk_coverage", "sml_ch", "bulk_ch"):
             df[f'norm_{i}'] = df[i] / df[i].max()
         return df
+
+    @staticmethod
+    def convert_to_origin_date(df):
+        """Sets the dataframe'S sampling_date column to an origin-friendly setting"""
+        df['sampling_date'] = df["sampling_date"].dt.strftime('%d.%m.%Y')
+        return df
+
+
+# auxiliary functions not contained in classes
+def scale_to_polar(array):
+    """Normalize the input array(day of the year) to the interval [0, 2 PI]. Useful for polar plots."""
+    min_ = 1
+    max_ = 365
+    scale = np.pi * 2 * ((array - min_) / (max_ - min_))
+    return scale
+
+
+def plot_by_time(dataframes, param, leg, scale=1):
+    """BE time series plotting with rectangular stripes to help with orientation in the plot"""
+    fig, ax = plt.subplots()
+    ax2 = ax.twinx()
+
+    months = MonthLocator(range(1, 13), bymonthday=1, interval=6)
+    monthsFmt = DateFormatter("%b '%y")
+
+    for df in dataframes:
+        ax.scatter(df["sampling_date"], df["sml_" + param] * scale, color="red")
+        ax.scatter(df["sampling_date"], df["bulk_" + param] * scale, color="blue", marker="^")
+        ax2.scatter(df["sampling_date"], df["chlorophyll"], color="green", marker="+")
+
+        # ax.plot(df["sampling_date"], df["sml_"+param]*scale, color="red")
+        # ax.plot(df["sampling_date"], df["bulk_"+param]*scale, color="blue")
+        # ax2.plot(df["sampling_date"], df["chlorophyll"], color="green")
+
+    # for i in range(8, 20, 1):
+    # lower = str(date(2000+i, 3, 1))
+    # upper = str(date(2000 + i, 9, 1))
+    # ax.axvspan(lower, upper, color="gray", alpha=0.4)
+
+    legend_elements = [Line2D([0], [0], marker='^', label='Bulk water',
+                              markerfacecolor='blue', mew=0.3, mec="blue", aa=True, linestyle=''),
+                       Line2D([0], [0], marker='o', label='Surface microlayer',
+                              markerfacecolor='red', mew=0.3, mec="red", aa=True, linestyle=''),
+                       Line2D([0], [0], marker='+', label='Chlorophyll a',
+                              markerfacecolor='green', mew=2, mec="green", aa=True, linestyle='', markersize=10)
+                       ]
+
+    ax.legend(handles=legend_elements)
+    ax.xaxis.set_major_locator(months)
+    ax.xaxis.set_major_formatter(monthsFmt)
+    ax.autoscale_view()
+    fig.autofmt_xdate()
+
+    ax.set_xlabel("time ")
+    ax.set_ylabel(leg)
+    ax2.set_ylabel("Chlorophyll a concentration/\n µg/L")
+    rcParams['xtick.labelsize'] = 'small'
+
+
+def plot_ratio_by_time(dataframes, params):
+    """Plotting function to deal with the ratio of different region integrals"""
+    fig, ax = plt.subplots()
+    ax2 = ax.twinx()
+
+    months = MonthLocator(range(1, 13), bymonthday=1, interval=6)
+    monthsFmt = DateFormatter("%b '%y")
+
+    for df in dataframes:
+
+        if params[1] == "oh":
+            sml_total_oh = df["sml_oh1"] + df["sml_oh2"]
+            bulk_total_oh = df["bulk_oh1"] + df["bulk_oh2"]
+            sml_ratio = df["sml_" + params[0]] / sml_total_oh
+            bulk_ratio = df["bulk_" + params[0]] / bulk_total_oh
+
+        else:
+            sml_ratio = df["sml_" + params[0]] / df["sml_" + params[1]]
+            bulk_ratio = df["bulk_" + params[0]] / df["bulk_" + params[1]]
+
+        ax.scatter(df["sampling_date"], sml_ratio, color="red")
+        ax.scatter(df["sampling_date"], bulk_ratio, color="blue", marker="^")
+        ax2.scatter(df["sampling_date"], df["chlorophyll"], color="green", marker="+")
+
+        # ax.plot(df["sampling_date"], sml_ratio, color="red")
+        # ax.plot(df["sampling_date"], bulk_ratio, color="blue")
+        # ax2.plot(df["sampling_date"], df["chlorophyll"], color="green")
+
+    for i in range(8, 20, 1):
+        lower = date(2000 + i, 3, 1)
+        upper = date(2000 + i, 9, 1)
+        ax.axvspan(lower, upper, color="gray", alpha=0.4)
+
+    legend_elements = [Line2D([0], [0], marker='^', label='Bulk water',
+                              markerfacecolor='blue', mew=0.3, mec="blue", aa=True, linestyle=''),
+                       Line2D([0], [0], marker='o', label='Surface microlayer',
+                              markerfacecolor='red', mew=0.3, mec="red", aa=True, linestyle=''),
+                       Line2D([0], [0], marker='+', label='Chlorophyll a',
+                              markerfacecolor='green', mew=2, mec="green", aa=True, linestyle='', markersize=10)
+                       ]
+
+    ax.legend(handles=legend_elements)
+    ax.xaxis.set_major_locator(months)
+    ax.xaxis.set_major_formatter(monthsFmt)
+    ax.autoscale_view()
+    fig.autofmt_xdate()
+
+    ax.set_xlabel("time ")
+    ax.set_ylabel(f'{params[0]}/{params[1]} ratio')
+    ax2.set_ylabel("Chlorophyll a concentration/\n µg/L")
+    rcParams['xtick.labelsize'] = 'small'
+
+    plt.show()
+
+
+def polar_plot_coverage(records):
+    """Plots the coverage as function of the day of the year projected on a polar axis."""
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='polar')
+
+    # ensure 0° is pointing upwards
+    ax.set_theta_zero_location("N")
+    # make theta grow clockwise
+    ax.set_theta_direction(-1)
+
+    # labels of the theta gridlines set as month abbreviations
+    angles = (0, 31, 59.25, 90.25, 120.25, 151.25, 181.25, 212.25, 243.25, 273.25, 304.25, 334.25)
+    months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+    # customize theta gridlines and labels
+    lines, label = plt.thetagrids(angles, months)
+
+    for key in records:
+        records[key].sort_values("sampling_date", inplace=True)
+        dates = records[key]["sampling_date"].apply(lambda x: x.timetuple().tm_yday)
+        dates = scale_to_polar(dates)
+
+        # todo: make this function more genereic accepting an argument for the plot params
+        c = ax.plot(dates, records[key]["norm_sml_coverage"], marker="o")
+        #c = ax.plot(dates, records[key]["norm_bulk_coverage"], marker="x")
+
+
 
 if __name__ == "__main__":
     BoknisEckExtension(new=True)
