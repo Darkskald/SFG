@@ -70,8 +70,13 @@ class AbstractSpectrum(ABC):
         return savgol_filter(self._y, a, b)
 
     # have to be overriden by the inheriting classes
+    @abstractmethod
     def drop_ascii(self):
         pass
+
+    def to_json(self):
+        values  = {"name": self.name, "x": self.x, "y": self.y, "x_unit": self.x_unit, "y_unit": self.y_unit}
+        return values
 
 
 class SfgSpectrum(AbstractSpectrum):

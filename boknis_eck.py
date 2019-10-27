@@ -54,6 +54,7 @@ class BoknisEckExtension:
 
     # setting up the data
     def get_references(self):
+        """Retrieve the DPPC integral per day of measurement"""
 
         results = self.wz.session.query(self.wz.sfg).filter(self.wz.sfg.type == "boknis_ref").all()
         dates = {}
@@ -79,6 +80,7 @@ class BoknisEckExtension:
         return dates
 
     def write_references(self):
+        """Write the reference integrals to the database"""
 
         refs = self.get_references()
         temp = []
@@ -93,11 +95,13 @@ class BoknisEckExtension:
         self.wz.session.commit()
 
     def fetch_dppc_integrals(self):
+        """Get the DPPC integrals stored in the database"""
         measurement_days = self.wz.session.query(self.wz.measurement_days).all()
         out = {i.date: i.dppc_integral for i in measurement_days}
         return out
 
     def fetch_gasex_references(self):
+        """Get the DPPC references for the GasEx samples  from the database"""
         dates = {}
         q = self.wz.session.query(self.wz.sfg).filter(self.wz.sfg.measured_time.between("2018-06-01", "2018-12-31"))
         q = q.filter(self.wz.sfg.name.like("%DPPC%"))
@@ -115,6 +119,7 @@ class BoknisEckExtension:
         return dates
 
     def persist_gasex_references(self):
+        """Add the DPPC reference date of the GasEx period to the databse"""
 
         d = self.fetch_gasex_references()
         for key in d:
@@ -128,6 +133,8 @@ class BoknisEckExtension:
                 self.wz.session.rollback()
 
     def process(self):
+        """Populates the SQL table for BoknisEck spectra with metadata obtained
+        from the systematic names of the SFG table."""
 
         samples = self.wz.session.query(self.wz.sfg).filter(self.wz.sfg.type == "boknis")
         boknis_specs = []
@@ -179,6 +186,8 @@ class BoknisEckExtension:
         self.wz.session.commit()
 
     def match_to_table(self):
+        """Traverses trough the lines of the master Excel sheet and maps the spectra of
+        the Boknis Eck SQL table to them."""
 
         for index, row in self.df.iterrows():
             date = row["Date"].date()
@@ -446,6 +455,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         return self.df[mask]
 
     def get_be_spectra_monthwise(self):
+        """Returns a dict of spectra mmapped to their month of sampling"""
         out = {}
         temp = self.session.query(self.boknis_eck).all()
         for item in temp:
@@ -456,6 +466,22 @@ class BEDatabaseWizard(WorkDatabaseWizard):
 
         return out
 
+    def process_years(self):
+        """Returns a dictionary of dataframes with the BE data and additional normalized to the year's maximum value
+        columns"""
+        out = {}
+        years = (i for i in range(2009, 2019) if i != 2016)
+        for year in years:
+            out[year] = BEDatabaseWizard.normalize_year_records(self.filter_year(year))
+        return out
+
+    @staticmethod
+    def normalize_year_records(df):
+        """Normalize the dataset of a particular year to the corresponding maximum values"""
+        # todo: implement this for all the other params
+        for i in ("sml_coverage", "bulk_coverage", "sml_ch", "bulk_ch"):
+            df[f'norm_{i}'] = df[i] / df[i].max()
+        return df
 
 if __name__ == "__main__":
     BoknisEckExtension(new=True)
