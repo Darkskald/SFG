@@ -51,6 +51,7 @@ class BoknisEck(Base):
     sample_number = Column(Integer)
     location_number = Column(Integer)
     is_mapped = Column(Boolean)
+    depth = Column(Integer)
 
 
 class GasExSfg(Base):
@@ -94,6 +95,8 @@ class BoknisEckData(Base):
     sml_no = Column(Integer)
 
     sml_coverage = Column(Float)
+    one_coverage = Column(Float)
+
     sml_ch = Column(Float)
     sml_oh1 = Column(Float)
     sml_oh2 = Column(Float)
