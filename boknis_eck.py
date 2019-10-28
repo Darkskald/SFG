@@ -51,7 +51,7 @@ class BoknisEckExtension:
             self.match_to_table()
             self.chlorophyll = BoknisEckExtension.prepare_chorophyll_data()
             data = self.map_to_sampling_date(self.references)
-            self.persist_average_data(data[0], data[1])
+            self.persist_average_data(data[0], data[1], data[2])
             self.include_gasex_average()
 
         self.references = self.fetch_dppc_integrals()
@@ -206,9 +206,11 @@ class BoknisEckExtension:
 
                 if row["Sampler no."] in (4, 3):
                     q.sample_type = "deep"
+                    q.depth = int(row["Drainage time per dip (sec)\nSampling depth (m)"])
 
                 elif row["Sampler no."] in (1, 2):
                     q.sample_type = "sml"
+                    q.depth = 0
 
                 q.is_mapped = True
                 q.location_number = int(row["Location No."])
@@ -251,10 +253,15 @@ class BoknisEckExtension:
     def map_to_sampling_date(self, references):
 
         sml = self.add_spectrum(self.get_boknis_specs().filter(self.wz.boknis_eck.sample_type == 'sml'))
-        deep = self.add_spectrum(self.get_boknis_specs().filter(self.wz.boknis_eck.sample_type == 'deep'))
+        deep = self.add_spectrum(self.get_boknis_specs().filter(self.wz.boknis_eck.sample_type == 'deep').
+                                 filter(self.wz.boknis_eck.depth > 1))
+
+        one = self.add_spectrum(self.get_boknis_specs().filter(self.wz.boknis_eck.sample_type == 'deep').
+                                filter(self.wz.boknis_eck.depth == 1))
+
 
         out = []
-        for item in (sml, deep):
+        for item in (sml, deep, one):
             dates = {}
             for spectrum in item:
                 date = spectrum.sampling_date
@@ -277,7 +284,7 @@ class BoknisEckExtension:
             new_dict[key] = av
         return new_dict
 
-    def persist_average_data(self, sml_dates, bulk_dates):
+    def persist_average_data(self, sml_dates, bulk_dates, one_dates):
         """Write the data obtained by the average spectra to the database"""
         # todo: this is the right place for intense debugging and plotting
 
@@ -303,6 +310,12 @@ class BoknisEckExtension:
                 be_data_orm.bulk_oh1 = bulk_dates[date].average_spectrum.calc_region_integral("OH")
                 be_data_orm.bulk_oh2 = bulk_dates[date].average_spectrum.calc_region_integral("OH2")
                 be_data_orm.bulk_dangling = bulk_dates[date].average_spectrum.calc_region_integral("dangling")
+            except KeyError:
+                pass
+
+            # one meter
+            try:
+                be_data_orm.one_coverage = one_dates[date].coverage
             except KeyError:
                 pass
 
@@ -397,7 +410,6 @@ class BoknisEckExtension:
 
     @staticmethod
     def prepare_chorophyll_data():
-        """Reads in the csv sheet with chlorophyll measurement data and removes all nan values"""
         be = pd.read_csv("newport/be_data.csv", sep=",", header=0)
         be["chlora"] = be["chlora"].mask(be["chlora"] < 0)
         be = be[be["chlora"].notnull()]
@@ -442,13 +454,14 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         # remove outliers
         self.df["sml_coverage"] = self.df["sml_coverage"].mask(self.df["sml_coverage"] > 1)
         self.df["bulk_coverage"] = self.df["bulk_coverage"].mask(self.df["bulk_coverage"] > 1)
+        self.df["one_coverage"] = self.df["one_coverage"].mask(self.df["one_coverage"] > 1)
         self.df["sml_coverage"] = self.df["sml_coverage"].replace([np.inf, -np.inf], np.nan)
         self.df["bulk_coverage"] = self.df["bulk_coverage"].replace([np.inf, -np.inf], np.nan)
 
         # remove nans in coverage
         # todo: fix this
-        self.df = self.df[self.df["sml_coverage"].notna()]
-        self.df = self.df[self.df["bulk_coverage"].notna()]
+        #self.df = self.df[self.df["sml_coverage"].notna()]
+        #self.df = self.df[self.df["bulk_coverage"].notna()]
 
     def filter_date(self, beginning, end):
         """Get all BE samples taken between beginning and end and returns them as a dataframe"""
@@ -501,7 +514,17 @@ class BEDatabaseWizard(WorkDatabaseWizard):
     def convert_to_origin_date(df):
         """Sets the dataframe'S sampling_date column to an origin-friendly setting"""
         df['sampling_date'] = df["sampling_date"].dt.strftime('%d.%m.%Y')
-        return df
+
+    @staticmethod
+    def compare_to_gernot(df):
+
+        df['origin'] = (df['sml_no'] * df['sml_coverage']/(df['bulk_no'] + df['sml_no'])) + \
+        (df['bulk_no'] * df['bulk_coverage'] / (df['bulk_no'] + df['sml_no']))
+
+        df['origin'] = (df['origin']**2)*50
+        BEDatabaseWizard.convert_to_origin_date(df)
+        new = df[['sampling_date', 'origin']]
+        new.to_csv("origin_boknis_out.csv")
 
 
 # auxiliary functions not contained in classes
