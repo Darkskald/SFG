@@ -119,6 +119,7 @@ class SfgSpectrum(AbstractSpectrum):
 
     def normalize_to_highest(self, intensity="default", external_norm="none"):
         """normalize an given array to its maximum, typically the normalized or raw intensity"""
+        # todo: this function is somehow strange
         if intensity == "default":
             intensity = self.normalized_intensity
         if external_norm == "none":
@@ -534,7 +535,6 @@ class SfgAverager:
                 print("Warning: negative integral value in SfgAverager!")
                 self.integral = 0
                 self.coverage = 0
-
 
     def average_spectra(self):
         """Function performing the averaging: it ensures that all spectra are interpolated to have the same shape,

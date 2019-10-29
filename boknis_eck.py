@@ -447,6 +447,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
     def __init__(self):
         super().__init__()
         self.df = BoknisEckExtension().provide_dataframe()
+        self.wz = WorkDatabaseWizard()
 
         # convert to datetime
         self.df["sampling_date"] = pd.to_datetime(self.df["sampling_date"])
@@ -481,10 +482,21 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         mask = (self.df["sampling_date"].dt.month == month)
         return self.df[mask]
 
-    def get_be_spectra_monthwise(self):
+    def get_be_spectra_monthwise(self, sample_type="all"):
         """Returns a dict of spectra mmapped to their month of sampling"""
         out = {}
-        temp = self.session.query(self.boknis_eck).all()
+        if sample_type == "all":
+            temp = self.session.query(self.boknis_eck).all()
+
+        elif sample_type =="sml":
+            temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sample_type == "sml").all()
+        elif sample_type == "1":
+            temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sample_type == "deep")\
+                .filter(self.boknis_eck.depth == 1).all()
+        elif sample_type == "bulk":
+            temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sample_type == "deep") \
+                .filter(self.boknis_eck.depth > 1).all()
+
         for item in temp:
             if item.sampling_date.month not in out:
                 out[item.sampling_date.month] = [self.fetch_by_specid(item.specid)]
@@ -507,7 +519,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         """Normalize the dataset of a particular year to the corresponding maximum values"""
         # todo: implement this for all the other params
         for i in ("sml_coverage", "bulk_coverage", "sml_ch", "bulk_ch"):
-            df[f'norm_{i}'] = df[i] / df[i].max()
+            df[f'norm_{i}'] = df[i] / df[i].mean()
         return df
 
     @staticmethod
