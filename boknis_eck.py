@@ -1,6 +1,7 @@
 from orm import WorkDatabaseWizard
 from spectrum import SfgAverager, DummyPlotter
 
+from sqlalchemy import extract
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 # todo: fix the double import
@@ -15,6 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.dates import MonthLocator, DateFormatter
 from matplotlib.lines import Line2D
+import matplotlib.ticker as ticker
 
 
 class BoknisEckExtension:
@@ -442,12 +444,66 @@ class BoknisEckExtension:
         return av
 
 
+class Plotter:
+
+    def __init__(self):
+        self.fig = plt.figure()
+
+    def plot_sfg_list(self, speclist, title="default", save=False):
+        plt.style.use("output.mplstyle")
+        ax = self.fig.add_subplot(1, 1, 1)
+        ax.set_xlabel(speclist[0].x_unit)
+        ax.set_ylabel(speclist[0].y_unit)
+
+        for item in speclist:
+            ax.plot(item.x, item.y, label=item.name)
+
+        ax.set_title(title)
+
+        self.fig.legend()
+        if save:
+            plt.tight_layout()
+            plt.savefig("boknis_dates/"+title+".png")
+            plt.close()
+
+    def plot_raw_ir_vis(self, spec, save=False):
+        # task1: SFG plot with IR, Vis, Raw
+        ax = self.fig.add_subplot(1, 1, 1)
+
+        # set limit for x axis to 4 digits (for wavenumber display)
+        formatter = ticker.ScalarFormatter()
+        formatter.set_powerlimits((-3, 4))
+        ax.xaxis.set_major_formatter(formatter)
+        ax.set_xlabel(spec.x_unit)
+
+        # SFG
+        ax.plot(spec.x, spec.raw_intensity, color="blue", label="SFG", marker="s")
+        ax.set_ylabel("raw SFG intensity/ counts")
+
+        # IR
+        ax2 = ax.twinx()
+        ax2.plot(spec.x, spec.ir_intensity, color="red", label="IR")
+        ax2.plot(spec.x, spec.vis_intensity, color="green", label="VIS")
+        ax2.set_ylabel("intensity/ counts")
+
+        ax.grid(True)
+        ax.set_title(spec.name)
+        if save:
+            plt.style.use("output.mplstyle")
+            plt.tight_layout()
+            self.fig.legend()
+            plt.savefig(f'boknis_spectra/{spec.name}_raw.png')
+            plt.close()
+
+    def plot_sfg_averager(self, averager):
+        pass
+
+
 class BEDatabaseWizard(WorkDatabaseWizard):
 
     def __init__(self):
         super().__init__()
         self.df = BoknisEckExtension().provide_dataframe()
-        self.wz = WorkDatabaseWizard()
 
         # convert to datetime
         self.df["sampling_date"] = pd.to_datetime(self.df["sampling_date"])
@@ -483,10 +539,10 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         return self.df[mask]
 
     def get_be_spectra_monthwise(self, sample_type="all"):
-        """Returns a dict of spectra mmapped to their month of sampling"""
+        """Returns a dict of spectra mapped to their month of sampling"""
         out = {}
         if sample_type == "all":
-            temp = self.session.query(self.boknis_eck).all()
+            temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1).all()
 
         elif sample_type =="sml":
             temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sample_type == "sml").all()
@@ -513,6 +569,81 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         for year in years:
             out[year] = BEDatabaseWizard.normalize_year_records(self.filter_year(year))
         return out
+
+    # convenience query methods
+    def get_data_per_sampling_date(self):
+        """Returns a dictionary of BoknisEck spectra objects mapped to their date of sampling. Note that in that stadium
+        they are not plottable SFG objects."""
+        dates = self.session.query(self.be_data).all()
+        dates = [i.sampling_date for i in dates]
+
+        date_dic = {}
+
+        for item in dates:
+            temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sampling_date == item)\
+                .filter(self.boknis_eck.is_mapped == 1).all()
+            date_dic[item] = temp
+
+        return date_dic
+
+    def convert_be_to_sfg(self, be):
+        """Accepts a BoknisEck spectrum object. Fetches the corresponding SFG data from the database and creates the
+        actual object"""
+        temp = self.session.query(self.sfg).filter(self.sfg.id == be.specid).one()
+        return self.construct_sfg(temp)
+
+    def fetch_by_month(self, month, refine="all"):
+        """Fetches all spectra sampled on a special month (passed as integer). The refine kwarg makes it possible to
+        filter sml and bulk samples"""
+        t = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1).filter(
+            extract('month', self.boknis_eck.sampling_date) == month)
+
+        if refine == "sml":
+            t = t.filter(self.boknis_eck.sample_type == "sml")
+
+        elif refine == "deep":
+            t = t.filter(self.boknis_eck.sample_type == "deep")
+
+        print(f'debug: refine is {refine}')
+        return t.all()
+
+    def fetch_by_quartal(self, refine="all"):
+        """Map the BoknisEck spectra to their corresponding quartals of the year. The refine kwarg makes it possible to
+        filter sml and bulk samples"""
+        # todo: implement 1m
+        # todo: write a generic funtion to refine any query by those criteria
+        # todo: find appropriate word for "quartal" and refactor
+
+        quartals = {"q1": (1, 2, 3), "q2": (4, 5, 6), "q3": (7, 8, 9), "q4": (10, 11, 12)}
+        for q in quartals:
+
+            temp = []
+            for month in quartals[q]:
+                specs = self.fetch_by_month(month, refine=refine)
+                temp.extend(specs)
+            quartals[q] = temp
+
+        return quartals
+
+    # plotting
+
+    def plot_by_sampling_date(self):
+        """Fetch all spectra of all sampling days, match them to the sampling dates, plot them and save them as png"""
+        dates = self.get_data_per_sampling_date()
+
+        for d in dates:
+            dates[d] = [self.convert_be_to_sfg(item) for item in dates[d]]
+
+        for item in dates:
+            P = Plotter()
+            P.plot_sfg_list(dates[item], title=str(item), save=True)
+
+    def plot_all_raw_be(self):
+        """Creates plots of all BE data showing raw intensity, IR and vis"""
+        temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1).all()
+        for item in temp:
+            spec = self.convert_be_to_sfg(item)
+            Plotter().plot_raw_ir_vis(spec, save=True)
 
     @staticmethod
     def normalize_year_records(df):
