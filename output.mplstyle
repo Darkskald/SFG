@@ -2,11 +2,11 @@ font.size : 16
 font.family : helvetica
 
 # fig
-figure.figsize : 10.0, 5.0
-figure.subplot.bottom : 0.12
+# figure.figsize : 10.0, 5.0
+figure.subplot.bottom : 0.14
 
 # axes
-axes.titlesize : 18
+axes.titlesize : 16
 axes.labelsize : 16
 axes.labelweight : normal
 axes.linewidth : 2
@@ -14,7 +14,7 @@ axes.labelpad : 8
 axes.formatter.limits : -3, 4
 
 lines.linewidth : 1.5
-lines.markersize : 7
+lines.markersize : 5
 
 # ticks
 xtick.labelsize : 12
@@ -26,4 +26,4 @@ ytick.major.size : 5
 
 
 legend.frameon : True
-legend.fontsize: x-small
+legend.fontsize: xx-small
