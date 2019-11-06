@@ -495,6 +495,49 @@ class Plotter:
             plt.savefig(f'boknis_spectra/{spec.name}_raw.png')
             plt.close()
 
+    def plot_raw_ir_vis_norm(self, spec, save=False):
+        # task1: SFG plot with IR, Vis, Raw
+        ax = self.fig.add_subplot(2, 1, 1)
+
+        # set limit for x axis to 4 digits (for wavenumber display)
+        formatter = ticker.ScalarFormatter()
+        formatter.set_powerlimits((-3, 4))
+        ax.xaxis.set_major_formatter(formatter)
+        ax.set_xlabel(spec.x_unit)
+
+        # SFG
+        ax.plot(spec.x, spec.raw_intensity, color="blue", label="SFG", marker="s")
+        ax.set_ylabel("raw SFG intensity/ counts")
+
+        # IR
+        ax2 = ax.twinx()
+        ax2.plot(spec.x, spec.ir_intensity, color="red", label="IR")
+        ax2.plot(spec.x, spec.vis_intensity, color="green", label="VIS")
+        ax2.set_ylabel("intensity/ counts")
+
+        ax.grid(True)
+        ax.set_title(spec.name)
+
+        # normalized
+        ax3 = self.fig.add_subplot(2, 1, 2, sharex=ax)
+        ax3.set_ylabel(spec.y_unit)
+        ax3.plot(spec.x, spec.y, label="norm.", color="black", marker="o")
+        ax3.grid(True)
+
+        plt.tight_layout()
+        rcParams["axes.titlesize"] = 6
+        #self.fig.legend()
+        # remove vertical gap between subplots
+        plt.subplots_adjust(hspace=.0)
+
+
+        if save:
+            plt.style.use("output.mplstyle")
+            rcParams["axes.titlesize"] = 6
+            self.fig.legend()
+            plt.savefig(f'boknis_spectra/{spec.name}_raw.png')
+            plt.close()
+
     def plot_sfg_averager(self, averager):
         pass
 
@@ -643,6 +686,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1).all()
         for item in temp:
             spec = self.convert_be_to_sfg(item)
+            #Plotter().plot_raw_ir_vis(spec, save=True)
             Plotter().plot_raw_ir_vis(spec, save=True)
 
     @staticmethod
