@@ -6,8 +6,8 @@ font.family : helvetica
 figure.subplot.bottom : 0.14
 
 # axes
-axes.titlesize : 16
-axes.labelsize : 16
+axes.titlesize : 12
+axes.labelsize : 10
 axes.labelweight : normal
 axes.linewidth : 2
 axes.labelpad : 8
