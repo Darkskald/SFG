@@ -507,39 +507,58 @@ class Plotter:
 
         # SFG
         ax.plot(spec.x, spec.raw_intensity, color="blue", label="SFG", marker="s")
-        ax.set_ylabel("raw SFG intensity/ counts")
+        ax.set_ylabel("raw SFG intensity/\n counts")
 
         # IR
         ax2 = ax.twinx()
         ax2.plot(spec.x, spec.ir_intensity, color="red", label="IR")
         ax2.plot(spec.x, spec.vis_intensity, color="green", label="VIS")
-        ax2.set_ylabel("intensity/ counts")
+        ax2.set_ylabel("intensity/\n counts")
 
         ax.grid(True)
         ax.set_title(spec.name)
 
         # normalized
         ax3 = self.fig.add_subplot(2, 1, 2, sharex=ax)
-        ax3.set_ylabel(spec.y_unit)
+        ax3.set_ylabel("norm. SFG intensity/\narb. u.")
         ax3.plot(spec.x, spec.y, label="norm.", color="black", marker="o")
         ax3.grid(True)
 
+        # baseline
+        base_data = np.linspace(2750, 3050, 10000)
+        func = spec.make_ch_baseline()
+        ax3.plot(base_data, func(base_data), color="violet", label="baseline", linewidth=2.5, alpha=0.75)
+
+        plt.style.use("output.mplstyle")
+
         plt.tight_layout()
-        rcParams["axes.titlesize"] = 6
-        #self.fig.legend()
         # remove vertical gap between subplots
         plt.subplots_adjust(hspace=.0)
 
 
         if save:
-            plt.style.use("output.mplstyle")
-            rcParams["axes.titlesize"] = 6
-            self.fig.legend()
+
+            self.fig.legend(loc=4)
             plt.savefig(f'boknis_spectra/{spec.name}_raw.png')
             plt.close()
 
     def plot_sfg_averager(self, averager):
-        pass
+
+        plt.style.use("output.mplstyle")
+        ax = self.fig.add_subplot(1, 1, 1)
+
+        for spectrum in averager.spectra:
+            ax.plot(spectrum.x, spectrum.y, alpha=0.35)
+
+        ax.plot(averager.average_spectrum.x, averager.average_spectrum.y, marker="s", color="r", linewidth=2.5,
+                label="average")
+
+        ax.set_xlabel(averager.average_spectrum.x_unit)
+        ax.set_ylabel(averager.average_spectrum.y_unit)
+
+
+
+        ax.legend()
 
 
 class BEDatabaseWizard(WorkDatabaseWizard):
@@ -687,7 +706,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         for item in temp:
             spec = self.convert_be_to_sfg(item)
             #Plotter().plot_raw_ir_vis(spec, save=True)
-            Plotter().plot_raw_ir_vis(spec, save=True)
+            Plotter().plot_raw_ir_vis_norm(spec, save=True)
 
     @staticmethod
     def normalize_year_records(df):
