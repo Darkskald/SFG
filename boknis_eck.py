@@ -68,7 +68,7 @@ class BoknisEckExtension:
         for spec in results:
             spec = self.wz.construct_sfg(spec)
 
-            if 0 < spec.meta["time"].hour < 8:
+            if 0 <= spec.meta["time"].hour < 8:
                 spec.meta["time"] -= timedelta(days=1)
 
             date = spec.meta["time"].date()
@@ -495,7 +495,7 @@ class Plotter:
             plt.savefig(f'boknis_spectra/{spec.name}_raw.png')
             plt.close()
 
-    def plot_raw_ir_vis_norm(self, spec, save=False):
+    def plot_raw_ir_vis_norm(self, spec, baseline=True, integral=False, save=False):
         # task1: SFG plot with IR, Vis, Raw
         ax = self.fig.add_subplot(2, 1, 1)
 
@@ -525,9 +525,15 @@ class Plotter:
         ax3.grid(True)
 
         # baseline
-        base_data = np.linspace(2750, 3050, 10000)
-        func = spec.make_ch_baseline()
-        ax3.plot(base_data, func(base_data), color="violet", label="baseline", linewidth=2.5, alpha=0.75)
+        if baseline:
+            base_data = np.linspace(2750, 3050, 10000)
+            func = spec.make_ch_baseline()
+            ax3.plot(base_data, func(base_data), color="purple", label="baseline", linewidth=2.5, alpha=0.75)
+
+        # integral
+        if integral:
+            ax3.text(3050, np.max(spec.normalized_intensity)/2, f'integral: {spec.calculate_ch_integral():.4f}')
+
 
         plt.style.use("output.mplstyle")
 
@@ -643,7 +649,8 @@ class BEDatabaseWizard(WorkDatabaseWizard):
 
         for item in dates:
             temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sampling_date == item)\
-                .filter(self.boknis_eck.is_mapped == 1).all()
+                .filter(self.boknis_eck.is_mapped == 1).\
+                filter(self.boknis_eck.location_number == 3).all()
             date_dic[item] = temp
 
         return date_dic
@@ -657,14 +664,18 @@ class BEDatabaseWizard(WorkDatabaseWizard):
     def fetch_by_month(self, month, refine="all"):
         """Fetches all spectra sampled on a special month (passed as integer). The refine kwarg makes it possible to
         filter sml and bulk samples"""
-        t = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1).filter(
-            extract('month', self.boknis_eck.sampling_date) == month)
+        t = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1).\
+            filter(self.boknis_eck.location_number == 3)\
+            .filter(extract('month', self.boknis_eck.sampling_date) == month)
 
         if refine == "sml":
             t = t.filter(self.boknis_eck.sample_type == "sml")
 
         elif refine == "deep":
-            t = t.filter(self.boknis_eck.sample_type == "deep")
+            t = t.filter(self.boknis_eck.sample_type == "deep").filter(self.boknis_eck.depth > 1)
+
+        elif refine == 1:
+            t = t.filter(self.boknis_eck.sample_type == "deep").filter(self.boknis_eck.depth == 1)
 
         print(f'debug: refine is {refine}')
         return t.all()
@@ -687,6 +698,27 @@ class BEDatabaseWizard(WorkDatabaseWizard):
 
         return quartals
 
+    def normalize_to_reference_integral(self, speclist):
+        """This function takes a list of BoknisEck spectra, converts them to SfgSpectrum objects
+         and normalizes them to the DPPC integral of ther measurement day. Note that spectra
+         without suitable reference are dropped and are not included in the output"""
+        out = []
+        for spectrum in speclist:
+            spec = self.convert_be_to_sfg(spectrum)
+            if 0 <= spec.meta["time"].hour < 8:
+                spec.meta["time"] -= timedelta(days=1)
+            try:
+                ref = self.session.query(self.measurement_days).filter(
+                self.measurement_days.date == spec.meta["time"].date()).one().dppc_integral
+                spec.normalized_intensity = spec.normalize_to_highest(external_norm=ref)
+                spec.setup_spec()
+                out.append(spec)
+
+            except NoResultFound:
+                print(f'{spec} has no DPPC reference')
+        return out
+
+
     # plotting
 
     def plot_by_sampling_date(self):
@@ -694,19 +726,31 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         dates = self.get_data_per_sampling_date()
 
         for d in dates:
-            dates[d] = [self.convert_be_to_sfg(item) for item in dates[d]]
-
+            #dates[d] = [self.convert_be_to_sfg(item) for item in dates[d]]
+            dates[d] = self.normalize_to_reference_integral(dates[d])
         for item in dates:
-            P = Plotter()
-            P.plot_sfg_list(dates[item], title=str(item), save=True)
+            try:
+                P = Plotter()
+                P.plot_sfg_list(dates[item], title=str(item), save=True)
+            except IndexError:
+                pass
+
 
     def plot_all_raw_be(self):
         """Creates plots of all BE data showing raw intensity, IR and vis"""
-        temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1).all()
+        temp = self.session.query(self.boknis_eck).\
+            filter(self.boknis_eck.location_number == 3).filter(self.boknis_eck.is_mapped == 1).all()
         for item in temp:
             spec = self.convert_be_to_sfg(item)
             #Plotter().plot_raw_ir_vis(spec, save=True)
             Plotter().plot_raw_ir_vis_norm(spec, save=True)
+
+    def plot_all_be_references(self):
+        """Creates plots of all BE data showing raw intensity, IR and vis"""
+        temp = self.session.query(self.sfg).filter(self.sfg.type == "boknis_ref").all()
+        for item in temp:
+            spec = self.construct_sfg(item)
+            Plotter().plot_raw_ir_vis_norm(spec, save=True, integral=True)
 
     @staticmethod
     def normalize_year_records(df):

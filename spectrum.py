@@ -552,7 +552,7 @@ class SfgAverager:
         # collect the dates of measurement for DPPC referencing
         for item in self.spectra:
 
-            if 0 < item.meta["time"].hour < 8:
+            if 0 <= item.meta["time"].hour < 8:
                 item.meta["time"] -= datetime.timedelta(days=1)
 
             date = item.meta["time"].date()

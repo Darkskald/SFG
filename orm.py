@@ -883,6 +883,10 @@ class WorkDatabaseWizard(DatabaseWizard):
             out.append(self.get_spectrum_by_name(item.name))
         return out
 
+    def convert_regular_to_lt(self, reg_lt):
+        """Converts a RegularLt object directly into the Lt object of the spectrum module."""
+        lt = self.session.query(self.lt).filter(self.lt.id == reg_lt.ltid).one()
+        return WorkDatabaseWizard.construct_lt(lt)
 
 
     @staticmethod

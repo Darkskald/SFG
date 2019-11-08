@@ -178,7 +178,7 @@ class SampleNameParser:
                         measure_date = s.meta["time"].date()
 
                         # if the sample was measured during the night, take the DPPC average from the day before
-                        if 0 < s.meta["time"].hour < 8:
+                        if 0 <= s.meta["time"].hour < 8:
                             measure_date -= timedelta(days=1)
 
                         factor = self.reference_per_date[measure_date]
@@ -268,7 +268,7 @@ class SampleNameParser:
                 try:
 
                     # if the sample was measured during the night, take the DPPC average from the day before
-                    if 0 < s.meta["time"].hour < 8:
+                    if 0 <= s.meta["time"].hour < 8:
                         s.meta["time"] -= timedelta(days=1)
                     if s.meta["time"].date() in self.reference_per_date:
                         # append the result to a dictionary mapping the coverages to the sampling dates
