@@ -680,7 +680,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         print(f'debug: refine is {refine}')
         return t.all()
 
-    def fetch_by_quartal(self, refine="all"):
+    def fetch_by_quartal(self, refine="all", selection="q"):
         """Map the BoknisEck spectra to their corresponding quartals of the year. The refine kwarg makes it possible to
         filter sml and bulk samples"""
         # todo: implement 1m
@@ -688,7 +688,16 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         # todo: find appropriate word for "quartal" and refactor
 
         quartals = {"q1": (1, 2, 3), "q2": (4, 5, 6), "q3": (7, 8, 9), "q4": (10, 11, 12)}
-        for q in quartals:
+        trimester = {"s1": (3, 4, 5, 6), "s2": (7, 8, 9, 10), "s3": (11, 12, 1, 2)}
+
+        to_get = None
+
+        if selection == "q":
+            to_get = quartals
+        if selection == "t":
+            to_get = trimester
+
+        for q in to_get:
 
             temp = []
             for month in quartals[q]:
