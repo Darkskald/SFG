@@ -688,7 +688,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         # todo: find appropriate word for "quartal" and refactor
 
         quartals = {"q1": (1, 2, 3), "q2": (4, 5, 6), "q3": (7, 8, 9), "q4": (10, 11, 12)}
-        trimester = {"s1": (3, 4, 5, 6), "s2": (7, 8, 9, 10), "s3": (11, 12, 1, 2)}
+        trimester = {"t1": (3, 4, 5, 6), "t2": (7, 8, 9, 10), "t3": (11, 12, 1, 2)}
 
         to_get = None
 
@@ -700,7 +700,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         for q in to_get:
 
             temp = []
-            for month in quartals[q]:
+            for month in to_get[q]:
                 specs = self.fetch_by_month(month, refine=refine)
                 temp.extend(specs)
             quartals[q] = temp
@@ -812,10 +812,15 @@ def plot_by_time(dataframes, param, leg, scale=1):
         # ax.plot(df["sampling_date"], df["bulk_"+param]*scale, color="blue")
         # ax2.plot(df["sampling_date"], df["chlorophyll"], color="green")
 
-    # for i in range(8, 20, 1):
-    # lower = str(date(2000+i, 3, 1))
-    # upper = str(date(2000 + i, 9, 1))
-    # ax.axvspan(lower, upper, color="gray", alpha=0.4)
+    # stripes to indicate certain times of the year
+    for i in range(8, 20, 1):
+        lower = str(date(2000 + i, 6, 1))
+        upper = str(date(2000 + i, 12, 1))
+        ax.axvspan(lower, upper, color="gray", alpha=0.4)
+
+    # average lines
+    ax.axhline(df["sml_" + param].mean(), color="red", linestyle="dashed")
+    ax.axhline(df["bulk_" + param].mean(), color="blue", linestyle="dashed")
 
     legend_elements = [Line2D([0], [0], marker='^', label='Bulk water',
                               markerfacecolor='blue', mew=0.3, mec="blue", aa=True, linestyle=''),
@@ -828,6 +833,7 @@ def plot_by_time(dataframes, param, leg, scale=1):
     ax.legend(handles=legend_elements)
     ax.xaxis.set_major_locator(months)
     ax.xaxis.set_major_formatter(monthsFmt)
+    ax.xaxis.set_minor_locator(MonthLocator())
     ax.autoscale_view()
     fig.autofmt_xdate()
 

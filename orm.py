@@ -940,8 +940,6 @@ class LtTokenizer:
         return out
 
 
-
-
 if __name__ == "__main__":
     D = ImportDatabaseWizard()
     P = PostProcessor(D)
