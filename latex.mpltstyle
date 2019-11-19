@@ -1,0 +1,9 @@
+# ticks
+
+xtick.major.size : 7
+ytick.major.size : 7
+xtick.minor.size : 4
+ytick.minor.size : 4
+
+ytick.major.width    : 1.5
+xtick.major.width    : 1.5

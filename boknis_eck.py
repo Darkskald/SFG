@@ -450,7 +450,6 @@ class Plotter:
         self.fig = plt.figure()
 
     def plot_sfg_list(self, speclist, title="default", save=False):
-        plt.style.use("output.mplstyle")
         ax = self.fig.add_subplot(1, 1, 1)
         ax.set_xlabel(speclist[0].x_unit)
         ax.set_ylabel(speclist[0].y_unit)
@@ -462,6 +461,7 @@ class Plotter:
 
         self.fig.legend()
         if save:
+            plt.style.use("output.mplstyle")
             plt.tight_layout()
             plt.savefig("boknis_dates/"+title+".png")
             plt.close()

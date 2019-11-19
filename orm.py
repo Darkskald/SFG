@@ -147,6 +147,10 @@ class RegularLt(Base):
     measurement_no = Column(Text)
     parent = relationship("Lt", uselist=False, back_populates="children")
 
+    def __repr__(self):
+        representation = f"""RegularLT object (id {self.id}) {self.name}"""
+        return representation
+
 
 class GasexLt(Base):
     __tablename__ = 'gasex_lt'
@@ -613,6 +617,10 @@ class PostProcessor:
             for key in meta_info:
                 setattr(reg_spec, key, meta_info[key])
 
+            # ensure that BXn isotherms are interpreted correctly
+            if reg_spec.surfactant is None and reg_spec.sensitizer is not None:
+                reg_spec.surfactant = reg_spec.sensitizer
+                reg_spec.sensitizer = None
             reg_specs.append(reg_spec)
 
         self.db_wizard.session.add_all(reg_specs)
@@ -924,9 +932,9 @@ class LtTokenizer:
         "ratio": re.compile(r'\dto\d'),
         "surfactant": re.compile(r'\wA'),
         "sensitizer": re.compile(r'BX\d'),
-        "speed": re.compile(r'\d.\d*'),
-        "spreading_volume": re.compile(r'\d\d'),
-        "conc": re.compile(r'\d+')
+        "speed": re.compile(r'^\d.\d*$'),
+        "spreading_volume": re.compile(r'\d\d(ul)?$'),
+        "conc": re.compile(r'\d+(.\d)?mM$')
     }
 
     @staticmethod

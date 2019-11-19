@@ -153,7 +153,7 @@ class Sample:
             self.coverage = np.round(np.sqrt(integral / factor), 4)
 
         except IndexError:
-            with open("errorlog.txt", "a") as outfile:
+            with open("errorlog.txt", "w") as outfile:
                 outfile.write(str(self))
 
     def calc_pressure(self):
