@@ -60,7 +60,7 @@ class AbstractSpectrum(ABC):
         self._y_unit = value
 
     def __repr__(self):
-        return self._name
+        return self._name + " Spectrum Object"
 
     def __str__(self):
         return self._name

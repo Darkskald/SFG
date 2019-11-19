@@ -23,7 +23,8 @@ xtick.minor.visible : True
 ytick.minor.visible : True
 xtick.major.size : 5
 ytick.major.size : 5
-
+xtick.minor.size : 3
+ytick.minor.size : 3
 
 legend.frameon : True
 legend.fontsize: x-small
