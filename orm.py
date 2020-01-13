@@ -872,10 +872,15 @@ class WorkDatabaseWizard(DatabaseWizard):
 
     # auxiliary functions
 
-    def fetch_by_specid(self, specid):
+    def fetch_by_specid(self, specid, sfg=True):
         """Fetches the SFG spectrum with the id specid from the database and retuns it as an SFG spectrum object."""
-        spec = self.session.query(self.sfg).filter(self.sfg.id == specid).one()
-        return self.construct_sfg(spec)
+        if sfg:
+            spec = self.session.query(self.sfg).filter(self.sfg.id == specid).one()
+            return self.construct_sfg(spec)
+        else:
+            lt = self.session.query(self.lt).filter(self.lt.id == specid).one()
+            return self.construct_lt(lt)
+
 
     def get_spectrum_by_name(self, name):
         """Returns the SFG spectrum object for a given file name"""

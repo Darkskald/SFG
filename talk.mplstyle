@@ -1,18 +1,41 @@
-font.size : 18
+# font settings
+font.size : 16
 font.family : arial
 
-axes.titlesize : 20
-axes.labelsize : 18
+# axes settings
+axes.titlesize : 16
+axes.labelsize : 16
 axes.labelweight : normal
-axes.linewidth : 2
+axes.linewidth : 1.5
 axes.labelpad : 8
-axes.formatter.limits : -3, 3
+axes.grid : False
+axes.formatter.limits : -3, 4
+#axes.prop_cycle : cycler('color', ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple', 'pink', 'brown', 'orange', 'teal', 'coral', 'lightblue', 'lime', 'lavender', 'turquoise', 'darkgreen', 'tan', 'salmon', 'gold', 'darkred', 'darkblue'])
 
-lines.linewidth : 2
-lines.markersize : 10
+# lines2d settings
 
-xtick.labelsize : 18
-ytick.labelsize : 18
+lines.linewidth : 2.5
+lines.markersize : 5
 
+# tick settings
+xtick.labelsize : 12
+ytick.labelsize : 12
+xtick.minor.visible : True
+ytick.minor.visible : True
+xtick.major.size : 7
+ytick.major.size : 7
+xtick.major.width : 2
+ytick.major.width : 2
+xtick.minor.size : 4
+ytick.minor.size : 4
 
-legend.frameon : True
+# figure settings
+figure.figsize   : 8,6
+
+# legend settings
+legend.fancybox : True
+legend.shadow : False
+legend.fontsize : medium
+
+# boxplot
+

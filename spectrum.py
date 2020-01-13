@@ -4,10 +4,9 @@ import csv
 import numpy as np
 import datetime
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator, MultipleLocator
 from scipy import stats
 from scipy.signal import savgol_filter
-from scipy.integrate import simps as sp
-from scipy.integrate import trapz as tp
 
 
 class AbstractSpectrum(ABC):
@@ -497,6 +496,87 @@ class DummyPlotter:
         if self.save is False:
             plt.show()
 
+        else:
+            path = self.savedir + "/" + self.savename + ".png"
+            plt.savefig(path)
+            plt.close()
+
+
+class BatchPlotter:
+
+    def __init__(self, specdic, save=False, savedir="", savename="default", title="default"):
+        self.specdic = specdic
+        self.save = save
+        self.savedir = savedir
+        self.savename = savename
+        self.title = title
+
+    def plot_all(self, xlim=None, ylim=None, legend=True, line=False):
+        for key in self.specdic:
+                spectrum = self.specdic[key]
+                if not line:
+                    plt.plot(spectrum.x, spectrum.y, label=key, marker="^", linestyle="-")
+                else:
+                    plt.plot(spectrum.x, spectrum.y, label=key)
+
+        plt.xlabel(spectrum.x_unit)
+        plt.ylabel(spectrum.y_unit)
+        plt.minorticks_on()
+        plt.title(self.title)
+        if xlim is not None:
+            plt.xlim(*xlim)
+        if ylim is not None:
+            plt.ylim(*ylim)
+        if legend:
+            plt.legend()
+
+        if self.save is False:
+            plt.show()
+
+        else:
+            path = self.savedir + "/" + self.savename + ".png"
+            plt.tight_layout()
+            plt.savefig(path)
+            plt.close()
+
+    def plot_broken_axis(self, lim, line=False):
+        fig, (ax, ax2) = plt.subplots(1, 2, sharey=True)
+
+        ax.set_ylabel("intensity/ arb.u.")
+        fig.text(0.5, 0.03, s="wavenumber/ cm$^{⁻1}$", ha="center", va="center")
+
+        ax.set_xlim(lim[0], lim[1])
+        ax2.set_xlim(lim[2], lim[3])
+
+        ax.spines['right'].set_visible(False)
+        ax2.spines['left'].set_visible(False)
+        ax.yaxis.tick_left()
+
+        ax2.yaxis.tick_right()
+
+        d = .012  # how big to make the diagonal lines in axes coordinates
+        # arguments to pass plot, just so we don't keep repeating them
+        kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
+        ax.plot((1 - d, 1 + d), (-d, +d), **kwargs)
+        ax.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+
+        kwargs.update(transform=ax2.transAxes)  # switch to the bottom axes
+        ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)
+        ax2.plot((-d, +d), (-d, +d), **kwargs)
+
+        for key in self.specdic:
+            spectrum = self.specdic[key]
+            if not line:
+                ax.plot(spectrum.x, spectrum.y, label=key, marker="^", linestyle="-")
+                ax2.plot(spectrum.x, spectrum.y, label=key, marker="^", linestyle="-")
+            else:
+                ax.plot(spectrum.x, spectrum.y, label=key)
+                ax2.plot(spectrum.x, spectrum.y, label=key)
+        #l = fig.legend(*ax2.get_legend_handles_labels(), 'best')
+        l = ax2.legend()
+        l.set_draggable(True)
+        if self.save is False:
+            plt.show()
         else:
             path = self.savedir + "/" + self.savename + ".png"
             plt.savefig(path)
