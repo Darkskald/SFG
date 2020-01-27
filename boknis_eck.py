@@ -413,8 +413,7 @@ class BoknisEckExtension:
     @staticmethod
     def prepare_chorophyll_data():
         be = pd.read_csv("newport/be_data.csv", sep=",", header=0)
-        be["chlora"] = be["chlora"].mask(be["chlora"] < 0)
-        be = be[be["chlora"].notnull()]
+        be = be[be["Depth [m]"] == 1]
         be["Time"] = pd.to_datetime(be["Time"])
         be["Time"] = be["Time"].apply(lambda x: x.date())
         return be
@@ -584,7 +583,6 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         self.df["bulk_coverage"] = self.df["bulk_coverage"].replace([np.inf, -np.inf], np.nan)
 
         # remove nans in coverage
-        # todo: fix this
         #self.df = self.df[self.df["sml_coverage"].notna()]
         #self.df = self.df[self.df["bulk_coverage"].notna()]
 
@@ -727,7 +725,6 @@ class BEDatabaseWizard(WorkDatabaseWizard):
                 print(f'{spec} has no DPPC reference')
         return out
 
-
     # plotting
 
     def plot_by_sampling_date(self):
@@ -743,7 +740,6 @@ class BEDatabaseWizard(WorkDatabaseWizard):
                 P.plot_sfg_list(dates[item], title=str(item), save=True)
             except IndexError:
                 pass
-
 
     def plot_all_raw_be(self):
         """Creates plots of all BE data showing raw intensity, IR and vis"""
@@ -920,7 +916,7 @@ def polar_plot_coverage(records):
         dates = records[key]["sampling_date"].apply(lambda x: x.timetuple().tm_yday)
         dates = scale_to_polar(dates)
 
-        # todo: make this function more genereic accepting an argument for the plot params
+        # todo: make this function more generic accepting an argument for the plot params
         c = ax.plot(dates, records[key]["norm_sml_coverage"], marker="o")
         #c = ax.plot(dates, records[key]["norm_bulk_coverage"], marker="x")
 

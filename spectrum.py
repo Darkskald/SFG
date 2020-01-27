@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, MultipleLocator
 from scipy import stats
 from scipy.signal import savgol_filter
-
+from scipy.integrate import simps as sp
+from scipy.integrate import trapz as tp
 
 class AbstractSpectrum(ABC):
     """The baseclass which ensures that all necessary properties for plotting
