@@ -18,7 +18,6 @@ from matplotlib.dates import MonthLocator, DateFormatter
 from matplotlib.lines import Line2D
 import matplotlib.ticker as ticker
 
-
 class BoknisEckExtension:
     # sample number regular expressions to extract the number of a sample from the filename:
     n1 = re.compile("\D\d{1,2}\D")
@@ -689,10 +688,11 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         trimester = {"t1": (3, 4, 5, 6), "t2": (7, 8, 9, 10), "t3": (11, 12, 1, 2)}
 
         to_get = None
+        out = {}
 
         if selection == "q":
             to_get = quartals
-        if selection == "t":
+        elif selection == "t":
             to_get = trimester
 
         for q in to_get:
@@ -701,9 +701,9 @@ class BEDatabaseWizard(WorkDatabaseWizard):
             for month in to_get[q]:
                 specs = self.fetch_by_month(month, refine=refine)
                 temp.extend(specs)
-            quartals[q] = temp
+            out[q] = temp
 
-        return quartals
+        return out
 
     def normalize_to_reference_integral(self, speclist):
         """This function takes a list of BoknisEck spectra, converts them to SfgSpectrum objects

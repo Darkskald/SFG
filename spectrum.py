@@ -5,10 +5,12 @@ import numpy as np
 import datetime
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, MultipleLocator
+import pandas as pd
 from scipy import stats
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
 from scipy.integrate import trapz as tp
+
 
 class AbstractSpectrum(ABC):
     """The baseclass which ensures that all necessary properties for plotting
@@ -87,8 +89,6 @@ class SfgSpectrum(AbstractSpectrum):
     # magic methods
     def __init__(self, wavenumbers, intensity, ir_intensity, vis_intensity, meta):
 
-        # todo: invert the wavenunmber/ intensity scale to make it ascending
-
         self.wavenumbers = wavenumbers[::-1]
         self.raw_intensity = intensity[::-1]
         self.vis_intensity = vis_intensity[::-1]
@@ -127,7 +127,7 @@ class SfgSpectrum(AbstractSpectrum):
         else:
             norm_factor = external_norm
 
-        return (intensity / norm_factor)
+        return intensity / norm_factor
 
     def integrate_peak(self, x_array, y_array):
         """Numpy integration routine for numerical peak integration with the trapezoidal rule."""
@@ -191,6 +191,18 @@ class SfgSpectrum(AbstractSpectrum):
             writer = csv.writer(outfile, delimiter=";")
             for i in zip(self.wavenumbers, self.normalized_intensity):
                 writer.writerow((i[0], i[1]))
+
+    def convert_to_export_dataframe(self):
+        """This function returns a Pandas dataframe, suitable for data export to
+        origin and similar other programs"""
+        data = {
+            "wavenumbers": self.wavenumbers,
+            "normalized intensity": self.normalized_intensity,
+            "raw intensity": self.raw_intensity,
+            "IR intensity": self.ir_intensity,
+            "VIS intensity": self.vis_intensity
+        }
+        return pd.DataFrame(data=data)
 
     # CH baseline correction and integration
 
@@ -370,6 +382,17 @@ class LtIsotherm(AbstractSpectrum):
             for a, b, c in zip(self.time, self.area, self.pressure):
                 outfile.write(str(a) + ";" + str(b) + ";" + str(c) + "\n")
 
+    def convert_to_export_dataframe(self):
+        """This function returns a Pandas dataframe, suitable for data export to
+        origin and similar other programs"""
+        data = {
+            "time": self.time,
+            "area": self.area,
+            "area per molecule": self.apm,
+            "surface pressure": self.pressure
+        }
+        return pd.DataFrame(data=data)
+
     def get_maximum_pressure(self, shrinked=None):
         """Returns the maximum measured surface pressure. Note: This property is uesd for the less-then
         operator implementation of this class!"""
@@ -469,7 +492,7 @@ class DummyPlotter:
         self.savedir = savedir
         self.savename = savename
 
-    def plot_all(self, base=False):
+    def plot_all(self, base=False, marker=True):
         for spectrum in self.speclist:
 
             if base is True:
@@ -482,7 +505,11 @@ class DummyPlotter:
                     plt.title(str(round(integral, 6)))
 
             if self.special is None:
-                plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", linestyle="-")
+                if marker:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", linestyle="-")
+                else:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name)
+
             else:
                 if self.special not in spectrum.name:
                     plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", alpha=0.3)
