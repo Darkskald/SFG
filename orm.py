@@ -525,7 +525,7 @@ class PostProcessor:
         photolysis = re.compile('^\d{1,3}p$')
         spread_vol = re.compile('^\d{1,2}(.\d{1,2})?$')
         conc = re.compile('^\d{1,2}mM$')
-        ratio = re.compile('^\dto\d$')
+        ratio_reg = re.compile('^\dto\d$')
 
         date = datetime.date(int(process_list[0][0:4]), int(process_list[0][4:6]),
                              int(process_list[0][6:]))
@@ -538,6 +538,7 @@ class PostProcessor:
         sample_nr = None
         measurement_nr = None
         photo = None
+        ratio = None
         comment = None
 
         for item in process_list[1:]:
@@ -572,7 +573,7 @@ class PostProcessor:
                 else:
                     sens_v = item
 
-            elif re.match(ratio, item):
+            elif re.match(ratio_reg, item):
                 ratio = item
 
             else:
@@ -905,6 +906,14 @@ class WorkDatabaseWizard(DatabaseWizard):
         lt = self.session.query(self.lt).filter(self.lt.id == reg_lt.ltid).one()
         return WorkDatabaseWizard.construct_lt(lt)
 
+    def convert_regular_to_sfg(self, reg_sfg):
+        """Converts a RegularSfg object directly into the Sfg object of the spectrum module.
+        It remains the former regular_sfg object as part of the new spectrum's meta attribute
+        for access of the metadata stored in the regular_sfg object."""
+        sfg = self.session.query(self.sfg).filter(self.sfg.id == reg_sfg.specid).one()
+        temp = WorkDatabaseWizard.construct_sfg(sfg)
+        temp.meta["regular"] = reg_sfg
+        return temp
 
     @staticmethod
     def to_array(string):
