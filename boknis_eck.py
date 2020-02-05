@@ -18,6 +18,7 @@ from matplotlib.dates import MonthLocator, DateFormatter
 from matplotlib.lines import Line2D
 import matplotlib.ticker as ticker
 
+
 class BoknisEckExtension:
     # sample number regular expressions to extract the number of a sample from the filename:
     n1 = re.compile("\D\d{1,2}\D")
@@ -582,8 +583,8 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         self.df["bulk_coverage"] = self.df["bulk_coverage"].replace([np.inf, -np.inf], np.nan)
 
         # remove nans in coverage
-        #self.df = self.df[self.df["sml_coverage"].notna()]
-        #self.df = self.df[self.df["bulk_coverage"].notna()]
+        # self.df = self.df[self.df["sml_coverage"].notna()]
+        # self.df = self.df[self.df["bulk_coverage"].notna()]
 
     def filter_date(self, beginning, end):
         """Get all BE samples taken between beginning and end and returns them as a dataframe"""
@@ -609,7 +610,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         if sample_type == "all":
             temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1).all()
 
-        elif sample_type =="sml":
+        elif sample_type == "sml":
             temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sample_type == "sml").all()
         elif sample_type == "1":
             temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sample_type == "deep")\
@@ -919,7 +920,6 @@ def polar_plot_coverage(records):
         # todo: make this function more generic accepting an argument for the plot params
         c = ax.plot(dates, records[key]["norm_sml_coverage"], marker="o")
         #c = ax.plot(dates, records[key]["norm_bulk_coverage"], marker="x")
-
 
 
 if __name__ == "__main__":

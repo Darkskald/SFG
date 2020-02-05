@@ -75,6 +75,7 @@ class RegularSfg(Base):
     photolysis = Column(Text)
     sample_no = Column(Text)
     measurement_no = Column(Text)
+    ratio = Column(Text)
     comment = Column(Text)
 
 
@@ -524,6 +525,7 @@ class PostProcessor:
         photolysis = re.compile('^\d{1,3}p$')
         spread_vol = re.compile('^\d{1,2}(.\d{1,2})?$')
         conc = re.compile('^\d{1,2}mM$')
+        ratio = re.compile('^\dto\d$')
 
         date = datetime.date(int(process_list[0][0:4]), int(process_list[0][4:6]),
                              int(process_list[0][6:]))
@@ -570,12 +572,16 @@ class PostProcessor:
                 else:
                     sens_v = item
 
+            elif re.match(ratio, item):
+                ratio = item
+
             else:
                 comment = item
 
         return {"sensitizer": sens, "date": date, "sample_no": sample_nr, "measurement_no": measurement_nr,
                 "surfactant_conc": surf_c, "sensitizer_conc": sens_c, "surfactant": surf, "surfactant_vol": surf_v,
-                "sensitizer_vol": sens_v, "comment": comment, "full_name": namestring, "photolysis": photo}
+                "sensitizer_vol": sens_v, "comment": comment, "full_name": namestring,
+                "photolysis": photo, "ratio": ratio}
 
     def add_regular_info(self):
         """This function iterates over all regular type SFG objects, performs the name refinement
