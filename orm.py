@@ -25,7 +25,6 @@ from datetime import timedelta
 Base = declarative_base()
 
 
-
 class SFG(Base):
     __tablename__ = "sfg"
     id = Column(Integer, primary_key=True)
@@ -514,17 +513,17 @@ class PostProcessor:
         self.add_lift_off()
 
     # sfg refinement
+
     def refine_regular(self, namestring):
         """This function parses the names of the spectra in the sfg table with the type "regular" in
         order to extract additional metainformation. It makes use of regular expressions."""
 
         process_list = namestring.split("_")
-        sample = re.compile('x\d')
-        measurement = re.compile('#\d')
-        photolysis = re.compile('\d{1,3}p')
-        spread_vol = re.compile('\d{1,2}.\d{1,2}')
-        spread_vol2 = re.compile('\d{1,2}')
-        conc = re.compile('\d{1,2}mM')
+        sample = re.compile('^x\d{1,2}$')
+        measurement = re.compile('^#\d{1,2}$')
+        photolysis = re.compile('^\d{1,3}p$')
+        spread_vol = re.compile('^\d{1,2}(.\d{1,2})?$')
+        conc = re.compile('^\d{1,2}mM$')
 
         date = datetime.date(int(process_list[0][0:4]), int(process_list[0][4:6]),
                              int(process_list[0][6:]))
@@ -564,7 +563,7 @@ class PostProcessor:
                 else:
                     sens_c = item
 
-            elif re.match(spread_vol, item) or re.match(spread_vol2, item):
+            elif re.match(spread_vol, item):
 
                 if surf_v is None:
                     surf_v = item
