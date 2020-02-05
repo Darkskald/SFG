@@ -1,7 +1,12 @@
+import csv
+
 import numpy as np
 
 
 #basic classes providing functionality to deal with SFG spectra
+from scipy.signal import savgol_filter
+
+
 class SfgSpectrum:
     """The SFG spectrum class is the foundation of all analysis and plotting tools. It contains a class
     SystematicName (or a derived class) which carries most of the metainformation. Besides holding the

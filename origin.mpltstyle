@@ -1,10 +1,10 @@
 # font settings
-font.size : 16
+font.size : 22
 font.family : arial
 
 # axes settings
-axes.titlesize : 16
-axes.labelsize : 16
+axes.titlesize : 22
+axes.labelsize : 22
 axes.labelweight : normal
 axes.linewidth : 1.5
 axes.labelpad : 8
@@ -18,24 +18,27 @@ lines.linewidth : 2.5
 lines.markersize : 5
 
 # tick settings
-xtick.labelsize : 12
-ytick.labelsize : 12
+xtick.labelsize : 18
+ytick.labelsize : 18
 xtick.minor.visible : True
 ytick.minor.visible : True
-xtick.major.size : 7
+xtick.major.size : 8
 ytick.major.size : 8
 xtick.major.width : 2
 ytick.major.width : 2
+xtick.minor.width : 1.5
+ytick.minor.width : 1.5
+
 xtick.minor.size : 4
 ytick.minor.size : 4
 
 # figure settings
-figure.figsize   : 8,6
+figure.figsize   : 10.7,8.2
+figure.dpi : 300
 
 # legend settings
 legend.fancybox : True
 legend.shadow : False
-legend.fontsize : medium
+legend.fontsize : small
 
 # boxplot
-

@@ -881,7 +881,6 @@ class WorkDatabaseWizard(DatabaseWizard):
             lt = self.session.query(self.lt).filter(self.lt.id == specid).one()
             return self.construct_lt(lt)
 
-
     def get_spectrum_by_name(self, name):
         """Returns the SFG spectrum object for a given file name"""
         temp = self.session.query(self.sfg).filter(self.sfg.name == name).one()
