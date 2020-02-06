@@ -617,13 +617,14 @@ class SfgAverager:
     """This class takes a list of SFG spectra and generates an average spectrum of them by interpolation and
     averaging. It is possible to pass a dictionary of date:dppc_integral key-value-pairs in order to calculate
     the coverage."""
-    def __init__(self, spectra, references=None, enforce_scale=False):
+    def __init__(self, spectra, references=None, enforce_scale=False, name="default"):
         self.failure_count = 0
         self.log = ""
         self.log += "Log file for averaging spectra\n"
         self.spectra = spectra
         self.references = references
         self.enforce_scale = enforce_scale
+        self.name = name
 
         if len(self.spectra) == 0:
             print("Warning: zero spectra to average in SfgAverager!")
@@ -680,7 +681,10 @@ class SfgAverager:
         std = np.nanstd(to_average, axis=0)
 
         # prepare meta data for average spectrum
-        newname = self.spectra[0].name + "baseAV"
+        if self.name == "default":
+            newname = self.spectra[0].name + "baseAV"
+        else:
+            newname = self.name
         in_new = [n.name for n in self.spectra]
         s_meta = {"name": newname, "made_from": in_new, "std": std}
 
