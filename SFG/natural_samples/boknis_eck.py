@@ -1,5 +1,5 @@
-from orm import WorkDatabaseWizard
-from spectrum import SfgAverager, DummyPlotter
+from SFG.orm.orm import WorkDatabaseWizard
+from SFG.spectrum.spectrum import SfgAverager
 
 from sqlalchemy import extract
 from sqlalchemy.exc import IntegrityError
@@ -11,6 +11,7 @@ import functools
 import pandas as pd
 import re
 import numpy as np
+import os
 
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -40,7 +41,7 @@ class BoknisEckExtension:
     def __init__(self, new=False):
         self.wz = WorkDatabaseWizard()
         # read the master excel sheet
-        self.df = pd.read_excel("Wasserproben_komplett.xlsx", header=2, sheet_name="Samples")
+        self.df = pd.read_excel("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/Wasserproben_komplett.xlsx", header=2, sheet_name="Samples")
 
         """
         don't forget the GasEx data!
@@ -412,7 +413,8 @@ class BoknisEckExtension:
 
     @staticmethod
     def prepare_chorophyll_data():
-        be = pd.read_csv("newport/be_data.csv", sep=",", header=0)
+        print(f'{os.getcwd()} IN BE')
+        be = pd.read_csv("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/be_data.csv", sep=",", header=0)
         be = be[be["Depth [m]"] == 1]
         be["Time"] = pd.to_datetime(be["Time"])
         be["Time"] = be["Time"].apply(lambda x: x.date())

@@ -7,17 +7,16 @@ import pandas as pd
 class Importer:
 
     def __init__(self):
-        os.chdir("newport")
 
         # sfgs
-        self.regular_sfg = self.import_sfg("regular")
-        self.gasex_sfg = self.import_sfg("gasex_sfg")
-        self.boknis = self.import_sfg("boknis")
+        self.regular_sfg = self.import_sfg("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/regular")
+        self.gasex_sfg = self.import_sfg("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/gasex_sfg")
+        self.boknis = self.import_sfg("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/boknis")
 
         # lts
-        self.lt = self.import_lt("lt")
-        self.gasex_lt = self.import_lt("gasex_lt")
-        self.gasex_lift_off = self.import_liftoffs("liftoff_points.csv")
+        self.lt = self.import_lt("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/lt")
+        self.gasex_lt = self.import_lt("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/gasex_lt")
+        self.gasex_lift_off = self.import_liftoffs("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/liftoff_points.csv")
 
         # spectra
         self.ir = []
@@ -26,11 +25,11 @@ class Importer:
         self.import_other_spectra()
 
         # surface tension and salinity
-        self.gasex_tension = self.import_tensions("gasex_surftens.txt")
+        self.gasex_tension = self.import_tensions("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/gasex_surftens.txt")
         self.salinity = self.import_salinity()
 
         #substances
-        self.substances = self.import_substances("substances.txt")
+        self.substances = self.import_substances("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/substances.txt")
 
     # SFG
     def import_sfg(self, parent_dir):
@@ -52,12 +51,12 @@ class Importer:
 
                     data = self.extract_sfg_file(parent_dir + "/" + directory + "/" + file)
 
-                    dic = {"name": name, "type": parent_dir, "measured_time": creation_time, "measurer": measurer,
+                    dic = {"name": name, "type": parent_dir.split("/")[-1], "measured_time": creation_time, "measurer": measurer,
                            "data": data}
 
                     if "dppc" in dic["name"] or "DPPC" in dic["name"]:
 
-                        if parent_dir == "boknis":
+                        if parent_dir == "C:/Users/lange/Desktop/CharmingSFG/SFG/newport/boknis":
                             dic["type"] = "boknis_ref"
 
                         else:
@@ -93,7 +92,7 @@ class Importer:
                         name = file[:-4]
 
                         data = self.extract_lt_file(new_path + "/" + file)
-                        dic = {"name": name, "type": head_dir, "measured_time": creation_time, "data": data}
+                        dic = {"name": name, "type": head_dir.split("/")[-1], "measured_time": creation_time, "data": data}
 
                         out.append(dic)
         return out
@@ -130,23 +129,23 @@ class Importer:
 
     def import_other_spectra(self):
 
-        for file in os.listdir("Raman"):
-            temp_df = self.extract_other_spectra("Raman/"+file)
+        for file in os.listdir("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/Raman"):
+            temp_df = self.extract_other_spectra("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/Raman/"+file)
             dic = {"name":file, "data": temp_df}
             self.raman.append(dic)
 
-        for file in os.listdir("IR"):
-            temp_df = self.extract_other_spectra("IR/"+file)
+        for file in os.listdir("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/IR"):
+            temp_df = self.extract_other_spectra("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/IR/"+file)
             dic = {"name": file, "data": temp_df}
             self.ir.append(dic)
 
-        for file in os.listdir("UV"):
-            temp_df = self.extract_other_spectra("UV/"+file, skip=2, sep=",")
+        for file in os.listdir("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/UV"):
+            temp_df = self.extract_other_spectra("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/UV/"+file, skip=2, sep=",")
             dic = {"name": file, "data": temp_df}
             self.uv.append(dic)
 
     def import_salinity(self):
-        sal = pd.read_excel("stationsplan.xls")
+        sal = pd.read_excel("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/stationsplan.xls")
         salinities = []
         for row in range(len(sal)):
             sur_sal = sal.loc[row, "Salinity surface"]
