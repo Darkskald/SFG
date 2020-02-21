@@ -887,12 +887,12 @@ class WorkDatabaseWizard(DatabaseWizard):
             lt = self.session.query(self.lt).filter(self.lt.id == specid).one()
             return self.construct_lt(lt)
 
-    def get_spectrum_by_name(self, name):
+    def get_spectrum_by_name(self, name) -> SfgSpectrum:
         """Returns the SFG spectrum object for a given file name"""
         temp = self.session.query(self.sfg).filter(self.sfg.name == name).one()
         return self.construct_sfg(temp)
 
-    def get_spectrum_by_property(self, property_, target):
+    def get_spectrum_by_property(self, property_, target) -> SfgSpectrum:
         """A convenience function to collect spectra based on properties like surfactant, sensitizer etc."""
         temp = self.session.query(self.regular_sfg). \
             filter(getattr(self.regular_sfg, property_) == target).all()
@@ -901,12 +901,12 @@ class WorkDatabaseWizard(DatabaseWizard):
             out.append(self.get_spectrum_by_name(item.name))
         return out
 
-    def convert_regular_to_lt(self, reg_lt):
+    def convert_regular_to_lt(self, reg_lt) -> LtIsotherm:
         """Converts a RegularLt object directly into the Lt object of the spectrum module."""
         lt = self.session.query(self.lt).filter(self.lt.id == reg_lt.ltid).one()
         return WorkDatabaseWizard.construct_lt(lt)
 
-    def convert_regular_to_sfg(self, reg_sfg):
+    def convert_regular_to_sfg(self, reg_sfg) -> SfgSpectrum:
         """Converts a RegularSfg object directly into the Sfg object of the spectrum module.
         It remains the former regular_sfg object as part of the new spectrum's meta attribute
         for access of the metadata stored in the regular_sfg object."""
@@ -916,7 +916,7 @@ class WorkDatabaseWizard(DatabaseWizard):
         return temp
 
     @staticmethod
-    def to_array(string):
+    def to_array(string) -> np.ndarray:
         """Converts the raw data stored as strings back to numpy float ndarrays."""
         try:
             return np.fromstring(string, sep=",")
@@ -924,7 +924,7 @@ class WorkDatabaseWizard(DatabaseWizard):
             return np.nan
 
     @staticmethod
-    def construct_sfg(or_object):
+    def construct_sfg(or_object) -> SfgSpectrum:
         """A function constructing the SFG object from the orm declarative class."""
         meta = {"name": or_object.name, "time": or_object.measured_time}
         args = ("wavenumbers", "sfg", "vis", "ir")
@@ -933,7 +933,7 @@ class WorkDatabaseWizard(DatabaseWizard):
         return s
 
     @staticmethod
-    def construct_lt(or_object):
+    def construct_lt(or_object) -> LtIsotherm:
         """A function constructing the LT object from the orm declarative class."""
         args = (or_object.name, or_object.measured_time)
         add_args = ["time", "area", "apm", "surface_pressure", "lift_off"]
@@ -970,6 +970,5 @@ if __name__ == "__main__":
     D = ImportDatabaseWizard()
     P = PostProcessor(D)
     P.disconnect()
-
 
 # todo: take care about the "measurer" field in LT
