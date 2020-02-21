@@ -1,5 +1,5 @@
 from plotgui import Ui_MainWindow
-from ltgui import Ui_MainWindow as LtW
+from SFG.legacy.ltgui import Ui_MainWindow as LtW
 
 import time
 import sys
@@ -8,7 +8,7 @@ import traceback
 import logging
 # Make sure that we are using QT5
 matplotlib.use('Qt5Agg')
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtWidgets, QtGui
 
 
 import matplotlib.pyplot as plt

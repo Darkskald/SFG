@@ -1,4 +1,4 @@
-from spectrum import SfgSpectrum, SfgAverager
+from SFG.spectrum.spectrum import SfgSpectrum, SfgAverager
 
 import re
 import sqlite3

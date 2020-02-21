@@ -1,29 +1,17 @@
 # module-internal imports
-from new_gui import run_app, run_lt_app
-from sfg import AddedSpectrum, SystematicName
-from spectools import SpectraManager, SpecDatabase, Spectrum
-from gasex import SampleHash, SystematicGasExName, LtManager, GasExLtIsotherm, SfgSpectrum, Station
+from SFG.legacy.new_gui import run_app
+from SFG.legacy.sfg import SystematicName
+from spectools import SpectraManager
+from SFG.natural_samples.gasex import SampleHash, SystematicGasExName, LtManager, SfgSpectrum, Station
 
 # standard utilities
-import os
-import shutil
-import csv
-import time
-import datetime
-import copy
 import traceback
 import logging
 
 # scientific libraries
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
-from matplotlib.lines import Line2D
 
 import sqlite3
-from scipy.signal import savgol_filter
-from scipy.integrate import simps as sp
-from scipy import stats
 
 
 class SessionControlManager:
@@ -453,17 +441,17 @@ class SessionControlManager:
     def get_senssurf_names(self):
         """Loads allowed names of surfactants and sensitizers from the control file"""
 
-        with open("name_info/Surfactants.txt", "r") as infile:
+        with open("../../name_info/Surfactants.txt", "r") as infile:
             for line in infile:
                 collect = line.split(":")
                 self.Surfactants[collect[0]] = collect[1].strip()
 
-        with open("name_info/Sensitizers.txt", "r") as infile:
+        with open("../../name_info/Sensitizers.txt", "r") as infile:
             for line in infile:
                 collect = line.split(":")
                 self.Sensitizers[collect[0]] = collect[1].strip()
 
-        with open("name_info/makros.txt", "r") as infile:
+        with open("../../name_info/makros.txt", "r") as infile:
             for line in infile:
                 collect = line.split(":")
                 self.Makros[collect[0]] = collect[1].strip()

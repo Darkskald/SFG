@@ -7,8 +7,8 @@ Created on Tue Jun 25 11:42:19 2019
 ORM-part of SQlalchemy
 """
 
-from importer import Importer
-from spectrum import SfgSpectrum, SfgAverager, LtIsotherm
+from SFG.orm.importer import Importer
+from SFG.spectrum.spectrum import SfgSpectrum, SfgAverager, LtIsotherm
 
 from sqlalchemy import create_engine, Column, Integer, Text, ForeignKey, UniqueConstraint, TIMESTAMP, \
     Float, Date, Boolean
@@ -20,7 +20,6 @@ import numpy as np
 
 import re
 import datetime
-from datetime import timedelta
 
 Base = declarative_base()
 
@@ -310,7 +309,8 @@ class DatabaseWizard:
     def __init__(self):
 
         # SQL init
-        self.engine = create_engine('sqlite:///orm.db', echo=False)
+        import os
+        self.engine = create_engine('sqlite:///C:/Users/lange/Desktop/CharmingSFG/SFG/orm.db', echo=False)
         self.Base = Base
 
         # ORM object creation
@@ -404,6 +404,7 @@ class ImportDatabaseWizard(DatabaseWizard):
 
             self.session.add_all(sfgs)
             self.session.commit()
+
 
     def persist_lt(self, dic):
         """Generates an instance of the declarative lt class and fills it with the data
