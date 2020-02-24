@@ -177,6 +177,10 @@ class Substances(Base):
     molar_mass = Column(Text)
     sensitizing = Column(Text)
 
+    def __repr__(self):
+        out = f"""compound {self.name}, abbreviation {self.abbreviation}, molar mass: {self.molar_mass}, sensitizing: {self.sensitizing}"""
+        return out
+
 
 class Stations(Base):
     __tablename__ = 'stations'
@@ -405,7 +409,6 @@ class ImportDatabaseWizard(DatabaseWizard):
             self.session.add_all(sfgs)
             self.session.commit()
 
-
     def persist_lt(self, dic):
         """Generates an instance of the declarative lt class and fills it with the data
         obtained from the importer."""
@@ -448,16 +451,14 @@ class ImportDatabaseWizard(DatabaseWizard):
     def persist_substances(self):
         """Processes the subtances dataset by generating instances of the declarative substances
         class."""
-        substances = []
-        for _, row in self.importer.substances.iterrows():
-            substance = self.substances()
-            substance.name = row["name"]
-            substance.abbreviation = row["short"]
-            substance.molar_mass = row["molar_mass"]
-            substance.sensitizing = row["sensitizing"]
-            substances.append(substance)
 
-        self.session.add_all(substances)
+        substances_orm = []
+        for substance in self.importer.substances:
+            s = Substances()
+            for key in substance:
+                setattr(s, key, substance[key])
+            substances_orm.append(s)
+        self.session.add_all(substances_orm)
 
     def persist_spectra(self):
         """Generates declarative class instances for  UV, Raman and IR data."""
@@ -500,19 +501,19 @@ class PostProcessor:
     initially populates the database with the raw data, the PP creates relationships (eg. between
     samples, stations and measurements) and adds additional data like Lift-off points."""
 
-    def __init__(self, database_wizard):
+    def __init__(self, database_wizard, new=True):
 
         self.db_wizard = database_wizard
         self.substances = self.get_substances()
+        if new:
+            self.add_regular_info()
+            self.add_regular_lt_info()
 
-        self.add_regular_info()
-        self.add_regular_lt_info()
-
-        self.populate_gasex_tables()
-        self.map_samples()
-        self.map_tensions()
-        self.add_salinity()
-        self.add_lift_off()
+            self.populate_gasex_tables()
+            self.map_samples()
+            self.map_tensions()
+            self.add_salinity()
+            self.add_lift_off()
 
     # sfg refinement
 

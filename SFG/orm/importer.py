@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 
 import pandas as pd
@@ -29,7 +30,7 @@ class Importer:
         self.salinity = self.import_salinity()
 
         #substances
-        self.substances = self.import_substances("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/substances.txt")
+        self.substances = self.import_substances("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/substances.json")
 
     # SFG
     def import_sfg(self, parent_dir):
@@ -118,9 +119,8 @@ class Importer:
     # other
     def import_substances(self, file):
         """Extracts the information about predefined subtances out of the corresponding file"""
-        col_names = ["name", "short", "molar_mass", "sensitizing"]
-        temp = pd.read_csv(file, sep=';', names=col_names)
-        return temp
+        with open(file) as infile:
+            return json.load(infile)
 
     def import_tensions(self, file):
         col_names = ["name", "tension"]
