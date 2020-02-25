@@ -462,7 +462,7 @@ class Plotter:
 
         self.fig.legend()
         if save:
-            plt.style.use("output.mplstyle")
+            plt.style.use("output.mpltstyle")
             plt.tight_layout()
             plt.savefig("boknis_dates/"+title+".png")
             plt.close()
@@ -490,7 +490,7 @@ class Plotter:
         ax.grid(True)
         ax.set_title(spec.name)
         if save:
-            plt.style.use("output.mplstyle")
+            plt.style.use("output.mpltstyle")
             plt.tight_layout()
             self.fig.legend()
             plt.savefig(f'boknis_spectra/{spec.name}_raw.png')
@@ -536,7 +536,7 @@ class Plotter:
             ax3.text(3050, np.max(spec.normalized_intensity)/2, f'integral: {spec.calculate_ch_integral():.4f}')
 
 
-        plt.style.use("output.mplstyle")
+        plt.style.use("output.mpltstyle")
 
         plt.tight_layout()
         # remove vertical gap between subplots
@@ -551,7 +551,7 @@ class Plotter:
 
     def plot_sfg_averager(self, averager):
 
-        plt.style.use("output.mplstyle")
+        plt.style.use("output.mpltstyle")
         ax = self.fig.add_subplot(1, 1, 1)
 
         for spectrum in averager.spectra:
