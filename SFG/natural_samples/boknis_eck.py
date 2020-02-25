@@ -277,13 +277,14 @@ class BoknisEckExtension:
 
         return out
 
-    def average_sampling_dates(self, date_dict, references):
+    def average_sampling_dates(self, date_dict, references, debug=False):
         new_dict = {}
         for key in date_dict:
             to_average = [i.sfg_spectrum for i in date_dict[key]]
             av = SfgAverager(to_average, references, enforce_scale=True)
-            if av.coverage == np.inf:
-                av.benchmark()
+            if debug:
+                if av.coverage == np.inf:
+                    av.benchmark()
             new_dict[key] = av
         return new_dict
 

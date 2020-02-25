@@ -39,7 +39,7 @@ class SfgAverager:
     """This class takes a list of SFG spectra and generates an average spectrum of them by interpolation and
     averaging. It is possible to pass a dictionary of date:dppc_integral key-value-pairs in order to calculate
     the coverage."""
-    def __init__(self, spectra, references=None, enforce_scale=False, name="default"):
+    def __init__(self, spectra, references=None, enforce_scale=False, name="default", debug=False):
         self.failure_count = 0
         self.log = ""
         self.log += "Log file for averaging spectra\n"
@@ -61,11 +61,12 @@ class SfgAverager:
             self.integral = self.average_spectrum.calculate_ch_integral()
             self.coverage = self.calc_coverage()
 
-            if self.integral < 0:
-                self.benchmark()
-                print("Warning: negative integral value in SfgAverager!")
-                self.integral = 0
-                self.coverage = 0
+            if debug:
+                if self.integral < 0:
+                    self.benchmark()
+                    print("Warning: negative integral value in SfgAverager!")
+                    self.integral = 0
+                    self.coverage = 0
 
     def average_spectra(self):
         """Function performing the averaging: it ensures that all spectra are interpolated to have the same shape,
@@ -180,8 +181,9 @@ class SfgAverager:
         self.log += 80 * "-" + "\n"
         s = f'integral: {self.integral}\ncoverage: {self.coverage}\n'
 
-        with open(name, "w") as outfile:
-            outfile.write(self.log)
+        #TODO replace this by proper logging
+        #with open(name, "w") as outfile:
+            #outfile.write(self.log)
 
     @staticmethod
     def enforce_base():
