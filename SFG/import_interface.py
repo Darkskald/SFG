@@ -8,11 +8,9 @@ np = "C:/Users/lange/Desktop/CharmingSFG/SFG/newport"
 db = "C:/Users/lange/Desktop/CharmingSFG/SFG/orm.db"
 
 if __name__ == "__main__":
-    #remove old database
     os.remove("C:/Users/lange/Desktop/CharmingSFG/SFG/orm.db")
     D = ImportDatabaseWizard()
     P = PostProcessor(D)
     P.disconnect()
-    #os.chdir("../..")
     GasExManager()
     BoknisEckExtension(new=True)
