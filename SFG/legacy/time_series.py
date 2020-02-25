@@ -1,4 +1,4 @@
-from spectrum import SfgSpectrum, SfgAverager
+from SFG.spectrum.spectrum import SfgSpectrum, SfgAverager
 
 import re
 import sqlite3
@@ -573,7 +573,7 @@ rcParams['axes.labelsize'] = 18
 rcParams['font.size'] = 18
 rcParams['figure.subplot.bottom'] = 0.12
 """
-plt.style.use("talk.mplstyle")
+plt.style.use("talk.mpltstyle")
 rcParams['figure.figsize'] = 16.0, 8.0
 rcParams['axes.labelsize'] = 18
 rcParams['font.size'] = 18
