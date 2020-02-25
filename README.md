@@ -1,35 +1,26 @@
 # SFG
-Python scripts for SFG (Sum frequency generation) spectral data analysis, including custom extensions
-to cover the analysis and plotting of other spectra (IR, Raman, UV) and Langmuir compression isotherms
-as well as automatized analysis of sample data gathered during a research cruise in the Baltic Sea. It relies on a 
-*sqlite* database maintained by ORM (sqlalchemy) by containing all the experimental raw data and metainformation. This means that the import functionality
-converting the raw data to the SQL table are logically separated from each other.
 
-## Modules
+This package provides utilities to handle the results of measurement data acquired in the context 
+of investigation of the Sea Surface Microlayer (SML). It deals with Vibrational Sum Frequency
+Generation (VSFG) spectra, Langmuir compression isotherms and surface tension measurements. 
 
-### importer
+## spectrum
 
-The importer module collects all raw data and converts them in a form were they can be used easily by the database
-handling classes to be persisted via ORM.
+The spectrum sub-package contains tools to deal with spectra, implemented as classes with a unified
+set of common properties, in a general way and with additional functionality with respect to VSFG
+spectra and Langmuir compression isotherms.
 
-### orm
+## orm
 
-This module provides the necessary classes to interact with the measurement database via ORM.
+The orm subpackage provides classes and functions to organize the data as a relational database
+(in this case sqlite) to ensure a maximum of separation between analysis of the data and the initial
+import. The idea behind this division is the comfort of having just a single portable database file
+containing all results and metadata in a very accessible way rather than having to take care of 
+dozens of subdirectories and hundreds of files. The package employs sqlalchemy as object-relational
+mapper to have a maximum of abstraction from the actual SQL interaction.
 
-### spectrum
+## natural samples 
 
-The spectrum module provides a way to work with spectrum objects derived from a common abstract base 
-class. This approach ensures that, independent of the individual kind of the spectrum , x and y values and their 
-corresponding units (provided as TeX-strings) can be visualized conveniently. The spectra classes implement methods like
- normalization, smoothing and ASCII export to operate on their data conveniently.
- 
- ### gasex
- 
- This scripts were written to analyze the data obtained during the cruise in June and September 2018. It
- is based on the Pandas library for Data Science and is organized in a vertical hierarchy: The data of the single 
- measurements (SFG, Surface tTension, Langmuir Isotherms) is mapped to the corresponding **Sample** objects. All samples
- taken at a single cruise station are then mapped to a **Station** object. For each of this Station objects, average values
- for different parameters are calculated and added to a new dataframe which then can be used in interactive mode (eg. 
- Ipython or Jupyter Notebook) to perform analysis on the cruise data. 
- 
- 
+This sub-package bundles custom functionality to deal with data obtained during a time series 
+surfactant observation and two consecutive cruises, targeting the interference between gas exchange
+and surfactant presence, in the Baltic Sea.
