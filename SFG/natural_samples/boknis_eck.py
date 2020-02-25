@@ -1,5 +1,5 @@
-from orm import WorkDatabaseWizard
-from spectrum import SfgAverager, DummyPlotter
+from SFG.orm.orm import WorkDatabaseWizard
+from SFG.spectrum import SfgAverager
 
 from sqlalchemy import extract
 from sqlalchemy.exc import IntegrityError
@@ -11,6 +11,7 @@ import functools
 import pandas as pd
 import re
 import numpy as np
+import os
 
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -40,7 +41,7 @@ class BoknisEckExtension:
     def __init__(self, new=False):
         self.wz = WorkDatabaseWizard()
         # read the master excel sheet
-        self.df = pd.read_excel("Wasserproben_komplett.xlsx", header=2, sheet_name="Samples")
+        self.df = pd.read_excel("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/Wasserproben_komplett.xlsx", header=2, sheet_name="Samples")
 
         """
         don't forget the GasEx data!
@@ -276,13 +277,14 @@ class BoknisEckExtension:
 
         return out
 
-    def average_sampling_dates(self, date_dict, references):
+    def average_sampling_dates(self, date_dict, references, debug=False):
         new_dict = {}
         for key in date_dict:
             to_average = [i.sfg_spectrum for i in date_dict[key]]
             av = SfgAverager(to_average, references, enforce_scale=True)
-            if av.coverage == np.inf:
-                av.benchmark()
+            if debug:
+                if av.coverage == np.inf:
+                    av.benchmark()
             new_dict[key] = av
         return new_dict
 
@@ -412,7 +414,8 @@ class BoknisEckExtension:
 
     @staticmethod
     def prepare_chorophyll_data():
-        be = pd.read_csv("newport/be_data.csv", sep=",", header=0)
+        print(f'{os.getcwd()} IN BE')
+        be = pd.read_csv("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/be_data.csv", sep=",", header=0)
         be = be[be["Depth [m]"] == 1]
         be["Time"] = pd.to_datetime(be["Time"])
         be["Time"] = be["Time"].apply(lambda x: x.date())
@@ -460,7 +463,7 @@ class Plotter:
 
         self.fig.legend()
         if save:
-            plt.style.use("output.mplstyle")
+            plt.style.use("output.mpltstyle")
             plt.tight_layout()
             plt.savefig("boknis_dates/"+title+".png")
             plt.close()
@@ -488,7 +491,7 @@ class Plotter:
         ax.grid(True)
         ax.set_title(spec.name)
         if save:
-            plt.style.use("output.mplstyle")
+            plt.style.use("output.mpltstyle")
             plt.tight_layout()
             self.fig.legend()
             plt.savefig(f'boknis_spectra/{spec.name}_raw.png')
@@ -534,7 +537,7 @@ class Plotter:
             ax3.text(3050, np.max(spec.normalized_intensity)/2, f'integral: {spec.calculate_ch_integral():.4f}')
 
 
-        plt.style.use("output.mplstyle")
+        plt.style.use("output.mpltstyle")
 
         plt.tight_layout()
         # remove vertical gap between subplots
@@ -549,7 +552,7 @@ class Plotter:
 
     def plot_sfg_averager(self, averager):
 
-        plt.style.use("output.mplstyle")
+        plt.style.use("output.mpltstyle")
         ax = self.fig.add_subplot(1, 1, 1)
 
         for spectrum in averager.spectra:

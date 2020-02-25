@@ -1,4 +1,4 @@
-from orm import WorkDatabaseWizard
+from SFG.orm.orm import WorkDatabaseWizard
 
 import numpy as np
 import pandas as pd
