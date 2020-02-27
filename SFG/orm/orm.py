@@ -14,8 +14,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-from SFG.orm import Importer
-from SFG.spectrum import SfgAverager, SfgSpectrum, LtIsotherm
+from SFG.orm.importer import Importer
+from SFG.spectrum.averagers import SfgAverager
+from ..spectrum.spectrum import SfgSpectrum, LtIsotherm
 from .orm_classes import *
 
 

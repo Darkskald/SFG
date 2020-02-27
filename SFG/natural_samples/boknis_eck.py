@@ -1,5 +1,5 @@
 from SFG.orm.orm import WorkDatabaseWizard
-from SFG.spectrum import SfgAverager
+from SFG.spectrum.averagers import SfgAverager
 
 from sqlalchemy import extract
 from sqlalchemy.exc import IntegrityError

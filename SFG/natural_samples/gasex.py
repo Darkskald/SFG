@@ -185,6 +185,7 @@ class Station:
     makes them available for plotting purposes via its station table (a Pandas dataframe)"""
     def __init__(self, data):
         self.data = data
+        self.doy = self.data.date.timetuple().tm_yday + (1 - self.data.number) * 0.2
         self.samples = []
         self.stats = {
             "plate_coverage": None,
@@ -206,7 +207,7 @@ class Station:
             "sml_rawtension": None,
             "deep_rawtension": None,
         }
-        self.doy = self.data.date.timetuple().tm_yday + (1-self.data.number)*0.2
+
 
         self.temp_tension_deep = None
         self.temp_tension_sml = None
@@ -249,7 +250,7 @@ class Station:
         for key in self.stats:
             if self.stats[key] is not None:
                 setattr(stats, key, self.stats[key])
-
+        stats.doy = self.doy
         wizard.session.add(stats)
         wizard.session.commit()
 

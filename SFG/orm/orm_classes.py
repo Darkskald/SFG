@@ -183,6 +183,8 @@ class Stations(Base):
 class StationStat(Base):
     __tablename__ = 'station_stats'
     id = Column(Integer, primary_key=True)
+    doy = Column(Float)
+
     station_id = Column(Integer, ForeignKey("stations.id"), unique=True)
     plate_coverage = Column(Float)
     plate_coverage_std = Column(Float)
