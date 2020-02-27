@@ -1,8 +1,9 @@
 import datetime
 
 import numpy as np
+import matplotlib.pyplot as plt
 
-from SFG.spectrum import SfgSpectrum, DummyPlotter, LtIsotherm
+from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm
 
 
 class AverageSpectrum(SfgSpectrum):
@@ -164,7 +165,7 @@ class SfgAverager:
         self.create_log()
         l = [i for i in self.spectra]
         l.append(self.average_spectrum)
-        p = DummyPlotter(l, save=True, savedir="benchmark", savename=self.spectra[0].name, special="AV")
+        p = DummyPlotter(l, save=True, savename=self.spectra[0].name, special="AV")
         p.plot_all()
 
     def create_log(self):
@@ -237,3 +238,52 @@ class LtAverager:
         s = AverageLt(root_x_scale[::-1], average, s_meta)
 
         return s
+
+
+class DummyPlotter:
+    """A test class to monitor the interaction of the subclasses of AbstractSpectrum with plotting routines."""
+
+    def __init__(self, speclist, save=False, savedir="", savename="Default", special=None):
+        self.speclist = speclist
+        self.special = special
+        self.save = save
+        self.savedir = savedir
+        self.savename = savename
+
+    def plot_all(self, base=False, marker=True):
+        for spectrum in self.speclist:
+
+            if base is True:
+                if isinstance(spectrum, AverageSpectrum):
+                    func = spectrum.make_ch_baseline()
+                    testx = np.linspace(2750, 3000, 1000)
+                    testy = func(testx)
+                    plt.plot(testx, testy, color="black")
+                    integral = spectrum.calculate_ch_integral()
+                    plt.title(str(round(integral, 6)))
+
+            if self.special is None:
+                if marker:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", linestyle="-")
+                else:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name)
+
+            else:
+                if self.special not in spectrum.name:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", alpha=0.3)
+                else:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", linestyle="-", color="r")
+
+        plt.xlabel(spectrum.x_unit)
+        plt.ylabel(spectrum.y_unit)
+        plt.minorticks_on()
+        plt.legend()
+
+        if self.save is False:
+            plt.show()
+
+        else:
+            path = self.savedir + "/" + self.savename + ".png"
+            plt.savefig(path)
+            plt.close()
+
