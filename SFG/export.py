@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-plt.style.use("mpl_config/origin.mpltstyle")
+#plt.style.use("mpl_config/origin.mpltstyle")
 import sqlite3
 
 db = sqlite3.connect("orm.db")
@@ -25,9 +25,13 @@ on stations.id = station_stats.station_id;
 """
 
 command2 = """
-SELECT *
-FROM samples
-WHERE type='deep'
+SELECT
+sample_hash AS 'name', 
+coverage AS 'surface coverage',
+max_pressure AS 'max. surface pressure',
+lift_off AS 'lift-off compression ratio',
+surface_tension AS 'surface tension'
+FROM samples;
 """
 
 command4 = """
@@ -93,8 +97,9 @@ on stations.id = station_stats.station_id;
 """
 #df = pd.read_sql(command, db).to_excel("surfactant_data.xlsx")
 
-#df = pd.read_sql(command2, db).\
-    #to_csv("deep.csv", index=False, sep=";")
+df = pd.read_sql(command2, db)
 
+q = df.corr()
+print(q)
 
 
