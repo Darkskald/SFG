@@ -351,13 +351,13 @@ class LtIsotherm(AbstractSpectrum):
         if self.get_maximum_pressure() < other.get_maximum_pressure():
             return True
 
-    def setup_spec(self):
+    def setup_spec(self) -> None:
         self._x = self.area
         self._y = self.pressure
         self._x_unit = "area/ cm$^{2}$"
         self._y_unit = "surface pressure/ mNm$^{-1}$"
 
-    def drop_ascii(self):
+    def drop_ascii(self) -> None:
         """Drops an ascii file with semikolon-separated data in the form time;area;surface pressure. Intention
         is easy interfacing with external software like Excel or Origin"""
 
@@ -419,7 +419,7 @@ class LtIsotherm(AbstractSpectrum):
 
         return x_out, y_out
 
-    def calculate_elasticity(self):
+    def calculate_elasticity(self) -> np.ndarray:
         """Returns the surface elasticity of the isotherm"""
 
         xdata = self.area[::-1]
@@ -440,7 +440,7 @@ class LtIsotherm(AbstractSpectrum):
         return self.get_slice(x_array, 0, max_area)
 
     @staticmethod
-    def get_closest_index(array_datapoints, check):
+    def get_closest_index(array_datapoints, check) -> int:
 
         d = 1000000000000
         index = None
