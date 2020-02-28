@@ -21,13 +21,14 @@ for spec in specs:
      plt.savefig(spec.name+ ".png")
      plt.cla()
 """
-specs = [w.fetch_by_specid(i) for i in [1256, 1107]]
+#specs = [w.fetch_by_specid(i) for i in [1256, 1107]]
 """
 for spec in specs:
      p = spec.convert_to_export_dataframe()
      p.to_csv(spec.name + ".csv", index=False, sep=";")
 """
-for spec in specs:
-     sf.plotting.baseline_demo_dppc(spec)
+#for spec in specs:
+     #sf.plotting.baseline_demo_dppc(spec)
+
 
 
