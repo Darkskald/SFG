@@ -1,4 +1,4 @@
-from SFG.orm import ImportDatabaseWizard, PostProcessor
+from SFG.orm.orm import ImportDatabaseWizard, PostProcessor
 from SFG.natural_samples.gasex import GasExManager
 from SFG.natural_samples.boknis_eck import BoknisEckExtension
 

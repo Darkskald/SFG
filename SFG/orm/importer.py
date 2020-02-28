@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -8,16 +9,27 @@ import pandas as pd
 class Importer:
 
     def __init__(self):
+        # paths
+        self.base_path = Path.cwd()
+        self.paths = {
+            "regular_sfg": self.base_path / 'newport' / 'regular',
+            "gasex_sfg": self.base_path / 'newport' / 'gasex_sfg',
+            "boknis": self.base_path / 'newport' / 'boknis',
+            "lt": self.base_path / 'newport' / 'lt',
+            "gasex_lt": self.base_path / 'newport' / 'gasex_lt',
+            "gasex_lift_off": self.base_path / 'newport' / 'liftoff_points.csv',
+            "gasex_tension": self.base_path / 'newport' / 'gasex_surftens.txt'
 
+        }
         # sfgs
-        self.regular_sfg = self.import_sfg("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/regular")
-        self.gasex_sfg = self.import_sfg("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/gasex_sfg")
-        self.boknis = self.import_sfg("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/boknis")
+        self.regular_sfg = self.import_sfg(str(self.paths["regular_sfg"]))
+        self.gasex_sfg = self.import_sfg(str(self.paths["gasex_sfg"]))
+        self.boknis = self.import_sfg(str(self.paths["boknis"]))
 
         # lts
-        self.lt = self.import_lt("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/lt")
-        self.gasex_lt = self.import_lt("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/gasex_lt")
-        self.gasex_lift_off = self.import_liftoffs("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/liftoff_points.csv")
+        self.lt = self.import_lt(str(self.paths["lt"]))
+        self.gasex_lt = self.import_lt(str(self.paths["gasex_lt"]))
+        self.gasex_lift_off = self.import_liftoffs(str(self.paths["gasex_lift_off"]))
 
         # spectra
         self.ir = []
@@ -26,7 +38,7 @@ class Importer:
         self.import_other_spectra()
 
         # surface tension and salinity
-        self.gasex_tension = self.import_tensions("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/gasex_surftens.txt")
+        self.gasex_tension = self.import_tensions(str(self.paths["gasex_tension"]))
         self.salinity = self.import_salinity()
 
         #substances
