@@ -1,3 +1,5 @@
+import SFG as sf
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import pathlib
@@ -6,6 +8,9 @@ import sqlite3
 p = pathlib.Path().cwd() / "SFG" / "mpl_config" / "origin.mpltstyle"
 plt.style.use(str(p))
 
+import matplotlib as mpl
+
+mpl.rcParams["figure.subplot.hspace"] = 0.3
 
 import numpy as np
 from scipy import stats
@@ -102,15 +107,36 @@ FROM stations
 INNER JOIN station_stats
 on stations.id = station_stats.station_id;
 """
-#df = pd.read_sql(command, db).to_excel("surfactant_data.xlsx")
-
-#df = pd.read_sql(command2, db)
-#q = df.corr()
-#q.to_csv("corr.csv", sep=";")
 
 
-import SFG as sf
 g = sf.gasex.GasExWorkDatabaseWizard()
-df = g.load_samples_by_type("sml")
-print(df)
-print(sf.gasex.GasExWorkDatabaseWizard.apply_test(df, "surface coverage", stats.shapiro))
+samples = g.session.query(g.samples).all()
+exsample = samples[191]
+
+e_hash = exsample.id
+sfg_name = g.session.query(g.gasex_sfg).filter(g.gasex_sfg.sample_id == e_hash).one().name
+sfg = g.construct_sfg(g.session.query(g.sfg).filter(g.sfg.name == sfg_name).one())
+
+lt_names = g.session.query(g.gasex_lt).filter(g.gasex_lt.sample_id == e_hash).all()
+lts = [g.load_lt_by_name(i) for i in lt_names]
+
+print(sfg, lts)
+
+
+def plot_sample(sfg, lts, name):
+    fig, axs = plt.subplots(2)
+    fig.suptitle(name)
+    axs[0].plot(sfg.x, sfg.y, color="black")
+    axs[0].set_xlabel(sfg.x_unit)
+    axs[0].set_ylabel(sfg.y_unit.replace("/", "/\n"))
+
+    for lt in lts:
+        axs[1].plot(lt.x, lt.y, label=lt.name)
+    axs[1].set_xlabel(lts[0].x_unit)
+    axs[1].set_ylabel(lts[0].y_unit.replace("/", "/\n"))
+    axs[1].legend()
+    plt.savefig("test.png")
+
+plot_sample(sfg, lts, "blubb")
+
+#

@@ -365,6 +365,10 @@ class GasExWorkDatabaseWizard(WorkDatabaseWizard):
         cmd = f'{base_cmd}{end_cmd[_type]}'
         return GasExWorkDatabaseWizard.yield_df_from_sql(cmd, self.engine)
 
+    def load_lt_by_name(self, gasex_lt):
+        temp = self.session.query(self.lt).filter(self.lt.name == gasex_lt.name).one()
+        return self.construct_lt(temp)
+
     @staticmethod
     def yield_df_from_sql(sql_statement: str, db) -> pd.DataFrame:
         """Auxiliary function to load data from an SQL database yielding a dataframe"""
