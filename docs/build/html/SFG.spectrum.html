@@ -1,0 +1,466 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>SFG.spectrum package &#8212; SFG 0.2 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="sfg-spectrum-package">
+<h1>SFG.spectrum package<a class="headerlink" href="#sfg-spectrum-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-SFG.spectrum.averagers">
+<span id="sfg-spectrum-averagers-module"></span><h2>SFG.spectrum.averagers module<a class="headerlink" href="#module-SFG.spectrum.averagers" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="SFG.spectrum.averagers.AverageLt">
+<em class="property">class </em><code class="sig-prename descclassname">SFG.spectrum.averagers.</code><code class="sig-name descname">AverageLt</code><span class="sig-paren">(</span><em class="sig-param">area</em>, <em class="sig-param">pressure</em>, <em class="sig-param">meta</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.AverageLt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#SFG.spectrum.spectrum.LtIsotherm" title="SFG.spectrum.spectrum.LtIsotherm"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFG.spectrum.spectrum.LtIsotherm</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="SFG.spectrum.averagers.AverageSpectrum">
+<em class="property">class </em><code class="sig-prename descclassname">SFG.spectrum.averagers.</code><code class="sig-name descname">AverageSpectrum</code><span class="sig-paren">(</span><em class="sig-param">wavenumbers</em>, <em class="sig-param">intensities</em>, <em class="sig-param">meta</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.AverageSpectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#SFG.spectrum.spectrum.SfgSpectrum" title="SFG.spectrum.spectrum.SfgSpectrum"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFG.spectrum.spectrum.SfgSpectrum</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="SFG.spectrum.averagers.DummyPlotter">
+<em class="property">class </em><code class="sig-prename descclassname">SFG.spectrum.averagers.</code><code class="sig-name descname">DummyPlotter</code><span class="sig-paren">(</span><em class="sig-param">speclist</em>, <em class="sig-param">save=False</em>, <em class="sig-param">savedir=''</em>, <em class="sig-param">savename='Default'</em>, <em class="sig-param">special=None</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.DummyPlotter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A test class to monitor the interaction of the subclasses of AbstractSpectrum with plotting routines.</p>
+<dl class="method">
+<dt id="SFG.spectrum.averagers.DummyPlotter.plot_all">
+<code class="sig-name descname">plot_all</code><span class="sig-paren">(</span><em class="sig-param">base=False</em>, <em class="sig-param">marker=True</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.DummyPlotter.plot_all" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="SFG.spectrum.averagers.LtAverager">
+<em class="property">class </em><code class="sig-prename descclassname">SFG.spectrum.averagers.</code><code class="sig-name descname">LtAverager</code><span class="sig-paren">(</span><em class="sig-param">spectra</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.LtAverager" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="SFG.spectrum.averagers.LtAverager.average_lt">
+<code class="sig-name descname">average_lt</code><span class="sig-paren">(</span><em class="sig-param">apm=True</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.LtAverager.average_lt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function performing the averaging: it ensures that all spectra are interpolated to have the same shape,
+then they are averaged. A AverageSpectrum  object is constructed and returned.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="SFG.spectrum.averagers.SfgAverager">
+<em class="property">class </em><code class="sig-prename descclassname">SFG.spectrum.averagers.</code><code class="sig-name descname">SfgAverager</code><span class="sig-paren">(</span><em class="sig-param">spectra</em>, <em class="sig-param">references=None</em>, <em class="sig-param">enforce_scale=False</em>, <em class="sig-param">name='default'</em>, <em class="sig-param">debug=False</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.SfgAverager" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class takes a list of SFG spectra and generates an average spectrum of them by interpolation and
+averaging. It is possible to pass a dictionary of date:dppc_integral key-value-pairs in order to calculate
+the coverage.</p>
+<dl class="method">
+<dt id="SFG.spectrum.averagers.SfgAverager.average_spectra">
+<code class="sig-name descname">average_spectra</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.SfgAverager.average_spectra" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function performing the averaging: it ensures that all spectra are interpolated to have the same shape,
+then they are averaged. A AverageSpectrum  object is constructed and returned.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.averagers.SfgAverager.benchmark">
+<code class="sig-name descname">benchmark</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.SfgAverager.benchmark" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.averagers.SfgAverager.calc_coverage">
+<code class="sig-name descname">calc_coverage</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.SfgAverager.calc_coverage" title="Permalink to this definition">¶</a></dt>
+<dd><p>A convenience function  to calculate the surface coverage</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.averagers.SfgAverager.calc_reference_part">
+<code class="sig-name descname">calc_reference_part</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.SfgAverager.calc_reference_part" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the participation of each DPPC references. This is important if the spectra to average are
+measured on different sampling days. If, for example,  5 samples are to average and 3 of them are measured
+on one day, 2 on another, the final coverage is calculated by dividing the AveragedSpectrum integral by the
+weighted sum of the DPPC integrals of the corresponding days, in our example (2/5 * DPPC_1) + (3/5 * DPPC_2)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.averagers.SfgAverager.create_log">
+<code class="sig-name descname">create_log</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.SfgAverager.create_log" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.averagers.SfgAverager.enforce_base">
+<em class="property">static </em><code class="sig-name descname">enforce_base</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.averagers.SfgAverager.enforce_base" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-SFG.spectrum.plotting">
+<span id="sfg-spectrum-plotting-module"></span><h2>SFG.spectrum.plotting module<a class="headerlink" href="#module-SFG.spectrum.plotting" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="SFG.spectrum.plotting.BatchPlotter">
+<em class="property">class </em><code class="sig-prename descclassname">SFG.spectrum.plotting.</code><code class="sig-name descname">BatchPlotter</code><span class="sig-paren">(</span><em class="sig-param">specdic</em>, <em class="sig-param">save=False</em>, <em class="sig-param">savedir=''</em>, <em class="sig-param">savename='default'</em>, <em class="sig-param">title='default'</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.plotting.BatchPlotter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="SFG.spectrum.plotting.BatchPlotter.plot_all">
+<code class="sig-name descname">plot_all</code><span class="sig-paren">(</span><em class="sig-param">xlim=None</em>, <em class="sig-param">ylim=None</em>, <em class="sig-param">legend=True</em>, <em class="sig-param">line=False</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.plotting.BatchPlotter.plot_all" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.plotting.BatchPlotter.plot_broken_axis">
+<code class="sig-name descname">plot_broken_axis</code><span class="sig-paren">(</span><em class="sig-param">lim</em>, <em class="sig-param">line=False</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.plotting.BatchPlotter.plot_broken_axis" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="SFG.spectrum.plotting.advanced_baseline_demo_dppc">
+<code class="sig-prename descclassname">SFG.spectrum.plotting.</code><code class="sig-name descname">advanced_baseline_demo_dppc</code><span class="sig-paren">(</span><em class="sig-param">spectrum</em>, <em class="sig-param">integral=''</em>, <em class="sig-param">coverage=''</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.plotting.advanced_baseline_demo_dppc" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="SFG.spectrum.plotting.baseline_demo_dppc">
+<code class="sig-prename descclassname">SFG.spectrum.plotting.</code><code class="sig-name descname">baseline_demo_dppc</code><span class="sig-paren">(</span><em class="sig-param">spectrum</em>, <em class="sig-param">integral=''</em>, <em class="sig-param">coverage=''</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.plotting.baseline_demo_dppc" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-SFG.spectrum.spectrum">
+<span id="sfg-spectrum-spectrum-module"></span><h2>SFG.spectrum.spectrum module<a class="headerlink" href="#module-SFG.spectrum.spectrum" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="SFG.spectrum.spectrum.AbstractSpectrum">
+<em class="property">class </em><code class="sig-prename descclassname">SFG.spectrum.spectrum.</code><code class="sig-name descname">AbstractSpectrum</code><a class="headerlink" href="#SFG.spectrum.spectrum.AbstractSpectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">abc.ABC</span></code></p>
+<p>The baseclass which ensures that all necessary properties for plotting
+are available as well as some basic functionality all spectra have in common.</p>
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.AbstractSpectrum.drop_ascii">
+<em class="property">abstract </em><code class="sig-name descname">drop_ascii</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.AbstractSpectrum.drop_ascii" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.AbstractSpectrum.name">
+<em class="property">property </em><code class="sig-name descname">name</code><a class="headerlink" href="#SFG.spectrum.spectrum.AbstractSpectrum.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.AbstractSpectrum.setup_spec">
+<em class="property">abstract </em><code class="sig-name descname">setup_spec</code><span class="sig-paren">(</span><em class="sig-param">x</em>, <em class="sig-param">y</em>, <em class="sig-param">x_unit=None</em>, <em class="sig-param">y_unit=None</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.AbstractSpectrum.setup_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method has to make sure that x and y values and the corresponding units are set properly</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.AbstractSpectrum.smooth">
+<code class="sig-name descname">smooth</code><span class="sig-paren">(</span><em class="sig-param">a=9</em>, <em class="sig-param">b=3</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.AbstractSpectrum.smooth" title="Permalink to this definition">¶</a></dt>
+<dd><p>Performs a smooth operation of the measured pressure involving a Savitzky-Golay-filter</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.AbstractSpectrum.to_json">
+<code class="sig-name descname">to_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.AbstractSpectrum.to_json" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.AbstractSpectrum.x">
+<em class="property">property </em><code class="sig-name descname">x</code><a class="headerlink" href="#SFG.spectrum.spectrum.AbstractSpectrum.x" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.AbstractSpectrum.x_unit">
+<em class="property">property </em><code class="sig-name descname">x_unit</code><a class="headerlink" href="#SFG.spectrum.spectrum.AbstractSpectrum.x_unit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.AbstractSpectrum.y">
+<em class="property">property </em><code class="sig-name descname">y</code><a class="headerlink" href="#SFG.spectrum.spectrum.AbstractSpectrum.y" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.AbstractSpectrum.y_unit">
+<em class="property">property </em><code class="sig-name descname">y_unit</code><a class="headerlink" href="#SFG.spectrum.spectrum.AbstractSpectrum.y_unit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="SFG.spectrum.spectrum.LtIsotherm">
+<em class="property">class </em><code class="sig-prename descclassname">SFG.spectrum.spectrum.</code><code class="sig-name descname">LtIsotherm</code><span class="sig-paren">(</span><em class="sig-param">name</em>, <em class="sig-param">measured_time</em>, <em class="sig-param">time</em>, <em class="sig-param">area</em>, <em class="sig-param">apm</em>, <em class="sig-param">pressure</em>, <em class="sig-param">lift_off=None</em>, <em class="sig-param">correct=True</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#SFG.spectrum.spectrum.AbstractSpectrum" title="SFG.spectrum.spectrum.AbstractSpectrum"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFG.spectrum.spectrum.AbstractSpectrum</span></code></a></p>
+<p>A class to represent experimental Langmuir trough isotherms, handling time, area, area per molecule and
+surface pressure</p>
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.calc_compression_factor">
+<code class="sig-name descname">calc_compression_factor</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.calc_compression_factor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.calculate_elasticity">
+<code class="sig-name descname">calculate_elasticity</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.calculate_elasticity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the surface elasticity of the isotherm</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.convert_to_export_dataframe">
+<code class="sig-name descname">convert_to_export_dataframe</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.convert_to_export_dataframe" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function returns a Pandas dataframe, suitable for data export to
+origin and similar other programs</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.create_pointlist">
+<code class="sig-name descname">create_pointlist</code><span class="sig-paren">(</span><em class="sig-param">x_array</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.create_pointlist" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list containing the index, the x_array (usually area or time) and the surface pressure.
+This is used for example by the GUI functions to find the closest datapoint to a mouse-defined position
+in the plot</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.cut_away_decay">
+<code class="sig-name descname">cut_away_decay</code><span class="sig-paren">(</span><em class="sig-param">x_array</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.cut_away_decay" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.derive_pressure">
+<code class="sig-name descname">derive_pressure</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.derive_pressure" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the difference quotient of the surface pressure with respect to the area.
+Useful for calculation of surface elasticity</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.drop_ascii">
+<code class="sig-name descname">drop_ascii</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.drop_ascii" title="Permalink to this definition">¶</a></dt>
+<dd><p>Drops an ascii file with semikolon-separated data in the form time;area;surface pressure. Intention
+is easy interfacing with external software like Excel or Origin</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.get_closest_index">
+<em class="property">static </em><code class="sig-name descname">get_closest_index</code><span class="sig-paren">(</span><em class="sig-param">array_datapoints</em>, <em class="sig-param">check</em><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.get_closest_index" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.get_maximum_pressure">
+<code class="sig-name descname">get_maximum_pressure</code><span class="sig-paren">(</span><em class="sig-param">shrinked=None</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.get_maximum_pressure" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the maximum measured surface pressure. Note: This property is uesd for the less-then
+operator implementation of this class!</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.get_slice">
+<code class="sig-name descname">get_slice</code><span class="sig-paren">(</span><em class="sig-param">x_array</em>, <em class="sig-param">lower</em>, <em class="sig-param">upper</em>, <em class="sig-param">smooth=False</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.get_slice" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a slice of the x_array (usually time or area) defined by the lower and upper integer
+index.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.LtIsotherm.setup_spec">
+<code class="sig-name descname">setup_spec</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#SFG.spectrum.spectrum.LtIsotherm.setup_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method has to make sure that x and y values and the corresponding units are set properly</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum">
+<em class="property">class </em><code class="sig-prename descclassname">SFG.spectrum.spectrum.</code><code class="sig-name descname">SfgSpectrum</code><span class="sig-paren">(</span><em class="sig-param">wavenumbers</em>, <em class="sig-param">intensity</em>, <em class="sig-param">ir_intensity</em>, <em class="sig-param">vis_intensity</em>, <em class="sig-param">meta</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#SFG.spectrum.spectrum.AbstractSpectrum" title="SFG.spectrum.spectrum.AbstractSpectrum"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFG.spectrum.spectrum.AbstractSpectrum</span></code></a></p>
+<p>The SFG spectrum class is the foundation of all analysis and plotting tools. It contains a class
+SystematicName (or a derived class) which carries most of the metainformation. Besides holding the
+experimental data, it gives access to a variety of functions like normalization, peak picking etc.</p>
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.calc_region_integral">
+<code class="sig-name descname">calc_region_integral</code><span class="sig-paren">(</span><em class="sig-param">region</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.calc_region_integral" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.calculate_ch_integral">
+<code class="sig-name descname">calculate_ch_integral</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.calculate_ch_integral" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.convert_to_export_dataframe">
+<code class="sig-name descname">convert_to_export_dataframe</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.convert_to_export_dataframe" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function returns a Pandas dataframe, suitable for data export to
+origin and similar other programs</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.correct_baseline">
+<code class="sig-name descname">correct_baseline</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.correct_baseline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.create_pointlist">
+<code class="sig-name descname">create_pointlist</code><span class="sig-paren">(</span><em class="sig-param">y_array</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.create_pointlist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.drop_ascii">
+<code class="sig-name descname">drop_ascii</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.drop_ascii" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create an ascii file with the wavenumbers and normalized intensities</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.integrate_peak">
+<code class="sig-name descname">integrate_peak</code><span class="sig-paren">(</span><em class="sig-param">x_array</em>, <em class="sig-param">y_array</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.integrate_peak" title="Permalink to this definition">¶</a></dt>
+<dd><p>Numpy integration routine for numerical peak integration with the trapezoidal rule.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.make_ch_baseline">
+<code class="sig-name descname">make_ch_baseline</code><span class="sig-paren">(</span><em class="sig-param">debug=False</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.make_ch_baseline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.normalize_to_highest">
+<code class="sig-name descname">normalize_to_highest</code><span class="sig-paren">(</span><em class="sig-param">intensity='default'</em>, <em class="sig-param">external_norm='none'</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.normalize_to_highest" title="Permalink to this definition">¶</a></dt>
+<dd><p>normalize an given array to its maximum, typically the normalized or raw intensity</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.root">
+<code class="sig-name descname">root</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.root" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.set_regions">
+<code class="sig-name descname">set_regions</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.set_regions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.setup_spec">
+<code class="sig-name descname">setup_spec</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.setup_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method has to make sure that x and y values and the corresponding units are set properly</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.slice_by_borders">
+<code class="sig-name descname">slice_by_borders</code><span class="sig-paren">(</span><em class="sig-param">lower</em>, <em class="sig-param">upper</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.slice_by_borders" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes a high (upper) and a low (lower) reciprocal centimeter value as argument. Returns
+the indices of the wavenumber array of the spectrum that are the borders of this interval.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.yield_increment">
+<code class="sig-name descname">yield_increment</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.yield_increment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates stepsize and wavenumbers where the stepsize is changed</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.yield_maximum">
+<code class="sig-name descname">yield_maximum</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.yield_maximum" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.yield_peaklist">
+<code class="sig-name descname">yield_peaklist</code><span class="sig-paren">(</span><em class="sig-param">mode='norm'</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.yield_peaklist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.yield_spectral_range">
+<code class="sig-name descname">yield_spectral_range</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.yield_spectral_range" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a list containing maximum and minimum wavenumer and the number of data points</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="SFG.spectrum.spectrum.SfgSpectrum.yield_wn_length">
+<code class="sig-name descname">yield_wn_length</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.yield_wn_length" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-SFG.spectrum">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-SFG.spectrum" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">SFG</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Florian-David Lange.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/SFG.spectrum.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
