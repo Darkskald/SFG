@@ -426,9 +426,17 @@ experimental data, it gives access to a variety of functions like normalization,
 
 <dl class="method">
 <dt id="SFG.spectrum.spectrum.SfgSpectrum.convert_to_export_dataframe">
-<code class="sig-name descname">convert_to_export_dataframe</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.convert_to_export_dataframe" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">convert_to_export_dataframe</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; pandas.core.frame.DataFrame<a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.convert_to_export_dataframe" title="Permalink to this definition">¶</a></dt>
 <dd><p>This function returns a Pandas dataframe, suitable for data export to
 origin and similar other programs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>a pandas dataframe with the spectral data</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>pd.DataFrame</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
@@ -443,14 +451,28 @@ origin and similar other programs</p>
 
 <dl class="method">
 <dt id="SFG.spectrum.spectrum.SfgSpectrum.drop_ascii">
-<code class="sig-name descname">drop_ascii</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.drop_ascii" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">drop_ascii</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.drop_ascii" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create an ascii file with the wavenumbers and normalized intensities</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="SFG.spectrum.spectrum.SfgSpectrum.integrate_peak">
-<code class="sig-name descname">integrate_peak</code><span class="sig-paren">(</span><em class="sig-param">x_array</em>, <em class="sig-param">y_array</em><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.integrate_peak" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">integrate_peak</code><span class="sig-paren">(</span><em class="sig-param">x_array: numpy.ndarray</em>, <em class="sig-param">y_array: numpy.ndarray</em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.integrate_peak" title="Permalink to this definition">¶</a></dt>
 <dd><p>Numpy integration routine for numerical peak integration with the trapezoidal rule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x_array</strong> (<em>array-like</em>) – the x values (spacing) of the curve to integrate</p></li>
+<li><p><strong>y_array</strong> (<em>array-like</em>) – the y values of the curve to integrate</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the area under the x/y curve</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
@@ -466,8 +488,16 @@ origin and similar other programs</p>
 
 <dl class="method">
 <dt id="SFG.spectrum.spectrum.SfgSpectrum.root">
-<code class="sig-name descname">root</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.root" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<code class="sig-name descname">root</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.root" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the spectrum’s normalized intensity</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="method">
 <dt id="SFG.spectrum.spectrum.SfgSpectrum.set_regions">
@@ -495,8 +525,16 @@ the indices of the wavenumber array of the spectrum that are the borders of this
 
 <dl class="method">
 <dt id="SFG.spectrum.spectrum.SfgSpectrum.yield_maximum">
-<code class="sig-name descname">yield_maximum</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.yield_maximum" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<code class="sig-name descname">yield_maximum</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#SFG.spectrum.spectrum.SfgSpectrum.yield_maximum" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>maximum intensity value of the spectrum</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="method">
 <dt id="SFG.spectrum.spectrum.SfgSpectrum.yield_peaklist">

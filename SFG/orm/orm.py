@@ -23,6 +23,8 @@ from .orm_classes import *
 
 class DatabaseWizard:
 
+    """The basic class for interaction with databases via sqlalchemy."""
+
     def __init__(self):
 
         # SQL init

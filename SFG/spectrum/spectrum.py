@@ -129,8 +129,17 @@ class SfgSpectrum(AbstractSpectrum):
 
         return intensity / norm_factor
 
-    def integrate_peak(self, x_array, y_array):
-        """Numpy integration routine for numerical peak integration with the trapezoidal rule."""
+    def integrate_peak(self, x_array: np.ndarray, y_array: np.ndarray) -> float:
+        """
+        Numpy integration routine for numerical peak integration with the trapezoidal rule.
+
+        :param x_array: the x values (spacing) of the curve to integrate
+        :type x_array: array-like
+        :param y_array: the y values of the curve to integrate
+        :type y_array: array-like
+        :return: the area under the x/y curve
+        :rtype: float
+        """
         try:
             area = sp(y_array, x_array)
             if np.isnan(area):
@@ -140,10 +149,18 @@ class SfgSpectrum(AbstractSpectrum):
         except:
             raise ValueError(f'Integration not possible for {self.name}')
 
-    def root(self):
+    def root(self) -> np.ndarray:
+        """
+        :return: the spectrum's normalized intensity
+        :rtype: np.ndarray
+        """
         return np.sqrt(self.normalized_intensity)
 
-    def yield_maximum(self):
+    def yield_maximum(self) -> float:
+        """
+        :return: maximum intensity value of the spectrum
+        :rtype: float
+        """
         return np.max(self.normalized_intensity)
 
     def yield_peaklist(self, mode="norm"):
@@ -185,16 +202,21 @@ class SfgSpectrum(AbstractSpectrum):
 
     # info functions
 
-    def drop_ascii(self):
+    def drop_ascii(self) -> None:
         """Create an ascii file with the wavenumbers and normalized intensities"""
         with open(self._name + ".csv", "w") as outfile:
             writer = csv.writer(outfile, delimiter=";")
             for i in zip(self.wavenumbers, self.normalized_intensity):
                 writer.writerow((i[0], i[1]))
 
-    def convert_to_export_dataframe(self):
-        """This function returns a Pandas dataframe, suitable for data export to
-        origin and similar other programs"""
+    def convert_to_export_dataframe(self) -> pd.DataFrame:
+        """
+        This function returns a Pandas dataframe, suitable for data export to
+        origin and similar other programs
+
+        :return: a pandas dataframe with the spectral data
+        :rtype: pd.DataFrame
+        """
         data = {
             "wavenumbers": self.wavenumbers,
             "normalized intensity": self.normalized_intensity,
