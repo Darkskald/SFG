@@ -64,12 +64,12 @@ class Importer:
 
                     data = self.extract_sfg_file(parent_dir + "/" + directory + "/" + file)
 
-                    dic = {"name": name, "type": parent_dir.split("/")[-1], "measured_time": creation_time, "measurer": measurer,
+                    dic = {"name": name, "type": parent_dir.split("\\")[-1], "measured_time": creation_time, "measurer": measurer,
                            "data": data}
 
                     if "dppc" in dic["name"] or "DPPC" in dic["name"]:
 
-                        if parent_dir == "C:/Users/lange/Desktop/CharmingSFG/SFG/newport/boknis":
+                        if "boknis" in parent_dir:
                             dic["type"] = "boknis_ref"
 
                         else:
@@ -105,7 +105,7 @@ class Importer:
                         name = file[:-4]
 
                         data = self.extract_lt_file(new_path + "/" + file)
-                        dic = {"name": name, "type": head_dir.split("/")[-1], "measured_time": creation_time, "data": data}
+                        dic = {"name": name, "type": head_dir.split("\\")[-1], "measured_time": creation_time, "data": data}
 
                         out.append(dic)
         return out
