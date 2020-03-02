@@ -8,6 +8,8 @@ import pandas as pd
 
 class Importer:
 
+    """The Importer class performs the import steps from the raw measurement data."""
+
     def __init__(self):
         # paths
         self.base_path = Path.cwd()
@@ -179,4 +181,4 @@ class Importer:
 
 
 # todo: decouple the Importer so it is not to tightly bound to boknis/gasex
-# todo: dacopuling by using a factory method for the importer?
+# todo: implement async io
