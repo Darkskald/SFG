@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import pathlib
 import sqlite3
 
+from SFG.orm.orm import WorkDatabaseWizard
+
 p = pathlib.Path().cwd() / "SFG" / "mpl_config" / "origin.mpltstyle"
 plt.style.use(str(p))
 
@@ -108,20 +110,26 @@ INNER JOIN station_stats
 on stations.id = station_stats.station_id;
 """
 
-
+"""
 g = sf.gasex.GasExWorkDatabaseWizard()
 samples = g.session.query(g.samples).all()
 exsample = samples[191]
 
 e_hash = exsample.id
 sfg_name = g.session.query(g.gasex_sfg).filter(g.gasex_sfg.sample_id == e_hash).one().name
-sfg = g.construct_sfg(g.session.query(g.sfg).filter(g.sfg.name == sfg_name).one())
+inter = g.session.query(g.sfg).filter(g.sfg.name == sfg_name).one()
+sfg = g.construct_sfg(inter)
+
+print(inter.measured_time.date())
 
 lt_names = g.session.query(g.gasex_lt).filter(g.gasex_lt.sample_id == e_hash).all()
 lts = [g.load_lt_by_name(i) for i in lt_names]
+"""
 
-print(sfg, lts)
+w = WorkDatabaseWizard()
+temp = w.session.query(w.sfg).all()
 
+print(w.map_data_to_dates(temp))
 
 def plot_sample(sfg, lts, name):
     fig, axs = plt.subplots(2)
@@ -137,6 +145,6 @@ def plot_sample(sfg, lts, name):
     axs[1].legend()
     plt.savefig("test.png")
 
-plot_sample(sfg, lts, "blubb")
+
 
 #

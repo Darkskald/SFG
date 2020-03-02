@@ -8,6 +8,7 @@ ORM-part of SQlalchemy
 """
 import datetime
 import re
+from typing import Dict, List
 
 import numpy as np
 from sqlalchemy import create_engine
@@ -16,7 +17,7 @@ from sqlalchemy.orm import sessionmaker
 
 from SFG.orm.importer import Importer
 from SFG.spectrum.averagers import SfgAverager
-from ..spectrum.spectrum import SfgSpectrum, LtIsotherm
+from ..spectrum.spectrum import SfgSpectrum, LtIsotherm, AbstractSpectrum
 from .orm_classes import *
 
 
@@ -562,7 +563,7 @@ class WorkDatabaseWizard(DatabaseWizard):
         super().__init__()
         self.session.commit()
 
-    def get_dppc_references(self):
+    def get_dppc_references(self) -> Dict[datetime.date, float]:
         """A function querying the sfg table for DPPC reference spectra, generating the corresponding objects,
         calculating the CH integral making use of the SfgAverager class and returning a dictionary of date objects
         with the corresponding intensities."""
@@ -591,7 +592,7 @@ class WorkDatabaseWizard(DatabaseWizard):
 
     # auxiliary functions
 
-    def fetch_by_specid(self, specid, sfg=True):
+    def fetch_by_specid(self, specid, sfg=True) -> AbstractSpectrum:
         """Fetches the SFG spectrum with the id specid from the database and retuns it as an SFG spectrum object."""
         if sfg:
             spec = self.session.query(self.sfg).filter(self.sfg.id == specid).one()
@@ -627,6 +628,18 @@ class WorkDatabaseWizard(DatabaseWizard):
         temp = WorkDatabaseWizard.construct_sfg(sfg)
         temp.meta["regular"] = reg_sfg
         return temp
+
+    def map_data_to_dates(self, data) -> Dict[datetime.date, List[AbstractSpectrum]]:
+        """This function maps a list of spectra to their corresponding date of measurement
+        """
+        dates = {}
+        for item in data:
+            sampling_date = item.measured_time.date()
+            if sampling_date not in dates:
+                dates[sampling_date] = [item]
+            else:
+                dates[sampling_date].append(item)
+        return dates
 
     @staticmethod
     def to_array(string) -> np.ndarray:
