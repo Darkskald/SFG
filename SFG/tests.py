@@ -8,7 +8,7 @@ p = os.path.join(dirname, 'mpl_config/origin.mpltstyle')
 
 plt.style.use(p)
 
-w = sf.orm.WorkDatabaseWizard()
+# w = sf.orm.WorkDatabaseWizard()
 """
 temp = w.session.query(w.sfg).filter(w.sfg.type =="gasex_sfg").all()
 specs = [w.construct_sfg(i) for i in temp]
@@ -30,5 +30,6 @@ for spec in specs:
 #for spec in specs:
      #sf.plotting.baseline_demo_dppc(spec)
 
-
+b = sf.natural_samples.GasExWorkDatabaseWizard()
+print(b.load_samples_by_type("rubber"))
 

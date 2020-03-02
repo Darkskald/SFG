@@ -1,7 +1,14 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-#plt.style.use("mpl_config/origin.mpltstyle")
+import pathlib
 import sqlite3
+
+p = pathlib.Path().cwd() / "SFG" / "mpl_config" / "origin.mpltstyle"
+plt.style.use(str(p))
+
+
+import numpy as np
+from scipy import stats
 
 db = sqlite3.connect("orm.db")
 command = """SELECT 
@@ -97,9 +104,13 @@ on stations.id = station_stats.station_id;
 """
 #df = pd.read_sql(command, db).to_excel("surfactant_data.xlsx")
 
-df = pd.read_sql(command2, db)
+#df = pd.read_sql(command2, db)
+#q = df.corr()
+#q.to_csv("corr.csv", sep=";")
 
-q = df.corr()
-print(q)
 
-
+import SFG as sf
+g = sf.gasex.GasExWorkDatabaseWizard()
+df = g.load_samples_by_type("sml")
+print(df)
+print(sf.gasex.GasExWorkDatabaseWizard.apply_test(df, "surface coverage", stats.shapiro))
