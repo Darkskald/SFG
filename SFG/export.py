@@ -4,8 +4,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import pathlib
 import sqlite3
+import os
 
 from SFG.orm.orm import WorkDatabaseWizard
+from SFG.spectrum.averagers import DummyPlotter
 
 p = pathlib.Path().cwd() / "SFG" / "mpl_config" / "origin.mpltstyle"
 plt.style.use(str(p))
@@ -127,9 +129,26 @@ lts = [g.load_lt_by_name(i) for i in lt_names]
 """
 
 w = WorkDatabaseWizard()
-temp = w.session.query(w.sfg).all()
+temp = w.session.query(w.regular_sfg).filter(w.regular_sfg.surfactant == "NA").all()
+temp = [w.session.query(w.sfg).filter(w.sfg.id == i.specid).one() for i in temp]
+d = w.map_data_to_dates(temp)
+print(d)
 
-print(w.map_data_to_dates(temp))
+def origin_preview_date():
+    w = WorkDatabaseWizard()
+    temp = w.session.query(w.regular_sfg).filter(w.regular_sfg.surfactant == "NA").all()
+    temp = [w.session.query(w.sfg).filter(w.sfg.id == i.specid).one() for i in temp]
+    dates = w.map_data_to_dates(temp)
+    for key in dates:
+        dir_name = str(key)
+        os.mkdir(dir_name)
+        sfg_spectra = [w.construct_sfg(i) for i in dates[key]]
+        for spec in sfg_spectra: # type:sf.spectrum.SfgSpectrum
+            df = spec.convert_to_export_dataframe()
+            df.to_csv(f'{dir_name}/'+spec.name + ".csv", index=False, sep=";")
+        DummyPlotter(sfg_spectra, save=True, savedir=dir_name).plot_all()
+
+
 
 def plot_sample(sfg, lts, name):
     fig, axs = plt.subplots(2)
@@ -147,4 +166,4 @@ def plot_sample(sfg, lts, name):
 
 
 
-#
+origin_preview_date()
