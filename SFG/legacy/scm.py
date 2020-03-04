@@ -20,7 +20,6 @@ class SessionControlManager:
     useful from interactive python environments (eg IPy)."""
 
     def __init__(self, database, id):
-        # todo: handling of UV/Ir/Raman-Data has to be included
         self.db = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         self.cur = self.db.cursor()
 
@@ -54,7 +53,6 @@ class SessionControlManager:
         conditional parameters allow a selection of the spectrum according to specified properties. The
         default_data kwarg controlls which database the spectrum should be extracted from."""
 
-        # todo: A separate table for BoknisEck data is desirable
 
         command = "SELECT * FROM " + database + " WHERE ROWID=" + str(number)
 
@@ -273,7 +271,6 @@ class SessionControlManager:
 
         self.lt_manager = LtManager(self.db)
 
-    # todo: put this to importing process
     def collect_stations(self):
         """Creates Station objects from the station information of the currently available isotherms and
         spectra. This helps to keep track of the set of samples taken within one GasEx sampling station"""
@@ -334,7 +331,6 @@ class SessionControlManager:
         for s in zip(station_hashes, types):
             self.stations[s[0]] = Station(s[0], s[1], parent=self)
 
-    #todo: put this to importing process and map the samples in the database to the stations
     def map_to_stations(self):
 
         for spectrum in self.subset:
@@ -355,7 +351,6 @@ class SessionControlManager:
         """Fetches all SfgSpectra from the GasEx cruise and puts them in the subset attribute"""
         self.general_fetch(database="sfg_gasex")
 
-    #todo: reimplement this to realize it via database access only
     def setup_for_gasex(self):
         """Convenience function, calls all necessary functions to setup the SCM for gasex data
         processing"""
@@ -399,7 +394,6 @@ class SessionControlManager:
 
         temp = {}
         out = {}
-        #todo: erase the error which arises if the spectrum is not measured till 3000 cm
         for spec in self.subset:  # type: SfgSpectrum
 
             if not (isinstance(spec.name, SystematicGasExName)):
@@ -437,7 +431,6 @@ class SessionControlManager:
         f = flagstring.split(" ")
         return f
 
-    #todo: remove all name processing stuff and auxialiary file dependencies
     def get_senssurf_names(self):
         """Loads allowed names of surfactants and sensitizers from the control file"""
 
@@ -468,7 +461,6 @@ class SessionControlManager:
         else:
             print("Retranslation failed. Unknown expression.")
 
-    #todo should be obsolete
     def set_spec_manager(self):
         self.spec_manager = SpectraManager(self.db)
 

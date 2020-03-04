@@ -487,6 +487,3 @@ if __name__ == "__main__":
     s = SampleNameParser()
 
 
-# todo: remove outliers (with more than 100 % coverage), eventually adjust basement correction routine
-# todo: check the logfile for duplicates of sample measurements
-# todo: make a list with the most abundant things I do with the mouse to enhance productivity

@@ -128,7 +128,7 @@ class SfgSpectrum(BaseSpectrum):
         self.regions = None
         self.set_regions()
 
-    def __lt__(self, SFG2):
+    def __lt__(self, SFG2) -> bool:
         """Returns true if the current spectrum was measured before SFG2"""
         if self.meta["creation_time"] < SFG2.name.meta["creation_time"]:
             return True
@@ -137,7 +137,7 @@ class SfgSpectrum(BaseSpectrum):
 
     # spectral data processing and analysis tools
 
-    def normalize_to_highest(self, intensity="default", external_norm="none"):
+    def normalize_to_highest(self, intensity="default", external_norm="none") -> np.ndarray:
         """normalize an given array to its maximum, typically the normalized or raw intensity"""
         # todo: this function is somehow strange
         if intensity == "default":
@@ -436,7 +436,7 @@ class LtIsotherm(BaseSpectrum):
 
     def calc_compression_factor(self):
         max = np.max(self.area)
-        return (self.area / max)
+        return self.area / max
 
     def derive_pressure(self):
         """Calculates the difference quotient of the surface pressure with respect to the area.
