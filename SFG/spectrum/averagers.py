@@ -9,17 +9,20 @@ from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm
 class AverageSpectrum(SfgSpectrum):
 
     def __init__(self, wavenumbers, intensities, meta):
-        self.wavenumbers = wavenumbers
-        self.normalized_intensity = intensities
+        self.x = wavenumbers
+        self.y = intensities
+        self.x_unit = "wavenumber/ cm$^{-1}$"
+        self.y_unit = "SFG intensity/ arb. u."
+        self.name = meta["name"]
+
         self.meta = meta
         self.baseline_corrected = None
         self.regions = None
 
         # ensure nan-values in intensity and their corresponding wavenumbers are removed
-        mask = np.isfinite(self.normalized_intensity)
-        self.normalized_intensity = self.normalized_intensity[mask]
-        self.wavenumbers = self.wavenumbers[mask]
-        super().setup_spec()
+        mask = np.isfinite(self.y)
+        self.y = self.y[mask]
+        self.x = self.x[mask]
         super().set_regions()
 
 

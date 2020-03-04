@@ -721,7 +721,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
             try:
                 ref = self.session.query(self.measurement_days).filter(
                 self.measurement_days.date == spec.meta["time"].date()).one().dppc_integral
-                spec.normalized_intensity = spec.normalize_to_highest(external_norm=ref)
+                spec.y = spec.normalize_to_highest(external_norm=ref)
                 spec.setup_spec()
                 out.append(spec)
 
