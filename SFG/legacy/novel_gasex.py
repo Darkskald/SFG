@@ -218,10 +218,6 @@ class Station:
         deep_specs = []
         plate_specs = []
         screen_specs = []
-        # todo: append to the lists above based on the sample properties
-        # todo: calculate coverages for all of this values
-        # todo: new dictionary value in the Station's dic with the new attributes (av_sml_coverage)
-        # todo: apply the averaging procedure to DPPC as well
 
         for samp in self.samples:
             if len(samp.sfg_spectra) > 0:

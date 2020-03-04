@@ -575,7 +575,6 @@ class SystematicName:
                 else:
                     self.sensitizer_spread_volume = i
 
-            # pH value info will be comment#todo fix that this is bullshit
             elif "p" in i and "H" in i:
                 self.comment = i
 

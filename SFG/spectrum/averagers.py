@@ -29,7 +29,6 @@ class AverageSpectrum(SfgSpectrum):
 class AverageLt(LtIsotherm):
 
     def __init__(self, area, pressure, meta):
-        # todo: invert the wavenunmber/ intensity scale to make it ascending
         self.area = area
         self.pressure = pressure
         self.meta = meta
@@ -40,6 +39,7 @@ class AverageLt(LtIsotherm):
 class SfgAverager:
     # todo: throw an error and plot the spectra if the integral is NAN or zero!
     # todo: the benchmark function MUST display the integral value and the baseline
+    # todo: replace print comments by professional logging
     """This class takes a list of SFG spectra and generates an average spectrum of them by interpolation and
     averaging. It is possible to pass a dictionary of date:dppc_integral key-value-pairs in order to calculate
     the coverage."""
@@ -185,7 +185,6 @@ class SfgAverager:
         self.log += 80 * "-" + "\n"
         s = f'integral: {self.integral}\ncoverage: {self.coverage}\n'
 
-        #TODO replace this by proper logging
         #with open(name, "w") as outfile:
             #outfile.write(self.log)
 

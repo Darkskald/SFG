@@ -208,7 +208,6 @@ class UiManager:
             elif normalized == 0:
                 self.flag = "r"
             else:
-                #todo add the possbility of pure raw plotting
                 self.flag= "none"
             print(self.flag)
             self.window.sc.plot_sfg(self.subset, title=ntitle, flag=self.flag)
