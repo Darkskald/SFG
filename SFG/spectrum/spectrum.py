@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import copy
 import csv
+import json
 import numpy as np
 import datetime
 import matplotlib.pyplot as plt
@@ -11,77 +12,100 @@ from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
 from scipy.integrate import trapz as tp
 
+from SFG.spectrum.exceptions import InvalidSpectrumError, IntegrationError
 
-class AbstractSpectrum(ABC):
-    """The baseclass which ensures that all necessary properties for plotting
-    are available as well as some basic functionality all spectra have in common."""
 
-    @abstractmethod
-    def setup_spec(self, x, y, x_unit=None, y_unit=None):
-        """This method has to make sure that x and y values and the corresponding units are set properly"""
-        pass
+class MetaSpectrum(type):
 
-    @property
-    def x(self):
-        return self._x
+    def __call__(cls, *args, **kwargs):
+        temp = super().__call__(*args, **kwargs)
 
-    @x.setter
-    def x(self, value):
-        self._x = value
+        for attr in ("x", "y", "x_unit", "y_unit", "name"):
+            if not hasattr(temp, attr):
+                raise InvalidSpectrumError(f'Tried to instantiate spectrum object without suitable attribute {attr}!')
 
-    @property
-    def x_unit(self):
-        return self._x_unit
+        return temp
 
-    @x_unit.setter
-    def x_unit(self, value):
-        self._x_unit = value
 
-    @property
-    def y(self):
-        return self._y
+class BaseSpectrum(metaclass=MetaSpectrum):
 
-    @y.setter
-    def y(self, value):
-        self._y = value
+    def __init__(self, name=None, x=None, y=None, x_unit=None, y_unit=None, timestamp=None):
+        self.name = name
+        self.x = x
+        self.y = y
+        self.x_unit = x_unit
+        self.y_unit = y_unit
+        self.timestamp = timestamp
 
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        self._name = value
-
-    @property
-    def y_unit(self):
-        return self._y_unit
-
-    @y_unit.setter
-    def y_unit(self, value):
-        self._y_unit = value
+    # magic methods
 
     def __repr__(self):
-        return self._name + " Spectrum Object"
+        return f'{type(self).__name__} Object with name "{self.name}"'
 
-    def __str__(self):
-        return self._name
+    # working on the data
+    def yield_spectral_range(self):
+        """returns a list containing maximum and minimum wavenumer and the number of data points"""
+        return [min(self.x), max(self.x), len(self.x)]
 
-    def smooth(self, a=9, b=3):
-        """Performs a smooth operation of the measured pressure involving a Savitzky-Golay-filter"""
-        return savgol_filter(self._y, a, b)
+    def get_xrange_indices(self, lower, upper):
+        """Takes a high (upper) and a low (lower) target x value as argument. Returns
+        the indices of the wavenumber array of the spectrum that are the borders of this interval."""
+        lower_index = np.argmax(self.x >= lower)
+        upper_index = np.argmax(self.x >= upper)
+        return int(lower_index), int(upper_index)
 
-    # have to be overriden by the inheriting classes
-    @abstractmethod
-    def drop_ascii(self):
-        pass
+    def get_xrange(self, lower, upper):
+        # todo: ensure this functions work as well for y_values
+        """Returns the slice of the x values in the borders of lower to upper"""
+        lower, upper = self.get_xrange_indices()
+        return self.x[lower, upper + 1]
 
-    def to_json(self):
-        values  = {"name": self.name, "x": self.x, "y": self.y, "x_unit": self.x_unit, "y_unit": self.y_unit}
-        return values
+    def normalize(self, external=None):
+        """Normalize the spectrum's y data either to the maximum of the y values or an
+        external factor"""
+        if external is None:
+            return np.max(self.y)
+        else:
+            return self.y/external
+
+    def integrate_slice(self, x_array, y_array):
+        """Integrates the y_array which has a spacing given by the x_array. First it tries to apply
+        simpson rule integration rule, but if this fails the function invokes integration via
+        trapeziodal rule"""
+        try:
+            area = sp(y_array, x_array)
+            if np.isnan(area):
+                print(f"""Integration failed in spectrum {self.name} using Simpson's rule. 
+                Falling back to trapezoidal rule.""")
+                area = tp(y_array, x_array)
+            return area
+        except:
+            raise IntegrationError(f'Integration not possible for {self.name}')
+
+    # export functions
+    def properties_to_dict(self):
+        temp = {
+                "name": self.name,
+                "x_unit": self.x_unit,
+                "y_unit": self.y_unit,
+                "x": self.x,
+                "y": self.y,
+                "timestamp": self.timestamp
+                }
+        return temp
+
+    def to_pandas_dataframe(self) -> pd.DataFrame:
+       pd.DataFrame(data=self.properties_to_dict())
+
+    def to_csv(self):
+        self.to_pandas_dataframe().to_csv(self.name + ".csv", index=False, sep=";")
+
+    def to_json(self) -> str:
+        temp = self.properties_to_dict()
+        return json.dumps(temp)
 
 
-class SfgSpectrum(AbstractSpectrum):
+class SfgSpectrum(BaseSpectrum):
     """The SFG spectrum class is the foundation of all analysis and plotting tools. It contains a class
     SystematicName (or a derived class) which carries most of the metainformation. Besides holding the
     experimental data, it gives access to a variety of functions like normalization, peak picking etc."""
@@ -89,24 +113,20 @@ class SfgSpectrum(AbstractSpectrum):
     # magic methods
     def __init__(self, wavenumbers, intensity, ir_intensity, vis_intensity, meta):
 
-        self.wavenumbers = wavenumbers[::-1]
+        self.x = wavenumbers[::-1]
         self.raw_intensity = intensity[::-1]
         self.vis_intensity = vis_intensity[::-1]
         self.ir_intensity = ir_intensity[::-1]
         self.meta = meta
-        self.normalized_intensity = self.raw_intensity / (self.vis_intensity * self.ir_intensity)
+        self.y = self.raw_intensity / (self.vis_intensity * self.ir_intensity)
         self.baseline_corrected = None
-        self.setup_spec()
+
+        self.x_unit = "wavenumber/ cm$^{-1}$"
+        self.y_unit = "SFG intensity/ arb. u."
+        self.name = self.meta["name"]
 
         self.regions = None
         self.set_regions()
-
-    def setup_spec(self):
-        self._name = self.meta["name"]
-        self._x = self.wavenumbers
-        self._y = self.normalized_intensity
-        self._x_unit = "wavenumber/ cm$^{-1}$"
-        self._y_unit = "SFG intensity/ arb. u."
 
     def __lt__(self, SFG2):
         """Returns true if the current spectrum was measured before SFG2"""
@@ -121,7 +141,7 @@ class SfgSpectrum(AbstractSpectrum):
         """normalize an given array to its maximum, typically the normalized or raw intensity"""
         # todo: this function is somehow strange
         if intensity == "default":
-            intensity = self.normalized_intensity
+            intensity = self.y
         if external_norm == "none":
             norm_factor = np.max(intensity)
         else:
@@ -154,14 +174,14 @@ class SfgSpectrum(AbstractSpectrum):
         :return: the spectrum's normalized intensity
         :rtype: np.ndarray
         """
-        return np.sqrt(self.normalized_intensity)
+        return np.sqrt(self.y)
 
     def yield_maximum(self) -> float:
         """
         :return: maximum intensity value of the spectrum
         :rtype: float
         """
-        return np.max(self.normalized_intensity)
+        return np.max(self.y)
 
     def yield_peaklist(self, mode="norm"):
 
@@ -173,17 +193,17 @@ class SfgSpectrum(AbstractSpectrum):
 
     def yield_spectral_range(self):
         """returns a list containing maximum and minimum wavenumer and the number of data points"""
-        return [min(self.wavenumbers), max(self.wavenumbers), len(self.wavenumbers)]
+        return [min(self.x), max(self.x), len(self.x)]
 
     def yield_increment(self):
         """Calculates stepsize and wavenumbers where the stepsize is changed"""
         borders = []
         stepsize = []
-        current = self.wavenumbers[0]
-        currentstep = abs(current - self.wavenumbers[1])
+        current = self.x[0]
+        currentstep = abs(current - self.x[1])
         borders.append(current)
 
-        for wavenumber in self.wavenumbers[1:]:
+        for wavenumber in self.x[1:]:
             s = abs(wavenumber - current)
             if s != currentstep:
                 stepsize.append(currentstep)
@@ -198,7 +218,7 @@ class SfgSpectrum(AbstractSpectrum):
         return increment
 
     def yield_wn_length(self):
-        return np.max(self.wavenumbers) - np.min(self.wavenumbers)
+        return np.max(self.x) - np.min(self.x)
 
     # info functions
 
@@ -206,7 +226,7 @@ class SfgSpectrum(AbstractSpectrum):
         """Create an ascii file with the wavenumbers and normalized intensities"""
         with open(self._name + ".csv", "w") as outfile:
             writer = csv.writer(outfile, delimiter=";")
-            for i in zip(self.wavenumbers, self.normalized_intensity):
+            for i in zip(self.x, self.y):
                 writer.writerow((i[0], i[1]))
 
     def convert_to_export_dataframe(self) -> pd.DataFrame:
@@ -218,8 +238,8 @@ class SfgSpectrum(AbstractSpectrum):
         :rtype: pd.DataFrame
         """
         data = {
-            "wavenumbers": self.wavenumbers,
-            "normalized intensity": self.normalized_intensity,
+            "wavenumbers": self.x,
+            "normalized intensity": self.y,
             "raw intensity": self.raw_intensity,
             "IR intensity": self.ir_intensity,
             "VIS intensity": self.vis_intensity
@@ -231,21 +251,21 @@ class SfgSpectrum(AbstractSpectrum):
     def make_ch_baseline(self, debug=False):
 
         # todo: interchange high and low at the slice borders function
-        if np.min(self.wavenumbers) > 2800:
-            left = self.slice_by_borders(np.min(self.wavenumbers), 2815)
+        if np.min(self.x) > 2800:
+            left = self.slice_by_borders(np.min(self.x), 2815)
         else:
-            left = self.slice_by_borders( np.min(self.wavenumbers), 2800)
+            left = self.slice_by_borders(np.min(self.x), 2800)
 
-        if np.max(self.wavenumbers) >= 3030:
+        if np.max(self.x) >= 3030:
             right = self.slice_by_borders(3000, 3030)
         else:
-            right = self.slice_by_borders(self.wavenumbers[-4], self.wavenumbers[-1])
+            right = self.slice_by_borders(self.x[-4], self.x[-1])
 
-        left_x = self.wavenumbers[left[0]:left[1] + 1]
-        left_y = self.normalized_intensity[left[0]:left[1] + 1]
+        left_x = self.x[left[0]:left[1] + 1]
+        left_y = self.y[left[0]:left[1] + 1]
 
-        right_x = self.wavenumbers[right[0]:right[1] + 1]
-        right_y = self.normalized_intensity[right[0]:right[1] + 1]
+        right_x = self.x[right[0]:right[1] + 1]
+        right_y = self.y[right[0]:right[1] + 1]
 
         slope = (np.average(right_y) - np.average(left_y)) / \
                 (np.average(right_x) - np.average(left_x))
@@ -262,21 +282,21 @@ class SfgSpectrum(AbstractSpectrum):
 
     def correct_baseline(self):
 
-        if np.max(self.wavenumbers) >= 3000:
+        if np.max(self.x) >= 3000:
             borders = (2750, 3000)
         else:
-            borders = (2750, np.max(self.wavenumbers))
+            borders = (2750, np.max(self.x))
 
         func = self.make_ch_baseline()
 
         if self.baseline_corrected is None:
-            temp = copy.deepcopy(self.normalized_intensity)
+            temp = copy.deepcopy(self.y)
 
         else:
             # if the baseline correction already was performed, return immediately
             return
 
-        xvals = self.wavenumbers.copy()
+        xvals = self.x.copy()
         corr = func(xvals)
 
 
@@ -296,12 +316,12 @@ class SfgSpectrum(AbstractSpectrum):
 
     def calculate_ch_integral(self):
         self.correct_baseline()
-        if max(self.wavenumbers) >= 3000:
-            borders = self.slice_by_borders(np.min(self.wavenumbers), 3000)
+        if max(self.x) >= 3000:
+            borders = self.slice_by_borders(np.min(self.x), 3000)
         else:
-            borders = self.slice_by_borders(np.min(self.wavenumbers), max(self.wavenumbers))
+            borders = self.slice_by_borders(np.min(self.x), max(self.x))
 
-        x_array = self.wavenumbers[borders[0]:borders[1] + 1]
+        x_array = self.x[borders[0]:borders[1] + 1]
         y_array = self.baseline_corrected[borders[0]:borders[1] + 1]
         integral = self.integrate_peak(x_array, y_array)
         return integral
@@ -309,8 +329,8 @@ class SfgSpectrum(AbstractSpectrum):
     def calc_region_integral(self, region):
         borders = self.regions[region]
         borders = self.slice_by_borders(borders[0], borders[1])
-        x_array = self.wavenumbers[borders[0]:borders[1] + 1]
-        y_array = self.normalized_intensity[borders[0]:borders[1] + 1]
+        x_array = self.x[borders[0]:borders[1] + 1]
+        y_array = self.y[borders[0]:borders[1] + 1]
         try:
             integral = self.integrate_peak(x_array, y_array)
             if np.isnan(integral):
@@ -326,7 +346,7 @@ class SfgSpectrum(AbstractSpectrum):
     def create_pointlist(self, y_array):
 
         output = []
-        for i, (a, b) in enumerate(zip(self.wavenumbers[::-1], y_array)):
+        for i, (a, b) in enumerate(zip(self.x[::-1], y_array)):
             output.append((a, b, i))
 
         return output
@@ -334,28 +354,34 @@ class SfgSpectrum(AbstractSpectrum):
     def slice_by_borders(self, lower, upper):
         """Takes a high (upper) and a low (lower) reciprocal centimeter value as argument. Returns
         the indices of the wavenumber array of the spectrum that are the borders of this interval."""
-        lower_index = np.argmax(self.wavenumbers >= lower)
-        upper_index = np.argmax(self.wavenumbers >= upper)
+        lower_index = np.argmax(self.x >= lower)
+        upper_index = np.argmax(self.x >= upper)
         return int(lower_index), int(upper_index)
 
     def set_regions(self):
-        self.regions = {"CH": (int(np.min(self.wavenumbers)), 3000),
+        self.regions = {"CH": (int(np.min(self.x)), 3000),
                         "dangling": (3670, 3760),
                         "OH": (3005, 3350), "OH2": (3350, 3670)}
 
 
-class LtIsotherm(AbstractSpectrum):
+class LtIsotherm(BaseSpectrum):
     """A class to represent experimental Langmuir trough isotherms, handling time, area, area per molecule and
     surface pressure"""
 
     def __init__(self, name, measured_time, time, area, apm, pressure, lift_off=None, correct=True):
-        self._name = name
+        self.name = name
         self.measured_time = measured_time
         self.time = time
         self.area = area
         self.apm = apm
         self.pressure = pressure
         self.compression_factor = self.calc_compression_factor()
+
+        # todo: remove this hack which ensures the spectrum complies with the metaclass
+        self.x = None
+        self.y = None
+        self.x_unit = "area/ cm$^{2}$"
+        self.y_unit = "surface pressure/ mNm$^{-1}$"
 
         self.speed = None
         self.measurement_number = None
@@ -376,8 +402,6 @@ class LtIsotherm(AbstractSpectrum):
     def setup_spec(self) -> None:
         self._x = self.area
         self._y = self.pressure
-        self._x_unit = "area/ cm$^{2}$"
-        self._y_unit = "surface pressure/ mNm$^{-1}$"
 
     def drop_ascii(self) -> None:
         """Drops an ascii file with semikolon-separated data in the form time;area;surface pressure. Intention

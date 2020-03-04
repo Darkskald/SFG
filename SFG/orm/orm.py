@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from SFG.orm.importer import Importer
 from SFG.spectrum.averagers import SfgAverager, DummyPlotter
-from ..spectrum.spectrum import SfgSpectrum, LtIsotherm, AbstractSpectrum
+from ..spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
 from .orm_classes import *
 
 
@@ -595,7 +595,7 @@ class WorkDatabaseWizard(DatabaseWizard):
 
     # auxiliary functions
 
-    def fetch_by_specid(self, specid, sfg=True) -> AbstractSpectrum:
+    def fetch_by_specid(self, specid, sfg=True) -> BaseSpectrum:
         """Fetches the SFG spectrum with the id specid from the database and retuns it as an SFG spectrum object."""
         if sfg:
             spec = self.session.query(self.sfg).filter(self.sfg.id == specid).one()
@@ -632,7 +632,7 @@ class WorkDatabaseWizard(DatabaseWizard):
         temp.meta["regular"] = reg_sfg
         return temp
 
-    def map_data_to_dates(self, data) -> Dict[datetime.date, List[AbstractSpectrum]]:
+    def map_data_to_dates(self, data) -> Dict[datetime.date, List[BaseSpectrum]]:
         """This function maps a list of spectra to their corresponding date of measurement
         """
         dates = {}
