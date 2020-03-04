@@ -129,10 +129,7 @@ lts = [g.load_lt_by_name(i) for i in lt_names]
 """
 
 w = WorkDatabaseWizard()
-temp = w.session.query(w.regular_sfg).filter(w.regular_sfg.surfactant == "NA").all()
-temp = [w.session.query(w.sfg).filter(w.sfg.id == i.specid).one() for i in temp]
-d = w.map_data_to_dates(temp)
-print(d)
+w.origin_preview_date()
 
 def origin_preview_date():
     w = WorkDatabaseWizard()
@@ -166,4 +163,3 @@ def plot_sample(sfg, lts, name):
 
 
 
-origin_preview_date()

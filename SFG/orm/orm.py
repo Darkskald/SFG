@@ -7,6 +7,7 @@ Created on Tue Jun 25 11:42:19 2019
 ORM-part of SQlalchemy
 """
 import datetime
+import os
 import re
 from typing import Dict, List
 
@@ -16,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from SFG.orm.importer import Importer
-from SFG.spectrum.averagers import SfgAverager
+from SFG.spectrum.averagers import SfgAverager, DummyPlotter
 from ..spectrum.spectrum import SfgSpectrum, LtIsotherm, AbstractSpectrum
 from .orm_classes import *
 
@@ -642,6 +643,28 @@ class WorkDatabaseWizard(DatabaseWizard):
             else:
                 dates[sampling_date].append(item)
         return dates
+
+    def origin_preview_date(self, surfacant="NA", out_dir="out", max_size=6):
+        temp = self.session.query(self.regular_sfg).filter(self.regular_sfg.surfactant == surfacant).all()
+        temp = [self.session.query(self.sfg).filter(self.sfg.id == i.specid).one() for i in temp]
+        dates = self.map_data_to_dates(temp)
+        for key in dates:
+            dir_name = out_dir + "/" + str(key)
+            os.mkdir(dir_name)
+            sfg_spectra = [self.construct_sfg(i) for i in dates[key]]
+
+            for spec in sfg_spectra:
+                df = spec.convert_to_export_dataframe()
+                df.to_csv(f'{dir_name}/' + spec.name + ".csv", index=False, sep=";")
+
+            sub_speclist = [sfg_spectra[i:i + max_size] for i in range(0, len(sfg_spectra), max_size)]
+            for index, item in enumerate(sub_speclist):
+                DummyPlotter(item, save=True, savedir=dir_name, savename=f'preview{index}').plot_all()
+
+
+
+    # TODO: direct conversion from regular to Sfg orm object
+
 
     @staticmethod
     def to_array(string) -> np.ndarray:
