@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 import pathlib
 import sqlite3
 import os
+import peakutils
 
+from SFG.natural_samples import BEDatabaseWizard
 from SFG.orm.orm import WorkDatabaseWizard
-from SFG.spectrum.averagers import DummyPlotter
+from SFG.spectrum.averagers import DummyPlotter, SfgAverager
 
 p = pathlib.Path().cwd() / "SFG" / "mpl_config" / "origin.mpltstyle"
 plt.style.use(str(p))
@@ -126,10 +128,29 @@ print(inter.measured_time.date())
 
 lt_names = g.session.query(g.gasex_lt).filter(g.gasex_lt.sample_id == e_hash).all()
 lts = [g.load_lt_by_name(i) for i in lt_names]
-"""
 
 w = WorkDatabaseWizard()
-w.origin_preview_date()
+w.origin_preview_date(surfacant="HA")
+
+"""
+
+b = BEDatabaseWizard()
+quartals = b.fetch_by_quartal(refine="sml", selection="t")
+to_demo = [b.fetch_by_specid(i.specid) for i in quartals["t1"]]
+
+test = to_demo[0]
+lower = test.get_xrange_indices(np.min(test.x), 3000)
+upper = test.get_xrange_indices(3000, np.max(test.x))
+
+base = peakutils.baseline(test.y[lower[0]:lower[1]], deg=1, max_it=100, tol=1e-4)
+base2 = peakutils.baseline(test.y[upper[0]:upper[1]], deg=1, max_it=100, tol=1e-4)
+#plt.plot(test.x, test.y)
+
+plt.plot(test.x, test.y-(base+base2))
+plt.plot(test.x[lower[0]:lower[1]], base, color="black")
+plt.plot(test.x[upper[0]:upper[1]], base2, color="black")
+plt.savefig("peak.png")
+
 
 def origin_preview_date():
     w = WorkDatabaseWizard()
