@@ -138,17 +138,28 @@ b = BEDatabaseWizard()
 quartals = b.fetch_by_quartal(refine="sml", selection="t")
 to_demo = [b.fetch_by_specid(i.specid) for i in quartals["t1"]]
 
-test = to_demo[0]
-lower = test.get_xrange_indices(np.min(test.x), 3000)
-upper = test.get_xrange_indices(3000, np.max(test.x))
+test = to_demo[110]
 
-base = peakutils.baseline(test.y[lower[0]:lower[1]], deg=1, max_it=100, tol=1e-4)
-base2 = peakutils.baseline(test.y[upper[0]:upper[1]], deg=1, max_it=100, tol=1e-4)
+lower = test.get_xrange_indices(np.min(test.x), 3030)
+upper = test.get_xrange_indices(3030, np.max(test.x))
+
+left = test.y[lower[0]:lower[1]+1]
+right = (test.y[upper[0]+1:upper[1]+1])
+
+base = peakutils.baseline(test.y[lower[0]:lower[1]+1], deg=1)
+base2 = peakutils.baseline(test.y[upper[0]+1:upper[1]+1], deg=1)
+
+peaks = peakutils.indexes(left-base, min_dist=3)
+
 #plt.plot(test.x, test.y)
-
-plt.plot(test.x, test.y-(base+base2))
-plt.plot(test.x[lower[0]:lower[1]], base, color="black")
-plt.plot(test.x[upper[0]:upper[1]], base2, color="black")
+bs_corrected = np.concatenate([left-base, right-base2])
+plt.axvline(test.x[lower[1]], color="red")
+plt.axhline(0, color="blue")
+for i in peaks:
+    plt.axvline(test.x[i], color="green")
+#plt.plot(test.x[lower[0]:lower[1]], left-base, color="black")
+#plt.plot(test.x[upper[0]:upper[1]], right-base2, color="black")
+plt.plot(test.x, bs_corrected)
 plt.savefig("peak.png")
 
 
@@ -165,7 +176,6 @@ def origin_preview_date():
             df = spec.convert_to_export_dataframe()
             df.to_csv(f'{dir_name}/'+spec.name + ".csv", index=False, sep=";")
         DummyPlotter(sfg_spectra, save=True, savedir=dir_name).plot_all()
-
 
 
 def plot_sample(sfg, lts, name):

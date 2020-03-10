@@ -487,7 +487,7 @@ class LtIsotherm(BaseSpectrum):
 
     @staticmethod
     def get_closest_index(array_datapoints, check) -> int:
-
+        # todo: replace with numpy argmax function
         d = 1000000000000
         index = None
         for point in array_datapoints:
