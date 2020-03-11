@@ -43,7 +43,7 @@ class SfgAverager:
     """This class takes a list of SFG spectra and generates an average spectrum of them by interpolation and
     averaging. It is possible to pass a dictionary of date:dppc_integral key-value-pairs in order to calculate
     the coverage."""
-    def __init__(self, spectra, references=None, enforce_scale=False, name="default", debug=False):
+    def __init__(self, spectra, references=None, enforce_scale=False, name="default", debug=False, baseline=False):
         self.failure_count = 0
         self.log = ""
         self.log += "Log file for averaging spectra\n"
@@ -60,8 +60,11 @@ class SfgAverager:
 
         else:
             self.day_counter = {}
-            self.average_spectrum = self.average_spectra()
 
+            if baseline:
+                for i in self.spectra:
+                    i.y = i.full_baseline_correction()
+            self.average_spectrum = self.average_spectra()
             self.integral = self.average_spectrum.calculate_ch_integral()
             self.coverage = self.calc_coverage()
 

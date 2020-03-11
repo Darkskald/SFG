@@ -41,7 +41,8 @@ class BoknisEckExtension:
     def __init__(self, new=False):
         self.wz = WorkDatabaseWizard()
         # read the master excel sheet
-        self.df = pd.read_excel("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/Wasserproben_komplett.xlsx", header=2, sheet_name="Samples")
+        self.df = pd.read_excel("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/Wasserproben_komplett.xlsx", header=2,
+                                sheet_name="Samples")
 
         """
         don't forget the GasEx data!
@@ -201,8 +202,8 @@ class BoknisEckExtension:
             number = row["Sample"]
 
             try:
-                q = self.wz.session.query(self.wz.boknis_eck).\
-                    filter(self.wz.boknis_eck.sampling_date == date)\
+                q = self.wz.session.query(self.wz.boknis_eck). \
+                    filter(self.wz.boknis_eck.sampling_date == date) \
                     .filter(self.wz.boknis_eck.sample_number == number).all()
 
                 q = q[0]
@@ -225,8 +226,8 @@ class BoknisEckExtension:
     # operating on the data
     def get_boknis_specs(self):
         """This function retrieves all Boknis Eck samples from the boknis_eck SQL table."""
-        q = self.wz.session.query(self.wz.boknis_eck).\
-            filter(self.wz.boknis_eck.is_mapped == 1).\
+        q = self.wz.session.query(self.wz.boknis_eck). \
+            filter(self.wz.boknis_eck.is_mapped == 1). \
             filter(self.wz.boknis_eck.location_number == 3)
         return q
 
@@ -261,7 +262,6 @@ class BoknisEckExtension:
 
         one = self.add_spectrum(self.get_boknis_specs().filter(self.wz.boknis_eck.sample_type == 'deep').
                                 filter(self.wz.boknis_eck.depth == 1))
-
 
         out = []
         for item in (sml, deep, one):
@@ -360,7 +360,8 @@ class BoknisEckExtension:
         to_average = []
         for sample in samples:
             try:
-                spec = self.wz.session.query(self.wz.gasex_sfg).filter(self.wz.gasex_sfg.sample_hash == sample.sample_hash).one()
+                spec = self.wz.session.query(self.wz.gasex_sfg).filter(
+                    self.wz.gasex_sfg.sample_hash == sample.sample_hash).one()
                 spec_raw = self.wz.session.query(self.wz.sfg).filter(self.wz.sfg.name == spec.name).one()
                 spec = self.wz.construct_sfg(spec_raw)
                 to_average.append(spec)
@@ -393,7 +394,7 @@ class BoknisEckExtension:
         june.bulk_oh2 = average_spectra[2].calc_region_integral("OH2")
         june.bulk_dangling = average_spectra[2].calc_region_integral("dangling")
         june.chlorophyll = BoknisEckExtension.get_mean_by_date(self.chlorophyll, june.sampling_date)
-        
+
         # set the values for september
         september.sml_no = 1
         september.sml_coverage = average_spectra[1].coverage
@@ -465,7 +466,7 @@ class Plotter:
         if save:
             plt.style.use("output.mpltstyle")
             plt.tight_layout()
-            plt.savefig("boknis_dates/"+title+".png")
+            plt.savefig("boknis_dates/" + title + ".png")
             plt.close()
 
     def plot_raw_ir_vis(self, spec, save=False):
@@ -534,8 +535,7 @@ class Plotter:
 
         # integral
         if integral:
-            ax3.text(3050, np.max(spec.normalized_intensity)/2, f'integral: {spec.calculate_ch_integral():.4f}')
-
+            ax3.text(3050, np.max(spec.normalized_intensity) / 2, f'integral: {spec.calculate_ch_integral():.4f}')
 
         plt.style.use("output.mpltstyle")
 
@@ -543,9 +543,7 @@ class Plotter:
         # remove vertical gap between subplots
         plt.subplots_adjust(hspace=.0)
 
-
         if save:
-
             self.fig.legend(loc=4)
             plt.savefig(f'boknis_spectra/{spec.name}_raw.png')
             plt.close()
@@ -563,8 +561,6 @@ class Plotter:
 
         ax.set_xlabel(averager.average_spectrum.x_unit)
         ax.set_ylabel(averager.average_spectrum.y_unit)
-
-
 
         ax.legend()
 
@@ -616,7 +612,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         elif sample_type == "sml":
             temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sample_type == "sml").all()
         elif sample_type == "1":
-            temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sample_type == "deep")\
+            temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sample_type == "deep") \
                 .filter(self.boknis_eck.depth == 1).all()
         elif sample_type == "bulk":
             temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sample_type == "deep") \
@@ -634,7 +630,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         """Returns a dictionary of dataframes with the BE data and additional normalized to the year's maximum value
         columns"""
         out = {}
-        years = (i for i in range(lower, upper+1) if i != 2016)
+        years = (i for i in range(lower, upper + 1) if i != 2016)
         for year in years:
             out[year] = BEDatabaseWizard.normalize_year_records(self.filter_year(year))
         return out
@@ -649,8 +645,8 @@ class BEDatabaseWizard(WorkDatabaseWizard):
         date_dic = {}
 
         for item in dates:
-            temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sampling_date == item)\
-                .filter(self.boknis_eck.is_mapped == 1).\
+            temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.sampling_date == item) \
+                .filter(self.boknis_eck.is_mapped == 1). \
                 filter(self.boknis_eck.location_number == 3).all()
             date_dic[item] = temp
 
@@ -665,8 +661,8 @@ class BEDatabaseWizard(WorkDatabaseWizard):
     def fetch_by_month(self, month, refine="all"):
         """Fetches all spectra sampled on a special month (passed as integer). The refine kwarg makes it possible to
         filter sml and bulk samples"""
-        t = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1).\
-            filter(self.boknis_eck.location_number == 3)\
+        t = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1). \
+            filter(self.boknis_eck.location_number == 3) \
             .filter(extract('month', self.boknis_eck.sampling_date) == month)
 
         if refine == "sml":
@@ -720,7 +716,7 @@ class BEDatabaseWizard(WorkDatabaseWizard):
                 spec.meta["time"] -= timedelta(days=1)
             try:
                 ref = self.session.query(self.measurement_days).filter(
-                self.measurement_days.date == spec.meta["time"].date()).one().dppc_integral
+                    self.measurement_days.date == spec.meta["time"].date()).one().dppc_integral
                 spec.y = spec.normalize_to_highest(external_norm=ref)
                 spec.setup_spec()
                 out.append(spec)
@@ -729,14 +725,35 @@ class BEDatabaseWizard(WorkDatabaseWizard):
                 print(f'{spec} has no DPPC reference')
         return out
 
-    # plotting
+    # new query methods
 
+    def query_by_year(self, year, refine="all"):
+        t = self.session.query(self.boknis_eck).filter(self.boknis_eck.is_mapped == 1). \
+            filter(self.boknis_eck.location_number == 3) \
+            .filter(extract('year', self.boknis_eck.sampling_date) == year)
+
+        if refine == "sml":
+            t = t.filter(self.boknis_eck.sample_type == "sml")
+
+        elif refine == "deep":
+            t = t.filter(self.boknis_eck.sample_type == "deep").filter(self.boknis_eck.depth > 1)
+
+        elif refine == 1:
+            t = t.filter(self.boknis_eck.sample_type == "deep").filter(self.boknis_eck.depth == 1)
+
+        return t
+
+    def refine_by_month(self, query, month):
+        return query.filter(
+            extract('month', self.boknis_eck.sampling_date) == month)
+
+    # plotting
     def plot_by_sampling_date(self):
         """Fetch all spectra of all sampling days, match them to the sampling dates, plot them and save them as png"""
         dates = self.get_data_per_sampling_date()
 
         for d in dates:
-            #dates[d] = [self.convert_be_to_sfg(item) for item in dates[d]]
+            # dates[d] = [self.convert_be_to_sfg(item) for item in dates[d]]
             dates[d] = self.normalize_to_reference_integral(dates[d])
         for item in dates:
             try:
@@ -747,11 +764,11 @@ class BEDatabaseWizard(WorkDatabaseWizard):
 
     def plot_all_raw_be(self):
         """Creates plots of all BE data showing raw intensity, IR and vis"""
-        temp = self.session.query(self.boknis_eck).\
+        temp = self.session.query(self.boknis_eck). \
             filter(self.boknis_eck.location_number == 3).filter(self.boknis_eck.is_mapped == 1).all()
         for item in temp:
             spec = self.convert_be_to_sfg(item)
-            #Plotter().plot_raw_ir_vis(spec, save=True)
+            # Plotter().plot_raw_ir_vis(spec, save=True)
             Plotter().plot_raw_ir_vis_norm(spec, save=True)
 
     def plot_all_be_references(self):
@@ -777,10 +794,10 @@ class BEDatabaseWizard(WorkDatabaseWizard):
     @staticmethod
     def compare_to_gernot(df):
 
-        df['origin'] = (df['sml_no'] * df['sml_coverage']/(df['bulk_no'] + df['sml_no'])) + \
-        (df['bulk_no'] * df['bulk_coverage'] / (df['bulk_no'] + df['sml_no']))
+        df['origin'] = (df['sml_no'] * df['sml_coverage'] / (df['bulk_no'] + df['sml_no'])) + \
+                       (df['bulk_no'] * df['bulk_coverage'] / (df['bulk_no'] + df['sml_no']))
 
-        df['origin'] = (df['origin']**2)*50
+        df['origin'] = (df['origin'] ** 2) * 50
         BEDatabaseWizard.convert_to_origin_date(df)
         new = df[['sampling_date', 'origin']]
         new.to_csv("origin_boknis_out.csv")
@@ -922,7 +939,7 @@ def polar_plot_coverage(records):
 
         # todo: make this function more generic accepting an argument for the plot params
         c = ax.plot(dates, records[key]["norm_sml_coverage"], marker="o")
-        #c = ax.plot(dates, records[key]["norm_bulk_coverage"], marker="x")
+        # c = ax.plot(dates, records[key]["norm_bulk_coverage"], marker="x")
 
 
 if __name__ == "__main__":
