@@ -7,6 +7,7 @@ import datetime
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, MultipleLocator
 import pandas as pd
+import peakutils
 from scipy import stats
 from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
@@ -362,6 +363,19 @@ class SfgSpectrum(BaseSpectrum):
         self.regions = {"CH": (int(np.min(self.x)), 3000),
                         "dangling": (3670, 3760),
                         "OH": (3005, 3350), "OH2": (3350, 3670)}
+
+    # new peak picking and baseline correction
+    def full_baseline_correction(self):
+        lower = self.get_xrange_indices(np.min(self.x), 3030)
+        upper = self.get_xrange_indices(3030, np.max(self.x))
+
+        left = self.y[lower[0]:lower[1] + 1]
+        right = (self.y[upper[0] + 1:upper[1] + 1])
+
+        base = peakutils.baseline(self.y[lower[0]:lower[1] + 1], deg=1)
+        base2 = peakutils.baseline(self.y[upper[0] + 1:upper[1] + 1], deg=1)
+
+        return np.concatenate([left - base, right - base2])
 
 
 class LtIsotherm(BaseSpectrum):
