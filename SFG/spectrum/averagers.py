@@ -75,7 +75,7 @@ class SfgAverager:
                     self.integral = 0
                     self.coverage = 0
 
-    def average_spectra(self):
+    def average_spectra(self, baseline=True):
         """Function performing the averaging: it ensures that all spectra are interpolated to have the same shape,
         then they are averaged. A AverageSpectrum  object is constructed and returned."""
         to_average = []
@@ -122,6 +122,9 @@ class SfgAverager:
            #outfile.write(f'name: {newname} x: {root_x_scale}, y: {average}\n')
 
         s = AverageSpectrum(root_x_scale, average, s_meta)
+
+        if baseline:
+            s.y = s.full_baseline_correction()
 
         return s
 

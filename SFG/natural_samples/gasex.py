@@ -381,6 +381,10 @@ class GasExWorkDatabaseWizard(WorkDatabaseWizard):
         temp = temp[np.logical_not(np.isnan(temp))]
         return test_func(temp)
 
+
+
+
+
 if __name__ == "__main__":
     GasExManager()
 
