@@ -1,12 +1,8 @@
-import SFG as sf
-
-import matplotlib.pyplot as plt
-from matplotlib import gridspec
 import os
 
+import matplotlib.pyplot as plt
+
 from SFG.natural_samples import BEDatabaseWizard
-from SFG.orm.orm import WorkDatabaseWizard
-from SFG.spectrum.averagers import SfgAverager
 
 dirname = os.path.dirname(__file__)
 p = os.path.join(dirname, 'mpl_config/origin.mpltstyle')
@@ -39,7 +35,6 @@ base = peakutils.baseline(testspec.y, deg=3)
 plt.plot(testspec.x, testspec.y)
 plt.plot(testspec.x, base)
 plt.show()
-"""
 #for spec in specs:
      #sf.plotting.baseline_demo_dppc(spec)
 b = BEDatabaseWizard()
@@ -53,8 +48,6 @@ plt.legend()
 plt.savefig("trimesters_base_extra.png")
 
 
-
-
-
-
-
+"""
+b = BEDatabaseWizard()
+b.plot_by_sampling_date()

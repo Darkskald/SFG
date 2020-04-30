@@ -62,8 +62,15 @@ class SfgAverager:
             self.day_counter = {}
 
             if baseline:
-                for i in self.spectra:
-                    i.y = i.full_baseline_correction()
+                try:
+                    for i in self.spectra:
+                        i.y = i.full_baseline_correction()
+                except ValueError:
+                    if i.baseline_corrected:
+                        i.y = i.baseline_corrected
+                    else:
+                        i.correct_baseline()
+
             self.average_spectrum = self.average_spectra()
             self.integral = self.average_spectrum.calculate_ch_integral()
             self.coverage = self.calc_coverage()
@@ -127,6 +134,11 @@ class SfgAverager:
             try:
                 s.y = s.full_baseline_correction()
             except ValueError:
+                if s.baseline_corrected:
+                    s.y = s.baseline_corrected
+                else:
+                    s.correct_baseline()
+            except ZeroDivisionError:
                 if s.baseline_corrected:
                     s.y = s.baseline_corrected
                 else:
