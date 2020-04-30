@@ -81,7 +81,7 @@ class BoknisEckExtension:
                 dates[date].append(spec)
 
         for date in dates:
-            av = SfgAverager(dates[date])
+            av = SfgAverager(dates[date], baseline=True)
             integral = av.integral
             dates[date] = integral
 
@@ -122,7 +122,7 @@ class BoknisEckExtension:
                 dates[date].append(self.wz.construct_sfg(item))
 
         for key in dates:
-            dates[key] = SfgAverager(dates[key]).integral
+            dates[key] = SfgAverager(dates[key], baseline=True).integral
 
         return dates
 
@@ -281,7 +281,7 @@ class BoknisEckExtension:
         new_dict = {}
         for key in date_dict:
             to_average = [i.sfg_spectrum for i in date_dict[key]]
-            av = SfgAverager(to_average, references, enforce_scale=True)
+            av = SfgAverager(to_average, references, enforce_scale=True, baseline=True)
             if debug:
                 if av.coverage == np.inf:
                     av.benchmark()
@@ -440,7 +440,7 @@ class BoknisEckExtension:
 
     @staticmethod
     def get_average_spectrum(speclist, references):
-        s = SfgAverager(speclist, references=references, enforce_scale=True)
+        s = SfgAverager(speclist, references=references, enforce_scale=True, baseline=True)
         av = s.average_spectrum
         av.integral = s.integral
         av.coverage = s.coverage
@@ -464,9 +464,9 @@ class Plotter:
 
         self.fig.legend()
         if save:
-            plt.style.use("output.mpltstyle")
+            # plt.style.use("output.mpltstyle")
             plt.tight_layout()
-            plt.savefig("boknis_dates/" + title + ".png")
+            plt.savefig("../boknis_dates/" + title + ".png")
             plt.close()
 
     def plot_raw_ir_vis(self, spec, save=False):
@@ -537,7 +537,7 @@ class Plotter:
         if integral:
             ax3.text(3050, np.max(spec.normalized_intensity) / 2, f'integral: {spec.calculate_ch_integral():.4f}')
 
-        plt.style.use("output.mpltstyle")
+        #plt.style.use("output.mpltstyle")
 
         plt.tight_layout()
         # remove vertical gap between subplots
@@ -545,7 +545,7 @@ class Plotter:
 
         if save:
             self.fig.legend(loc=4)
-            plt.savefig(f'boknis_spectra/{spec.name}_raw.png')
+            plt.savefig(f'../boknis_spectra/{spec.name}_raw.png')
             plt.close()
 
     def plot_sfg_averager(self, averager):

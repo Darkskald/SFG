@@ -1,25 +1,20 @@
-import SFG as sf
-
-import pandas as pd
-import matplotlib.pyplot as plt
-import pathlib
-import sqlite3
 import os
-import peakutils
-
-from SFG.natural_samples import BEDatabaseWizard
-from SFG.orm.orm import WorkDatabaseWizard
-from SFG.spectrum.averagers import DummyPlotter, SfgAverager
-
-p = pathlib.Path().cwd() / "SFG" / "mpl_config" / "origin.mpltstyle"
-plt.style.use(str(p))
+import sqlite3
 
 import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+
+import SFG as sf
+from SFG.orm.orm import WorkDatabaseWizard
+from SFG.spectrum.averagers import DummyPlotter
+
+# p = pathlib.Path().cwd() / "SFG" / "mpl_config" / "origin.mpltstyle"
+# plt.style.use(str(p))
 
 mpl.rcParams["figure.subplot.hspace"] = 0.3
 
 import numpy as np
-from scipy import stats
 
 db = sqlite3.connect("orm.db")
 command = """SELECT 
@@ -114,6 +109,16 @@ INNER JOIN station_stats
 on stations.id = station_stats.station_id;
 """
 
+command5 = """
+SELECT
+sampling_date AS 'sampling_date',
+sml_coverage AS 'SML coverage',
+bulk_coverage AS 'bulk coverage',
+sml_no,
+bulk_no
+FROM be_data;
+
+"""
 """
 g = sf.gasex.GasExWorkDatabaseWizard()
 samples = g.session.query(g.samples).all()
@@ -131,9 +136,6 @@ lts = [g.load_lt_by_name(i) for i in lt_names]
 
 w = WorkDatabaseWizard()
 w.origin_preview_date(surfacant="HA")
-
-"""
-
 b = BEDatabaseWizard()
 quartals = b.fetch_by_quartal(refine="sml", selection="t")
 to_demo = [b.fetch_by_specid(i.specid) for i in quartals["t1"]]
@@ -161,8 +163,7 @@ for i in peaks:
 #plt.plot(test.x[upper[0]:upper[1]], right-base2, color="black")
 plt.plot(test.x, bs_corrected)
 plt.savefig("peak.png")
-
-
+"""
 def origin_preview_date():
     w = WorkDatabaseWizard()
     temp = w.session.query(w.regular_sfg).filter(w.regular_sfg.surfactant == "NA").all()
@@ -193,4 +194,15 @@ def plot_sample(sfg, lts, name):
     plt.savefig("test.png")
 
 
+temp = pd.read_sql(command5, db)
+temp = temp.replace([np.inf, -np.inf], np.nan)
+temp = temp[(pd.notna(temp["SML coverage"]))]
+temp["total"] = ((temp["SML coverage"] * temp["sml_no"]) + (temp["bulk coverage"] * temp["bulk_no"])) / (
+            temp["sml_no"] + temp["bulk_no"])
 
+mask = pd.isna(temp["total"])
+test = temp["SML coverage"].loc[mask].copy(deep=True)
+temp["total"].loc[mask] = test
+temp.drop(labels=["bulk_no", "sml_no"], axis=1, inplace=True)
+print(temp)
+temp.to_csv("~/Schreibtisch/new_be_data.csv", sep=";", index=False)
