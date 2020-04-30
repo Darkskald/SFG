@@ -1,7 +1,7 @@
 import datetime
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm
 
@@ -124,7 +124,13 @@ class SfgAverager:
         s = AverageSpectrum(root_x_scale, average, s_meta)
 
         if baseline:
-            s.y = s.full_baseline_correction()
+            try:
+                s.y = s.full_baseline_correction()
+            except ValueError:
+                if s.baseline_corrected:
+                    s.y = s.baseline_corrected
+                else:
+                    s.correct_baseline()
 
         return s
 

@@ -20,7 +20,12 @@ class Importer:
             "lt": self.base_path / 'newport' / 'lt',
             "gasex_lt": self.base_path / 'newport' / 'gasex_lt',
             "gasex_lift_off": self.base_path / 'newport' / 'liftoff_points.csv',
-            "gasex_tension": self.base_path / 'newport' / 'gasex_surftens.txt'
+            "gasex_tension": self.base_path / 'newport' / 'gasex_surftens.txt',
+            "substances": self.base_path / 'newport' / 'substances.json',
+            "ir": self.base_path / 'newport' / 'IR',
+            "uv": self.base_path / 'newport' / 'UV',
+            "raman": self.base_path / 'newport' / 'Raman',
+            "station_plan": self.base_path / 'newport' / 'stationsplan.xls'
 
         }
         # sfgs
@@ -44,7 +49,7 @@ class Importer:
         self.salinity = self.import_salinity()
 
         #substances
-        self.substances = self.import_substances("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/substances.json")
+        self.substances = self.import_substances(str(self.paths["substances"]))
 
     # SFG
     def import_sfg(self, parent_dir):
@@ -66,7 +71,8 @@ class Importer:
 
                     data = self.extract_sfg_file(parent_dir + "/" + directory + "/" + file)
 
-                    dic = {"name": name, "type": parent_dir.split("\\")[-1], "measured_time": creation_time, "measurer": measurer,
+                    dic = {"name": name, "type": parent_dir.split("/")[-1], "measured_time": creation_time,
+                           "measurer": measurer,
                            "data": data}
 
                     if "dppc" in dic["name"] or "DPPC" in dic["name"]:
@@ -107,7 +113,8 @@ class Importer:
                         name = file[:-4]
 
                         data = self.extract_lt_file(new_path + "/" + file)
-                        dic = {"name": name, "type": head_dir.split("\\")[-1], "measured_time": creation_time, "data": data}
+                        dic = {"name": name, "type": head_dir.split("/")[-1], "measured_time": creation_time,
+                               "data": data}
 
                         out.append(dic)
         return out
@@ -143,23 +150,23 @@ class Importer:
 
     def import_other_spectra(self):
 
-        for file in os.listdir("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/Raman"):
-            temp_df = self.extract_other_spectra("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/Raman/"+file)
-            dic = {"name":file, "data": temp_df}
+        for file in os.listdir(str(self.paths["raman"])):
+            temp_df = self.extract_other_spectra(str(self.paths["raman"] / file))
+            dic = {"name": file, "data": temp_df}
             self.raman.append(dic)
 
-        for file in os.listdir("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/IR"):
-            temp_df = self.extract_other_spectra("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/IR/"+file)
+        for file in os.listdir(str(self.paths["ir"])):
+            temp_df = self.extract_other_spectra(str(self.paths["ir"] / file))
             dic = {"name": file, "data": temp_df}
             self.ir.append(dic)
 
-        for file in os.listdir("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/UV"):
-            temp_df = self.extract_other_spectra("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/UV/"+file, skip=2, sep=",")
+        for file in os.listdir(str(self.paths["uv"])):
+            temp_df = self.extract_other_spectra(str(self.paths["uv"] / file), skip=2, sep=",")
             dic = {"name": file, "data": temp_df}
             self.uv.append(dic)
 
     def import_salinity(self):
-        sal = pd.read_excel("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/stationsplan.xls")
+        sal = pd.read_excel(self.paths["station_plan"])
         salinities = []
         for row in range(len(sal)):
             sur_sal = sal.loc[row, "Salinity surface"]
