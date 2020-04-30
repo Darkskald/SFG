@@ -18,8 +18,8 @@ from sqlalchemy.orm import sessionmaker
 
 from SFG.orm.importer import Importer
 from SFG.spectrum.averagers import SfgAverager, DummyPlotter
-from ..spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
 from .orm_classes import *
+from ..spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
 
 
 class DatabaseWizard:
@@ -29,7 +29,7 @@ class DatabaseWizard:
     def __init__(self):
 
         # SQL init
-        self.engine = create_engine('sqlite:///C:/Users/lange/Desktop/CharmingSFG/SFG/orm.db', echo=False)
+        self.engine = create_engine(f'sqlite:///{os.getcwd()}/orm.db', echo=False)
         self.Base = Base
 
         # ORM object creation

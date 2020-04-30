@@ -1,23 +1,23 @@
-from SFG.orm.orm import WorkDatabaseWizard
-from SFG.spectrum.averagers import SfgAverager
-
-from sqlalchemy import extract
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import NoResultFound
-# todo: fix the double import
-from datetime import datetime, date, timedelta
 import datetime
 import functools
-import pandas as pd
-import re
-import numpy as np
 import os
+import re
+# todo: fix the double import
+from datetime import datetime, date, timedelta
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import numpy as np
+import pandas as pd
 from matplotlib import rcParams, gridspec
 from matplotlib.dates import MonthLocator, DateFormatter
 from matplotlib.lines import Line2D
-import matplotlib.ticker as ticker
+from sqlalchemy import extract
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import NoResultFound
+
+from SFG.orm.orm import WorkDatabaseWizard
+from SFG.spectrum.averagers import SfgAverager
 
 
 class BoknisEckExtension:
@@ -41,7 +41,7 @@ class BoknisEckExtension:
     def __init__(self, new=False):
         self.wz = WorkDatabaseWizard()
         # read the master excel sheet
-        self.df = pd.read_excel("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/Wasserproben_komplett.xlsx", header=2,
+        self.df = pd.read_excel(os.getcwd() + "/newport/Wasserproben_komplett.xlsx", header=2,
                                 sheet_name="Samples")
 
         """
@@ -416,7 +416,7 @@ class BoknisEckExtension:
     @staticmethod
     def prepare_chorophyll_data():
         print(f'{os.getcwd()} IN BE')
-        be = pd.read_csv("C:/Users/lange/Desktop/CharmingSFG/SFG/newport/be_data.csv", sep=",", header=0)
+        be = pd.read_csv(os.getcwd() + "/newport/be_data.csv", sep=",", header=0)
         be = be[be["Depth [m]"] == 1]
         be["Time"] = pd.to_datetime(be["Time"])
         be["Time"] = be["Time"].apply(lambda x: x.date())
