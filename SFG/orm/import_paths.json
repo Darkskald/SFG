@@ -1,0 +1,16 @@
+{
+  "regular_sfg": "regular",
+  "gasex_sfg": "gasex_sfg",
+  "boknis": "boknis",
+  "lt": "lt",
+  "gasex_lt": "gasex_lt",
+  "gasex_lift_off": "liftoff_points.csv",
+  "gasex_tension": "gasex_surftens.txt",
+  "substances": "substances.json",
+  "ir": "IR",
+  "uv": "UV",
+  "raman": "Raman",
+  "station_plan": "stationsplan.xls",
+  "be_database_parameters": "be_data.csv",
+  "water_samples": "Wasserproben_komplett.xlsx"
+}
