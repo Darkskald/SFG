@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import timeit
 from pathlib import Path
 
 import pandas as pd
@@ -189,3 +190,10 @@ class Importer:
 
 # todo: decouple the Importer so it is not to tightly bound to boknis/gasex
 # todo: implement async io
+
+if __name__ == "__main__":
+    os.chdir("..")
+    start = timeit.default_timer()
+    i = Importer()
+    end = timeit.default_timer()
+    print(end - start)
