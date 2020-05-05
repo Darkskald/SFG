@@ -60,7 +60,7 @@ class SfgAverager:
 
         else:
             self.day_counter = {}
-
+            """
             if baseline:
                 try:
                     for i in self.spectra:
@@ -70,8 +70,9 @@ class SfgAverager:
                         i.y = i.baseline_corrected
                     else:
                         i.correct_baseline()
+            """
 
-            self.average_spectrum = self.average_spectra()
+            self.average_spectrum = self.average_spectra(baseline=baseline)
             self.integral = self.average_spectrum.calculate_ch_integral()
             self.coverage = self.calc_coverage()
 
