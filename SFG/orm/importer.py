@@ -9,8 +9,6 @@ from pathlib import Path
 import pandas as pd
 
 
-
-
 class Importer:
     """The Importer class performs the import steps from the raw measurement data."""
 
