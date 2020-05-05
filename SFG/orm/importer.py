@@ -200,5 +200,8 @@ class Importer:
 # todo: decouple the Importer so it is not to tightly bound to boknis/gasex
 # todo: implement async io
 
+start = timeit.default_timer()
 i = Importer()
-#print(i.regular_sfg)
+end = timeit.default_timer()
+print(end - start)
+# print(i.regular_sfg)
