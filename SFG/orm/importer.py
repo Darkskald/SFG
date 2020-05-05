@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-os.chdir("..")
+
 
 
 class Importer:
@@ -17,23 +17,11 @@ class Importer:
     def __init__(self):
         # paths
         self.base_path = Path.cwd() / 'newport'
-        # todo dieser Pfadspaß ist miserabel, das sollte durch ein yaml oder json geladen werden
-        self.paths = {
-            "regular_sfg": self.base_path / 'regular',
-            "gasex_sfg": self.base_path / 'gasex_sfg',
-            "boknis": self.base_path / 'boknis',
-            "lt": self.base_path / 'lt',
-            "gasex_lt": self.base_path / 'gasex_lt',
-            "gasex_lift_off": self.base_path / 'liftoff_points.csv',
-            "gasex_tension": self.base_path / 'gasex_surftens.txt',
-            "substances": self.base_path / 'substances.json',
-            "ir": self.base_path / 'newport' / 'IR',
-            "uv": self.base_path / 'UV',
-            "raman": self.base_path / 'Raman',
-            "station_plan": self.base_path / 'stationsplan.xls',
-            "be_database_parameters": self.base_path / 'be_data.csv',
-            "water_samples": self.base_path / 'Wasserproben_komplett.xlsx'
-        }
+
+        with open(Path.cwd() / "orm" / "import_paths.json") as infile:
+            d = json.load(infile)
+            self.paths = {key: (self.base_path / d[key]) for key in d}
+
         # sfgs
         p = Pool(3)
         data = p.map(self.import_sfg, [self.paths["regular_sfg"], self.paths["gasex_sfg"], self.paths["boknis"]])
@@ -73,7 +61,6 @@ class Importer:
         return out
 
     def aux(self, file, func, sfg):
-
         creation_time = datetime.datetime.fromtimestamp(file.stat().st_ctime)
         data = func(file)
         dic = {"name": file.name, "type": file.parent.parent, "measured_time": creation_time, "data": data}
@@ -90,7 +77,6 @@ class Importer:
     def extract_sfg_file(file):
         """A function extracting the measurement data from a SFG spectral file """
         col_names = ['wavenumbers', 'sfg', 'ir', 'vis']
-        # todo: changed this to c engine for reasons of performance
         temp = pd.read_csv(file, sep="\t", usecols=[0, 1, 3, 4], names=col_names, encoding='utf8', engine='c')
         return temp
 
@@ -145,8 +131,9 @@ class Importer:
             return json.load(infile)
 
 
-start = timeit.default_timer()
-i = Importer()
-end = timeit.default_timer()
-print(end - start)
-# print(i.regular_sfg)
+if __name__ == "__main__":
+    os.chdir("..")
+    start = timeit.default_timer()
+    i = Importer()
+    end = timeit.default_timer()
+    print(end - start)
