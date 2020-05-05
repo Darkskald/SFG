@@ -1,9 +1,9 @@
-import datetime
 import functools
 import os
 import re
 # todo: fix the double import
 from datetime import datetime, date, timedelta
+import datetime
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -439,8 +439,8 @@ class BoknisEckExtension:
         return datetime.date(year, month, day)
 
     @staticmethod
-    def get_average_spectrum(speclist, references):
-        s = SfgAverager(speclist, references=references, enforce_scale=True, baseline=True)
+    def get_average_spectrum(speclist, references, baseline=True):
+        s = SfgAverager(speclist, references=references, enforce_scale=True, baseline=baseline)
         av = s.average_spectrum
         av.integral = s.integral
         av.coverage = s.coverage

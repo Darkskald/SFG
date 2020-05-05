@@ -2,7 +2,8 @@ import os
 
 import matplotlib.pyplot as plt
 
-from SFG.natural_samples import BEDatabaseWizard
+from SFG.natural_samples import BEDatabaseWizard, BoknisEckExtension
+from SFG.spectrum.averagers import DummyPlotter
 
 dirname = os.path.dirname(__file__)
 p = os.path.join(dirname, 'mpl_config/origin.mpltstyle')
@@ -50,4 +51,19 @@ plt.savefig("trimesters_base_extra.png")
 
 """
 b = BEDatabaseWizard()
-b.plot_by_sampling_date()
+t = b.fetch_by_quartal(refine="sml", selection="t")
+references = BoknisEckExtension().references
+"""
+temp = [b.convert_be_to_sfg(i) for i in t["t1"]]
+for spec in temp:
+    DummyPlotter([spec],save=True, savedir="/home/flo/Schreibtisch", savename=spec.name).plot_all()
+"""
+labels = {"t1": "trimester 1", "t2": "trimester 2", "t3": "trimester 3"}
+for trimester in t:
+    temp = [b.convert_be_to_sfg(i) for i in t[trimester]]
+    s = BoknisEckExtension.get_average_spectrum(temp, references=references, baseline=False)
+    plt.xlabel(s.x_unit)
+    plt.ylabel(s.y_unit)
+    plt.plot(s.x, s.y, label=f'{trimester} ({len(temp)} spectra)')
+plt.legend()
+plt.savefig("/home/flo/Schreibtisch/trimester_raw.png")

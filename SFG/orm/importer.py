@@ -139,7 +139,7 @@ class Importer:
 
     # other
     def import_substances(self, file):
-        """Extracts the information about predefined subtances out of the corresponding file"""
+        """Extracts the information about predefined substances out of the corresponding file"""
         with open(file) as infile:
             return json.load(infile)
 
