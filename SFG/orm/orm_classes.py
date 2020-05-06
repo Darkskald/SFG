@@ -6,12 +6,15 @@ from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
+
+# independent
+
+
 class SFG(Base):
     __tablename__ = "sfg"
     id = Column(Integer, primary_key=True)
     name = Column(Text)
     measured_time = Column(TIMESTAMP)
-    measurer = Column(Text)
     type = Column(Text)
     wavenumbers = Column(Text)
     sfg = Column(Text)
@@ -19,6 +22,94 @@ class SFG(Base):
     vis = Column(Text)
 
     __table_args__ = (UniqueConstraint("name", "type"),)
+
+
+class Lt(Base):
+    __tablename__ = 'lt'
+    id = Column(Integer, primary_key=True)
+    name = Column(Text)
+    type = Column(Text)
+    measured_time = Column(TIMESTAMP)
+    time = Column(Text)
+    area = Column(Text)
+    apm = Column(Text)
+    surface_pressure = Column(Text)
+    lift_off = Column(Text)
+
+    __table_args__ = (UniqueConstraint("name", "measured_time"),)
+    children = relationship("RegularLt", uselist=False,
+                            back_populates="parent")
+
+    children2 = relationship("GasexLt", uselist=False,
+                             back_populates="parent")
+
+
+class IR(Base):
+    __tablename__ = 'ir'
+    id = Column(Integer, primary_key=True)
+    name = Column(Text)
+    wavenumbers = Column(Text)
+    transmission = Column(Text)
+
+
+class Raman(Base):
+    __tablename__ = 'raman'
+    id = Column(Integer, primary_key=True)
+    name = Column(Text)
+    wavenumbers = Column(Text)
+    intensity = Column(Text)
+
+
+class UV(Base):
+    __tablename__ = 'uv'
+    id = Column(Integer, primary_key=True)
+    name = Column(Text)
+    wavelength = Column(Text)
+    absorbance = Column(Text)
+
+
+class BoknisDatabaseParameters(Base):
+    __tablename__ = 'boknis_database_parameters'
+    id = Column(Integer, primary_key=True)
+    Name = Column(Text)
+    Latidude = Column(Text)
+    Longitude = Column(Text)
+    Time = Column(TIMESTAMP)
+    Cast = Column(Text)
+    Label = Column(Text)
+    depth = Column(Text)
+    chlorophyll_a = Column(Text)
+
+
+class GasexStationPlan(Base):
+    __tablename__ = 'gasex_station_plan'
+    id = Column(Integer, primary_key=True)
+    Leg = Column(Text)
+    time = Column(TIMESTAMP)
+    station_number = Column(Text)
+    Latidude = Column(Text)
+    Longitude = Column(Text)
+    hash = Column(Text)
+    salinity_surface = Column(Text)
+    salinity_depth = Column(Text)
+    temperature_surface = Column(Text)
+    temerature_depth = Column(Text)
+
+
+class Substances(Base):
+    __tablename__ = 'substances'
+    id = Column(Integer, primary_key=True)
+    name = Column(Text, unique=True)
+    abbreviation = Column(Text)
+    molar_mass = Column(Text)
+    sensitizing = Column(Text)
+
+    def __repr__(self):
+        out = f"""compound {self.name}, abbreviation {self.abbreviation}, molar mass: {self.molar_mass}, sensitizing: {self.sensitizing}"""
+        return out
+
+
+# calculated
 
 
 class BoknisEck(Base):
@@ -92,27 +183,6 @@ class BoknisEckData(Base):
     chlorophyll = Column(Float)
 
 
-class Lt(Base):
-    __tablename__ = 'lt'
-    id = Column(Integer, primary_key=True)
-    name = Column(Text)
-    type = Column(Text)
-    measured_time = Column(TIMESTAMP)
-    measurer = Column(Text)
-    time = Column(Text)
-    area = Column(Text)
-    apm = Column(Text)
-    surface_pressure = Column(Text)
-    lift_off = Column(Text)
-
-    __table_args__ = (UniqueConstraint("name", "measured_time"),)
-    children = relationship("RegularLt", uselist=False,
-                            back_populates="parent")
-
-    children2 = relationship("GasexLt", uselist=False,
-                            back_populates="parent")
-
-
 class RegularLt(Base):
     __tablename__ = 'regular_lt'
     id = Column(Integer, primary_key=True)
@@ -149,19 +219,6 @@ class GasexSurftens(Base):
     name = Column(Text)
     surface_tension = Column(Text)
     sample_id = Column(Integer, ForeignKey('samples.id'))
-
-
-class Substances(Base):
-    __tablename__ = 'substances'
-    id = Column(Integer, primary_key=True)
-    name = Column(Text, unique=True)
-    abbreviation = Column(Text)
-    molar_mass = Column(Text)
-    sensitizing = Column(Text)
-
-    def __repr__(self):
-        out = f"""compound {self.name}, abbreviation {self.abbreviation}, molar mass: {self.molar_mass}, sensitizing: {self.sensitizing}"""
-        return out
 
 
 class Stations(Base):
@@ -266,27 +323,3 @@ class Samples(Base):
     max_pressure = Column(Float)
     lift_off = Column(Float)
     surface_tension = Column(Float)
-
-
-class IR(Base):
-    __tablename__ = 'ir'
-    id = Column(Integer, primary_key=True)
-    name = Column(Text)
-    wavenumbers = Column(Text)
-    transmission = Column(Text)
-
-
-class Raman(Base):
-    __tablename__ = 'raman'
-    id = Column(Integer, primary_key=True)
-    name = Column(Text)
-    wavenumbers = Column(Text)
-    intensity = Column(Text)
-
-
-class UV(Base):
-    __tablename__ = 'uv'
-    id = Column(Integer, primary_key=True)
-    name = Column(Text)
-    wavelength = Column(Text)
-    absorbance = Column(Text)

@@ -9,6 +9,8 @@ ORM-part of SQlalchemy
 import datetime
 import os
 import re
+import timeit
+from itertools import chain
 from typing import Dict, List
 
 import numpy as np
@@ -18,12 +20,11 @@ from sqlalchemy.orm import sessionmaker
 
 from SFG.orm.importer import Importer
 from SFG.spectrum.averagers import SfgAverager, DummyPlotter
-from .orm_classes import *
-from ..spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
+from SFG.orm.orm_classes import *
+from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
 
 
 class DatabaseWizard:
-
     """The basic class for interaction with databases via sqlalchemy."""
 
     def __init__(self):
@@ -31,6 +32,10 @@ class DatabaseWizard:
         # SQL init
         self.engine = create_engine(f'sqlite:///{os.getcwd()}/orm.db', echo=False)
         self.Base = Base
+
+        # new stuff
+        self.be_params = BoknisDatabaseParameters
+        self.gasex_station_plan = GasexStationPlan
 
         # ORM object creation
         self.sfg = SFG
@@ -91,64 +96,28 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.persist_substances()
         self.persist_spectra()
 
-        self.write_sfg()
-        self.write_lt()
+        self.persist_sfg()
+        self.persist_lt()
 
         # commit
         self.session.commit()
 
-    def persist_sfg(self, dic):
-        """Generates an instance of the declarative sfg class and fills it with the data
-        obtained from the importer."""
-        temp_sfg = self.sfg()
-
-        for key in ("name", "measured_time", "measurer", "type"):
-            setattr(temp_sfg, key, dic[key])
-
-        for key in("wavenumbers", "sfg", "ir", "vis"):
-            _data = dic["data"][key]
-            temp = ImportDatabaseWizard.nparray_to_str(_data)
-            setattr(temp_sfg, key, temp)
-
-        return temp_sfg
-
-    def write_sfg(self):
+    def persist_sfg(self):
         """Iterates over all folders containing SFG files. Calls the persist_sfg() for each file."""
-        folders = self.importer.regular_sfg, self.importer.gasex_sfg, self.importer.boknis
+        folders = [*self.importer.regular_sfg, *self.importer.gasex_sfg, *self.importer.boknis]
+        self.engine.execute(
+            self.sfg.__table__.insert(),
+            folders
+        )
 
-        for folder in folders:
-            sfgs = []
-            for item in folder:
-                sfgs.append(self.persist_sfg(item))
-
-            self.session.add_all(sfgs)
-            self.session.commit()
-
-    def persist_lt(self, dic):
-        """Generates an instance of the declarative lt class and fills it with the data
-        obtained from the importer."""
-        temp_lt = self.lt()
-        for key in ("name", "measured_time", "type"):
-            setattr(temp_lt, key, dic[key])
-
-        for key in ("time", "area", "apm", "surface_pressure"):
-            _data = dic["data"][key]
-            temp = ImportDatabaseWizard.nparray_to_str(_data)
-            setattr(temp_lt, key, temp)
-
-        return temp_lt
-
-    def write_lt(self):
+    def persist_lt(self):
         """Iterates over all folders containing LT files. Calls the write_lt() for each file."""
-        folders = self.importer.gasex_lt, self.importer.lt
+        folders = [*self.importer.gasex_lt, *self.importer.lt]
 
-        for folder in folders:
-            lts = []
-            for item in folder:
-                lts.append(self.persist_lt(item))
-
-            self.session.add_all(lts)
-            self.session.commit()
+        self.engine.execute(
+            self.lt.__table__.insert(),
+            folders
+        )
 
     def persist_tensions(self):
         """Processes the surface tension dataset by iterating over the table rows,
@@ -718,8 +687,9 @@ class LtTokenizer:
 
 
 if __name__ == "__main__":
+    # P = PostProcessor(D)
+    # P.disconnect()
+    start = timeit.default_timer()
     D = ImportDatabaseWizard()
-    P = PostProcessor(D)
-    P.disconnect()
-
-# todo: take care about the "measurer" field in LT
+    end = timeit.default_timer()
+    print(end - start)
