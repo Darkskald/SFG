@@ -68,7 +68,7 @@ class Importer:
     def aux(self, file, func, sfg):
         creation_time = datetime.datetime.fromtimestamp(os.path.getmtime(str(file)))
         data = func(file)
-        dic = {"name": file.name, "type": file.parent.parent.name, "measured_time": creation_time, "data": data}
+        dic = {"name": file.stem, "type": file.parent.parent.name, "measured_time": creation_time, "data": data}
 
         if sfg:
             date = file.parent.name.split(" ")[0]
