@@ -38,9 +38,16 @@ class Importer:
 
         # surface tension, GasEx cruise data and Boknis Eck parameters
         self.gasex_tension = pd.read_csv(self.paths["gasex_tension"], sep=';', names=["name", "tension"])
-        self.station_plan = pd.read_excel(self.paths["station_plan"])
-        self.be_database_parameters = pd.read_csv(self.paths["be_database_parameters"], sep=",", header=0, engine='c')
-        self.water_samples = pd.read_excel(self.paths["water_samples"])
+
+        self.station_plan = pd.read_excel(self.paths["station_plan"]).rename(
+            columns={"Time [UTC]": "time", "Salinity surface": "salinity_surface", "Salinity depth": "salinity_depth",
+                     "Temperature surface": "temperature_surface", "Temperature depth": "temperature_depth",
+                     "Station Number": "station_number"})
+
+        self.be_database_parameters = pd.read_csv(self.paths["be_database_parameters"],
+                                                  sep=",", header=0, engine='c').rename(
+            columns={"Depth [m]": "depth", "chlora": "chlorophyll_a"})
+        self.water_samples = pd.read_excel(self.paths["water_samples"], header=2, sheet_name="Samples")
 
         # substances
         self.substances = self.import_substances(self.paths["substances"])
@@ -59,23 +66,35 @@ class Importer:
         return out
 
     def aux(self, file, func, sfg):
-        creation_time = datetime.datetime.fromtimestamp(file.stat().st_ctime)
+        creation_time = datetime.datetime.fromtimestamp(os.path.getmtime(str(file)))
         data = func(file)
-        dic = {"name": file.name, "type": file.parent.parent, "measured_time": creation_time, "data": data}
+        dic = {"name": file.name, "type": file.parent.parent.name, "measured_time": creation_time, "data": data}
 
         if sfg:
+            date = file.parent.name.split(" ")[0]
+            dic["name"] = f'{date}_{dic["name"]}'
+
+            for key in ("wavenumbers", "sfg", "ir", "vis"):
+                dic[key] = dic["data"][key]
+
             if "dppc" in dic["name"] or "DPPC" in dic["name"]:
                 if "boknis" in file.parent.parent.name:
                     dic["type"] = "boknis_ref"
                 else:
                     dic["type"] = "regular"
+        else:
+            for key in ("time", "area", "apm", "surface_pressure"):
+                dic[key] = dic["data"][key]
+
+        del dic['data']
         return dic
 
     @staticmethod
     def extract_sfg_file(file):
         """A function extracting the measurement data from a SFG spectral file """
         col_names = ['wavenumbers', 'sfg', 'ir', 'vis']
-        temp = pd.read_csv(file, sep="\t", usecols=[0, 1, 3, 4], names=col_names, encoding='utf8', engine='c')
+        temp = pd.read_csv(file, sep="\t", usecols=[0, 1, 3, 4], names=col_names, encoding='utf8', engine='c').apply(
+            Importer.nparray_to_str)
         return temp
 
     # LT
@@ -97,7 +116,8 @@ class Importer:
     def extract_lt_file(file):
         """A function extracting the measurement data from a SFG spectral file """
         col_names = ["time", "area", "apm", "surface_pressure"]
-        temp = pd.read_csv(file, comment="#", sep='\t', usecols=[1, 2, 3, 4], names=col_names, engine="c")
+        temp = pd.read_csv(file, comment="#", sep='\t', usecols=[1, 2, 3, 4], names=col_names, engine="c").apply(
+            Importer.nparray_to_str)
         return temp
 
     @staticmethod
@@ -128,6 +148,10 @@ class Importer:
         with open(file) as infile:
             return json.load(infile)
 
+    @staticmethod
+    def nparray_to_str(array):
+        return ",".join(array.values.astype(str))
+
 
 if __name__ == "__main__":
     os.chdir("..")
@@ -135,3 +159,4 @@ if __name__ == "__main__":
     i = Importer()
     end = timeit.default_timer()
     print(end - start)
+    print(i.station_plan.keys())
