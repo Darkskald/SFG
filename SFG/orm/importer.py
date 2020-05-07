@@ -131,7 +131,7 @@ class Importer:
     @staticmethod
     def extract_xy_spectra(file, sep='\t', skip=0):
         """Extracts the data from UV, IR and Raman measurements"""
-        temp = pd.read_csv(file, sep=sep, skiprows=skip, names=["x", "y"])
+        temp = pd.read_csv(file, sep=sep, skiprows=skip, names=["x", "y"]).apply(Importer.nparray_to_str)
         return {"name": file.name, "data": temp}
 
     def import_xy_spectra(self, spec_type):

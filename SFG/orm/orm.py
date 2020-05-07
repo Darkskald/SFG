@@ -94,7 +94,7 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.importer = Importer()
         self.persist_tensions()
         self.persist_substances()
-        self.persist_spectra()
+        self.persist_xy_spectra()
 
         self.persist_sfg()
         self.persist_lt()
@@ -135,7 +135,6 @@ class ImportDatabaseWizard(DatabaseWizard):
     def persist_substances(self):
         """Processes the subtances dataset by generating instances of the declarative substances
         class."""
-
         substances_orm = []
         for substance in self.importer.substances:
             s = Substances()
@@ -144,12 +143,29 @@ class ImportDatabaseWizard(DatabaseWizard):
             substances_orm.append(s)
         self.session.add_all(substances_orm)
 
-    def persist_spectra(self):
+    @staticmethod
+    def convert_xy_spectra(properties, spectrum_dict):
+        model = properties[0]()
+        # set the x value
+        setattr(model, properties[1], spectrum_dict["data"]["x"])
+        setattr(model, properties[2], spectrum_dict["data"]["y"])
+        return model
+
+    def persist_xy_spectra(self):
         """Generates declarative class instances for  UV, Raman and IR data."""
+        spec_properties = {"raman": [self.raman, "wavenumbers" "intensities"],
+                           "ir": [self.ir, "wavenumbers", "transmission"],
+                           "uv": [self.ir, "wavelength", "absorbace"]}
+        for key in spec_properties:
+            # get the desired spectra from the importer via the name
+            spec_models = [ImportDatabaseWizard.convert_xy_spectra(i) for i in getattr(self.importer, key)]
+            self.session.add_all(spec_models)
+            self.session.commit()
+
+        """
         raman = []
         ir = []
         uv = []
-
         for item in self.importer.raman:
             spec = self.raman()
             spec.name = item["name"]
@@ -173,6 +189,7 @@ class ImportDatabaseWizard(DatabaseWizard):
             spec.absorbance = ",".join(item["data"]["y"].values.astype(str))
             uv.append(spec)
         self.session.add_all(uv)
+        """
 
     # auxiliary functions
     @staticmethod
