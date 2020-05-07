@@ -98,13 +98,17 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.persist_lt()
 
         # station plan of the GasEx cruise, surface tensions and lift-off points
-        # self.importer.station_plan.to_sql('gasex_station_plan', con=self.engine, if_exists='append', index=False)
+        self.importer.station_plan.to_sql('gasex_station_plan', con=self.engine, if_exists='append', index=False)
         self.importer.gasex_tension.to_sql('gasex_surftens', con=self.engine, if_exists='append', index=False)
+        self.importer.gasex_lift_off.to_sql('gasex_lift_off', con=self.engine, if_exists='append', index=False)
 
         # import BoknisEck metadata
         self.importer.be_database_parameters.to_sql('boknis_database_parameters', con=self.engine, if_exists='append',
                                                     index=False)
 
+        # import the Boknis Eck table by Kristian
+        self.importer.water_samples.to_sql('boknis_water_samples', con=self.engine, if_exists='append',
+                                           index=False)
         # commit
         self.session.commit()
 
