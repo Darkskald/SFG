@@ -5,6 +5,7 @@ import timeit
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
+import re
 
 import pandas as pd
 
@@ -51,9 +52,9 @@ class Importer:
                                                   sep=",", header=0, engine='c').rename(
             columns={"Depth [m]": "depth", "chlora": "chlorophyll_a"}).drop(
             columns=['chlora_flag', 'Name', 'Longitude', 'Latitude'])
-        self.water_samples = pd.read_excel(self.paths["water_samples"], header=2, sheet_name="Samples")
 
-        # substances
+        self.water_samples = self.import_water_samples()
+
         self.substances = self.import_substances(self.paths["substances"])
 
     # SFG
@@ -152,9 +153,35 @@ class Importer:
         with open(file) as infile:
             return json.load(infile)
 
+    def import_water_samples(self):
+        temp = pd.read_excel(self.paths["water_samples"],
+                             header=2, sheet_name="Samples").drop(
+            columns=['Quick description: Result', 'Remarks', 'Additional information', 'Quadrant']).rename(
+            columns={'Sampler no.': 'sampler_no', 'Dips per sample': 'dips_per_sample',
+                     'Sample container type': 'sample_container_type',
+                     'Drainage time per dip (sec)\nSampling depth (m)': 'drainage_time_or_depth',
+                     'Volume collected (ml)': 'volume_collected',
+                     'Sea surface observational codes': 'sea_surface_observational_codes', 'Ship No.': 'ship_no',
+                     'Location No.': 'location_no', 'Speed (m/s)': 'wind_speed', 'Direction (°)': 'wind_direction',
+                     'Sample taken by': 'sampled_by', 'Period (m)': 'wave_period', 'Height (m)': 'wave_height',
+                     'Air': 'air_temperature', 'Water': 'water_temperature', 'Experiment dates': 'experiment_date',
+                     'Type of pollutant collected': 'pollutant_type', 'Date': 'sampling_date', 'Time': 'sampling_time'})
+        temp["experiment_date"] = temp["experiment_date"].apply(Importer.to_measurement_date)
+        return temp
+
     @staticmethod
     def nparray_to_str(array):
         return ",".join(array.values.astype(str))
+
+    @staticmethod
+    def to_measurement_date(string):
+        rg = re.compile("^SFG \\(\d{4}-\d{2}-\d{2}\\)$")
+        if re.match(rg, str(string)):
+            temp = string.strip("SFG (").strip(")").split("-")
+            d = datetime.date(int(temp[0]), int(temp[1]), int(temp[2]))
+        else:
+            d = None
+        return d
 
 
 if __name__ == "__main__":
@@ -163,4 +190,4 @@ if __name__ == "__main__":
     i = Importer()
     end = timeit.default_timer()
     print(end - start)
-    print(i.gasex_tension)
+    print(i.gasex_lift_off.keys())

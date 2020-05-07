@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Text, ForeignKey, UniqueConstraint, TIMESTAMP, \
-    Float, Date, Boolean
+    Float, Date, Boolean, Time
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -8,7 +8,6 @@ Base = declarative_base()
 
 
 # independent
-
 
 class SFG(Base):
     __tablename__ = "sfg"
@@ -26,6 +25,7 @@ class SFG(Base):
 
 class Lt(Base):
     __tablename__ = 'lt'
+    __table_args__ = (UniqueConstraint("name", "measured_time"),)
     id = Column(Integer, primary_key=True)
     name = Column(Text)
     type = Column(Text)
@@ -36,7 +36,7 @@ class Lt(Base):
     surface_pressure = Column(Text)
     lift_off = Column(Text)
 
-    __table_args__ = (UniqueConstraint("name", "measured_time"),)
+
     children = relationship("RegularLt", uselist=False,
                             back_populates="parent")
 
@@ -90,7 +90,35 @@ class GasexStationPlan(Base):
     salinity_surface = Column(Text)
     salinity_depth = Column(Text)
     temperature_surface = Column(Text)
-    temerature_depth = Column(Text)
+    temperature_depth = Column(Text)
+
+
+class BoknisWaterSamples(Base):
+    __tablename__ = 'boknis_water_samples'
+    id = Column(Integer, primary_key=True)
+    Sample = Column(Text)
+    sampler_no = Column(Integer)
+    dips_per_sample = Column(Integer)
+    sample_container_type = Column(Integer)
+    drainage_time_or_depth = Column(Integer)
+    volume_collected = Column(Integer)
+    sea_surface_observational_codes = Column(Text)
+    sampling_date = Column(Date)
+    sampling_time = Column(Time)
+    ship_no = Column(Integer)
+    location_no = Column(Integer)
+    Latitude = Column(Float)
+    Longitude = Column(Float)
+    wind_speed = Column(Float)
+    wind_direction = Column(Text)
+    wave_period = Column(Text)
+    wave_height = Column(Text)
+    air_temperature = Column(Float)
+    water_temperature = Column(Float)
+    pollutant_type = Column(Float)
+    sampled_by = Column(Text)
+    Storage = Column(Text)
+    experiment_date = Column(Date)
 
 
 class Substances(Base):
@@ -104,6 +132,15 @@ class Substances(Base):
     def __repr__(self):
         out = f"""compound {self.name}, abbreviation {self.abbreviation}, molar mass: {self.molar_mass}, sensitizing: {self.sensitizing}"""
         return out
+
+
+class LiftOff(Base):
+    __tablename__ = 'gasex_lift_off'
+    id = Column(Integer, primary_key=True)
+    sample_id = Column(Integer, ForeignKey('samples.id'))
+    name = Column(Text)
+    lift_off = Column(Float)
+    sample = relationship("Samples")
 
 
 # calculated
@@ -320,3 +357,5 @@ class Samples(Base):
     max_pressure = Column(Float)
     lift_off = Column(Float)
     surface_tension = Column(Float)
+    # todo: design decision: make a convenience table or related different tables?
+    # child = relationship("Child", uselist=False, back_populates="parent")
