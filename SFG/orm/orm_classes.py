@@ -71,9 +71,6 @@ class UV(Base):
 class BoknisDatabaseParameters(Base):
     __tablename__ = 'boknis_database_parameters'
     id = Column(Integer, primary_key=True)
-    Name = Column(Text)
-    Latidude = Column(Text)
-    Longitude = Column(Text)
     Time = Column(TIMESTAMP)
     Cast = Column(Text)
     Label = Column(Text)
@@ -87,7 +84,7 @@ class GasexStationPlan(Base):
     Leg = Column(Text)
     time = Column(TIMESTAMP)
     station_number = Column(Text)
-    Latidude = Column(Text)
+    Latitude = Column(Text)
     Longitude = Column(Text)
     hash = Column(Text)
     salinity_surface = Column(Text)
