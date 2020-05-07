@@ -27,17 +27,20 @@ class Importer:
         self.regular_sfg, self.gasex_sfg, self.boknis = data
 
         # lts
-        self.lt = self.import_lt(self.paths["lt"])
-        self.gasex_lt = self.import_lt(self.paths["gasex_lt"])
+        p = Pool(2)
+        data = p.map(self.import_lt, [self.paths["lt"], self.paths["gasex_lt"]])
+        p.close()
+        self.lt, self.gasex_lt = data
         self.gasex_lift_off = self.import_liftoffs(self.paths["gasex_lift_off"])
 
         # spectra
-        self.ir = self.import_xy_spectra("ir")
-        self.uv = self.import_xy_spectra("uv")
-        self.raman = self.import_xy_spectra("raman")
+        p = Pool(3)
+        data = map(self.import_xy_spectra, ["ir", "uv", "raman"])
+        p.close()
+        self.ir, self.uv, self.raman = data
 
         # surface tension, GasEx cruise data and Boknis Eck parameters
-        self.gasex_tension = pd.read_csv(self.paths["gasex_tension"], sep=';', names=["name", "tension"])
+        self.gasex_tension = pd.read_csv(self.paths["gasex_tension"], sep=';', names=["name", "surface_tension"])
 
         self.station_plan = pd.read_excel(self.paths["station_plan"]).rename(
             columns={"Time [UTC]": "time", "Salinity surface": "salinity_surface", "Salinity depth": "salinity_depth",
@@ -46,7 +49,8 @@ class Importer:
 
         self.be_database_parameters = pd.read_csv(self.paths["be_database_parameters"],
                                                   sep=",", header=0, engine='c').rename(
-            columns={"Depth [m]": "depth", "chlora": "chlorophyll_a"})
+            columns={"Depth [m]": "depth", "chlora": "chlorophyll_a"}).drop(
+            columns=['chlora_flag', 'Name', 'Longitude', 'Latitude'])
         self.water_samples = pd.read_excel(self.paths["water_samples"], header=2, sheet_name="Samples")
 
         # substances
@@ -159,4 +163,4 @@ if __name__ == "__main__":
     i = Importer()
     end = timeit.default_timer()
     print(end - start)
-    print(i.station_plan.keys())
+    print(i.gasex_tension)

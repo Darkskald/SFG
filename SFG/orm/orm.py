@@ -60,7 +60,7 @@ class DatabaseWizard:
 
         self.ir = IR
         self.raman = Raman
-        self.UV = UV
+        self.uv = UV
 
         # SQL creation
         self.Base.metadata.create_all(self.engine)
@@ -92,12 +92,18 @@ class ImportDatabaseWizard(DatabaseWizard):
         super().__init__()
         # initial import from raw data
         self.importer = Importer()
-        self.persist_tensions()
         self.persist_substances()
         self.persist_xy_spectra()
-
         self.persist_sfg()
         self.persist_lt()
+
+        # station plan of the GasEx cruise, surface tensions and lift-off points
+        # self.importer.station_plan.to_sql('gasex_station_plan', con=self.engine, if_exists='append', index=False)
+        self.importer.gasex_tension.to_sql('gasex_surftens', con=self.engine, if_exists='append', index=False)
+
+        # import BoknisEck metadata
+        self.importer.be_database_parameters.to_sql('boknis_database_parameters', con=self.engine, if_exists='append',
+                                                    index=False)
 
         # commit
         self.session.commit()
@@ -122,15 +128,8 @@ class ImportDatabaseWizard(DatabaseWizard):
     def persist_tensions(self):
         """Processes the surface tension dataset by iterating over the table rows,
          creating instances of the declarative class and filling it with the data. """
-        tensions = []
-
-        for _, row in self.importer.gasex_tension.iterrows():
-            tension = self.gasex_surftens()
-            tension.name = row["name"]
-            tension.surface_tension = row["tension"]*0.99703
-            tensions.append(tension)
-
-        self.session.add_all(tensions)
+        # todo: what does this factor mean?tension.surface_tension = row["tension"] * 0.99703
+        #self.session.add_all(tensions)
 
     def persist_substances(self):
         """Processes the subtances dataset by generating instances of the declarative substances
@@ -143,58 +142,28 @@ class ImportDatabaseWizard(DatabaseWizard):
             substances_orm.append(s)
         self.session.add_all(substances_orm)
 
-    @staticmethod
-    def convert_xy_spectra(properties, spectrum_dict):
-        model = properties[0]()
-        # set the x value
-        setattr(model, properties[1], spectrum_dict["data"]["x"])
-        setattr(model, properties[2], spectrum_dict["data"]["y"])
-        return model
-
     def persist_xy_spectra(self):
         """Generates declarative class instances for  UV, Raman and IR data."""
-        spec_properties = {"raman": [self.raman, "wavenumbers" "intensities"],
+        spec_properties = {"raman": [self.raman, "wavenumbers", "intensities"],
                            "ir": [self.ir, "wavenumbers", "transmission"],
-                           "uv": [self.ir, "wavelength", "absorbace"]}
+                           "uv": [self.uv, "wavelength", "absorbance"]}
         for key in spec_properties:
             # get the desired spectra from the importer via the name
-            spec_models = [ImportDatabaseWizard.convert_xy_spectra(i) for i in getattr(self.importer, key)]
+            spec_models = [ImportDatabaseWizard.convert_xy_spectra(i, spec_properties[key]) for i in
+                           getattr(self.importer, key)]
+
             self.session.add_all(spec_models)
             self.session.commit()
 
-        """
-        raman = []
-        ir = []
-        uv = []
-        for item in self.importer.raman:
-            spec = self.raman()
-            spec.name = item["name"]
-            spec.wavenumbers = ",".join(item["data"]["x"].values.astype(str))
-            spec.intensity = ",".join(item["data"]["y"].values.astype(str))
-            raman.append(spec)
-        self.session.add_all(raman)
-
-        for item in self.importer.ir:
-            spec = self.ir()
-            spec.name = item["name"]
-            spec.wavenumbers = ",".join(item["data"]["x"].values.astype(str))
-            spec.transmission = ",".join(item["data"]["y"].values.astype(str))
-            ir.append(spec)
-        self.session.add_all(ir)
-
-        for item in self.importer.uv:
-            spec = self.UV()
-            spec.name = item["name"]
-            spec.wavelength = ",".join(item["data"]["x"].values.astype(str))
-            spec.absorbance = ",".join(item["data"]["y"].values.astype(str))
-            uv.append(spec)
-        self.session.add_all(uv)
-        """
-
-    # auxiliary functions
+    # auxiliary functions (static)
     @staticmethod
-    def nparray_to_str(array):
-        return ",".join(array.values.astype(str))
+    def convert_xy_spectra(spectrum_dict, properties):
+        model = properties[0]()
+        # set the x value
+        setattr(model, 'name', spectrum_dict["name"])
+        setattr(model, properties[1], spectrum_dict["data"]["x"])
+        setattr(model, properties[2], spectrum_dict["data"]["y"])
+        return model
 
 
 class PostProcessor:
@@ -290,7 +259,7 @@ class PostProcessor:
     def add_regular_info(self):
         """This function iterates over all regular type SFG objects, performs the name refinement
         provided in refine_regular() and persists this information in the regular_sfg table."""
-        q = self.db_wizard.session.query(self.db_wizard.sfg).filter\
+        q = self.db_wizard.session.query(self.db_wizard.sfg).filter \
             (self.db_wizard.sfg.type == "regular")
         reg_specs = []
 
@@ -312,7 +281,7 @@ class PostProcessor:
     def add_regular_lt_info(self):
         """This function iterates over all regular type SFG objects, performs the name refinement
         provided in refine_regular() and persists this information in the regular_sfg table."""
-        q = self.db_wizard.session.query(self.db_wizard.lt).filter\
+        q = self.db_wizard.session.query(self.db_wizard.lt).filter \
             (self.db_wizard.lt.type == "lt")
         reg_specs = []
 
@@ -400,7 +369,7 @@ class PostProcessor:
 
         elif location == "r":
             dic["sample_type"] = hash[6]
-            if dic["sample_type"] in ("p","P"):
+            if dic["sample_type"] in ("p", "P"):
                 dic["sample_number"] = hash[7]
                 dic["sample_type"] = "p"
 
@@ -427,7 +396,7 @@ class PostProcessor:
 
     @staticmethod
     def get_station_from_sample(sample_hash):
-        temp = sample_hash[:4]+sample_hash[5]
+        temp = sample_hash[:4] + sample_hash[5]
         return temp
 
     # gasex management
@@ -436,10 +405,10 @@ class PostProcessor:
         about corresponding samples and stations and matches them to their ids. In the course of this
         method, the stations, samples, gasex_lt and gasex_sfg tables are populated."""
 
-        q_sfg = self.db_wizard.session.query(self.db_wizard.sfg)\
+        q_sfg = self.db_wizard.session.query(self.db_wizard.sfg) \
             .filter(self.db_wizard.sfg.type == "gasex_sfg")
 
-        q_lt = self.db_wizard.session.query(self.db_wizard.lt)\
+        q_lt = self.db_wizard.session.query(self.db_wizard.lt) \
             .filter(self.db_wizard.lt.type == "gasex_lt")
 
         for dataset in q_sfg, q_lt:
@@ -471,7 +440,7 @@ class PostProcessor:
                     self.db_wizard.session.rollback()
 
                 finally:
-                    sample_id = self.db_wizard.session.query(self.db_wizard.samples)\
+                    sample_id = self.db_wizard.session.query(self.db_wizard.samples) \
                         .filter(self.db_wizard.samples.sample_hash == hashdic["sample_hash"])
 
                     if dataset == q_lt:
@@ -492,7 +461,7 @@ class PostProcessor:
         for sample in q:
             station_hash = self.get_station_from_sample(sample.sample_hash)
 
-            q_stat = self.db_wizard.session.query(self.db_wizard.stations)\
+            q_stat = self.db_wizard.session.query(self.db_wizard.stations) \
                 .filter(self.db_wizard.stations.hash == station_hash).all()[0]
             sample.station_id = q_stat.id
         self.db_wizard.session.commit()
@@ -517,7 +486,7 @@ class PostProcessor:
 
         for dic in self.db_wizard.importer.salinity:
             try:
-                q = self.db_wizard.session.query(self.db_wizard.stations)\
+                q = self.db_wizard.session.query(self.db_wizard.stations) \
                     .filter(self.db_wizard.stations.hash == dic["hash"]).all()[0]
 
                 for key in dic:
@@ -533,12 +502,12 @@ class PostProcessor:
         """A function adding the manually determined lift-off points to the gasex_lt table."""
         for _, lift_off in self.db_wizard.importer.gasex_lift_off.iterrows():
             try:
-                q = self.db_wizard.session.query(self.db_wizard.lt)\
+                q = self.db_wizard.session.query(self.db_wizard.lt) \
                     .filter(self.db_wizard.lt.name == lift_off["name"]).all()[0]
                 q.lift_off = lift_off["lift_off"]
             except IndexError:
                 with open("corrupt.txt", "a") as logfile:
-                    logfile.write(lift_off["name"]+"\n")
+                    logfile.write(lift_off["name"] + "\n")
 
         self.db_wizard.session.commit()
 
@@ -647,10 +616,7 @@ class WorkDatabaseWizard(DatabaseWizard):
             for index, item in enumerate(sub_speclist):
                 DummyPlotter(item, save=True, savedir=dir_name, savename=f'preview{index}').plot_all()
 
-
-
     # TODO: direct conversion from regular to Sfg orm object
-
 
     @staticmethod
     def to_array(string) -> np.ndarray:
@@ -680,7 +646,6 @@ class WorkDatabaseWizard(DatabaseWizard):
 
 
 class LtTokenizer:
-
     regex = {
         "sample_no": re.compile(r'x\d'),
         "measurement_no": re.compile(r'#\d'),
