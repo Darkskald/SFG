@@ -10,18 +10,17 @@ import datetime
 import os
 import re
 import timeit
-from itertools import chain
-from typing import Dict, List
+from functools import partial
+from typing import Dict
 
-import numpy as np
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from SFG.orm.importer import Importer
-from SFG.spectrum.averagers import SfgAverager, DummyPlotter
 from SFG.orm.orm_classes import *
-from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
+from SFG.orm.parsing import refine_regular_lt, get_hashes, sample_hash_to_station_hash, process_station_hash, \
+    process_sample_hash, get_station_type, refine_regular
 
 
 class DatabaseWizard:
@@ -34,30 +33,35 @@ class DatabaseWizard:
         self.Base = Base
 
         # new stuff
-        self.be_params = BoknisDatabaseParameters
-        self.gasex_station_plan = GasexStationPlan
+        # todo: order the orm classes and put the corresponding headings
 
-        # ORM object creation
+        # SFG orm
         self.sfg = SFG
         self.regular_sfg = RegularSfg
+        self.boknis_eck = BoknisEck
 
+        # LT orm
         self.lt = Lt
         self.regular_lt = RegularLt
 
-        self.boknis_eck = BoknisEck
-
+        # BE specific
+        # todo measurement days for all SFG
         self.measurement_days = MeasurementDay
         self.be_data = BoknisEckData
+        self.be_params = BoknisDatabaseParameters
+        self.be_water_samples = BoknisWaterSamples
 
-        self.substances = Substances
-
+        # GasEx specific
         self.stations = Stations
         self.station_stats = StationStat
         self.samples = Samples
         self.gasex_surftens = GasexSurftens
         self.gasex_lt = GasexLt
         self.gasex_sfg = GasExSfg
+        self.gasex_station_plan = GasexStationPlan
 
+        # Misc
+        self.substances = Substances
         self.ir = IR
         self.raman = Raman
         self.uv = UV
@@ -109,8 +113,16 @@ class ImportDatabaseWizard(DatabaseWizard):
         # import the Boknis Eck table by Kristian
         self.importer.water_samples.to_sql('boknis_water_samples', con=self.engine, if_exists='append',
                                            index=False)
+
+        # todo this is strange
+        self.persist_stations(self.get_stations_and_samples())
+
+        self.add_regular_sfg()
+
         # commit
         self.session.commit()
+
+    # import of the raw data
 
     def persist_sfg(self):
         """Iterates over all folders containing SFG files. Calls the persist_sfg() for each file."""
@@ -159,6 +171,108 @@ class ImportDatabaseWizard(DatabaseWizard):
             self.session.add_all(spec_models)
             self.session.commit()
 
+    # population of the GasEx-related tables
+
+    def get_stations_and_samples(self) -> Dict[str, str]:
+        """This function creates the station and sample tables from GasEx from the names of the SFG spectra
+        and LT isotherms"""
+
+        # Step1: fetching the name columns and creating sets for stations and samples by parsing the names
+        gasex_sfg_names = self.session.query(self.sfg.name).filter(self.sfg.type == 'gasex_sfg').all()
+        gasex_sfg_names = [i for i, in gasex_sfg_names]
+        gasex_lt_names = self.session.query(self.lt.name).filter(self.lt.type == 'gasex_lt').all()
+        gasex_lt_names = [i for i, in gasex_lt_names]
+        names = list(map(get_hashes, (gasex_sfg_names + gasex_lt_names)))
+
+        stations = set(i["station_hash"] for i in names)
+        stations = {i: [] for i in stations}
+
+        # Step 2: map the samples to the stations
+        samples = set(i["sample_hash"] for i in names)
+        for s in samples:
+            stations[sample_hash_to_station_hash(s)].append(s)
+
+        return stations
+
+    def persist_stations(self, station_dict):
+        id_counter = 1
+        for key in station_dict:
+            station_object = self.stations()
+            station_object.id = id_counter
+            station_object.hash = key
+            meta_data = process_station_hash(key)
+            station_object.type = get_station_type(station_dict[key][0])
+            for meta in meta_data:
+                setattr(station_object, meta, meta_data[meta])
+
+            sample_objects = list(
+                map(partial(self.create_sample_object, station_id=station_object.id), station_dict[key]))
+            self.session.add_all(sample_objects)
+            self.session.add(station_object)
+            self.session.commit()
+            id_counter += 1
+
+    def create_sample_object(self, sample, station_id) -> Samples:
+        sample_object = self.samples()
+        sample_object.station_id = station_id
+        sample_object.sample_hash = sample
+        meta_data = process_sample_hash(sample)
+        for meta in meta_data:
+            setattr(sample_object, meta, meta_data[meta])
+        return sample_object
+
+    # population of regular LT and SFG tables
+
+    def add_regular_sfg(self):
+        """This function iterates over all regular type SFG objects, performs the name refinement
+        provided in refine_regular() and persists this information in the regular_sfg table."""
+        names = self.session.query(self.sfg.id, self.sfg.name).filter(self.sfg.type == 'regular').all()
+        regular_sfg_objects = []
+        for id, name in names:
+            data = refine_regular(name, self.get_substances())
+            regular_sfg_objects.append(self.create_regular_sfg_object(name, data, id))
+
+        self.session.add_all(regular_sfg_objects)
+        self.session.commit()
+
+        """
+        q = self.session.query(self.sfg).filter \
+            (self.sfg.type == "regular")
+
+        reg_specs = []
+        
+        # todo: hier sollte die Klasse einfach einen Konstruktor bekommen das ist eleganter
+        for item in q:
+            name = item.name
+            meta_info = refine_regular(name, self.importer.substances)
+            reg_spec = self.regular_sfg()
+            reg_spec.name = name
+            reg_spec.specid = item.id
+
+            for key in meta_info:
+                setattr(reg_spec, key, meta_info[key])
+
+            reg_specs.append(reg_spec)
+
+        self.session.add_all(reg_specs)
+        self.session.commit()
+        """
+
+    def create_regular_sfg_object(self, name, data, sfg_id):
+        regular_sfg_obect = self.regular_sfg(**data)
+        regular_sfg_obect.name = name
+        regular_sfg_obect.specid = sfg_id
+        return regular_sfg_obect
+
+    def get_substances(self):
+        """This function queries the db_wizard's session for the substances to use this information
+        for the regular_refine() method."""
+        substances = {}
+        q = self.session.query(self.substances)
+        for item in q:
+            substances[item.abbreviation] = item.sensitizing
+        return substances
+
     # auxiliary functions (static)
     @staticmethod
     def convert_xy_spectra(spectrum_dict, properties):
@@ -168,6 +282,21 @@ class ImportDatabaseWizard(DatabaseWizard):
         setattr(model, properties[1], spectrum_dict["data"]["x"])
         setattr(model, properties[2], spectrum_dict["data"]["y"])
         return model
+
+
+"""
+letzlich passieren hier mehrere Dinge: die Namen werden geparst, die Metadaten extrahiet und die Metadaten
+anschließend persistiert. Es wäre eine Überlegung wert, diesen Schritt in den Importer zu verlegen, da die Daten
+dort ohnehin im RAM vorgehalten werden. Das Tokenizen mus auf jeen Fall von dem Persistieren klar getrennt werden
+
+--> Hier muss eindeutig eine klare uns vernünftige Architektur her
+
+--> das Parsing braucht Zugriff auf die Substances
+
+--> das Persisting kann weiterhin im PostProcessor passieren
+
+--> das Parsing kann irgendwie standardisiert weren
+"""
 
 
 class PostProcessor:
@@ -189,76 +318,6 @@ class PostProcessor:
             self.add_salinity()
             self.add_lift_off()
 
-    # sfg refinement
-
-    def refine_regular(self, namestring):
-        """This function parses the names of the spectra in the sfg table with the type "regular" in
-        order to extract additional metainformation. It makes use of regular expressions."""
-
-        process_list = namestring.split("_")
-        sample = re.compile('^x\d{1,2}$')
-        measurement = re.compile('^#\d{1,2}$')
-        photolysis = re.compile('^\d{1,3}p$')
-        spread_vol = re.compile('^\d{1,2}(.\d{1,2})?$')
-        conc = re.compile('^\d{1,2}mM$')
-        ratio_reg = re.compile('^\dto\d$')
-
-        date = datetime.date(int(process_list[0][0:4]), int(process_list[0][4:6]),
-                             int(process_list[0][6:]))
-        surf = None
-        sens = None
-        surf_v = None
-        sens_v = None
-        surf_c = None
-        sens_c = None
-        sample_nr = None
-        measurement_nr = None
-        photo = None
-        ratio = None
-        comment = None
-
-        for item in process_list[1:]:
-
-            if item in self.substances:
-                if surf is None:
-                    surf = item
-                else:
-                    if self.substances[item] == "y":
-                        sens = item
-
-            elif re.match(sample, item):
-                sample_nr = item
-
-            elif re.match(measurement, item):
-                measurement_nr = item
-
-            elif re.match(photolysis, item):
-                photo = item
-
-            elif re.match(conc, item):
-
-                if surf_c is None:
-                    surf_c = item
-                else:
-                    sens_c = item
-
-            elif re.match(spread_vol, item):
-
-                if surf_v is None:
-                    surf_v = item
-                else:
-                    sens_v = item
-
-            elif re.match(ratio_reg, item):
-                ratio = item
-
-            else:
-                comment = item
-
-        return {"sensitizer": sens, "date": date, "sample_no": sample_nr, "measurement_no": measurement_nr,
-                "surfactant_conc": surf_c, "sensitizer_conc": sens_c, "surfactant": surf, "surfactant_vol": surf_v,
-                "sensitizer_vol": sens_v, "comment": comment, "full_name": namestring,
-                "photolysis": photo, "ratio": ratio}
 
     def add_regular_info(self):
         """This function iterates over all regular type SFG objects, performs the name refinement
@@ -266,7 +325,7 @@ class PostProcessor:
         q = self.db_wizard.session.query(self.db_wizard.sfg).filter \
             (self.db_wizard.sfg.type == "regular")
         reg_specs = []
-
+        # todo: hier sollte die Klasse einfach einen Konstruktor bekommen das ist eleganter
         for item in q:
             name = item.name
             meta_info = self.refine_regular(name)
@@ -291,7 +350,7 @@ class PostProcessor:
 
         for item in q:
             name = item.name
-            meta_info = LtTokenizer.process(name)
+            meta_info = refine_regular_lt(name)
             reg_spec = self.db_wizard.regular_lt()
             reg_spec.name = name
             reg_spec.ltid = item.id
@@ -309,99 +368,10 @@ class PostProcessor:
         self.db_wizard.session.commit()
 
     # auxiliary functions
-    def get_substances(self):
-        """This function queries the db_wizard's session for the substances to use this information
-        for the regular_refine() method."""
-        substances = {}
-        q = self.db_wizard.session.query(self.db_wizard.substances)
-        for item in q:
-            substances[item.abbreviation] = item.sensitizing
-        return substances
+
 
     # natural sample name processing
-    @staticmethod
-    def get_hashes(name):
-        """ Extract the hashes from file names. Remember to strip the file ending as well as  the leading LT or date
-        before passing namestring to this function."""
 
-        temp = name.split("_")
-
-        station_hash = temp[0] + temp[1][1]
-
-        try:
-            if temp[1][0] != "c":
-                sample_hash = temp[0] + temp[1] + temp[2] + temp[3]
-
-            else:
-                sample_hash = temp[0] + temp[1] + "deep"
-
-            dic = PostProcessor.process_sample_hash(sample_hash)
-
-            dic["name"] = name
-            dic["station_hash"] = station_hash
-            dic["sample_hash"] = sample_hash
-        except IndexError:
-            print(temp)
-
-        return dic
-
-    @staticmethod
-    def process_station_hash(hash):
-        date = hash[:4]
-        date = datetime.date(2018, int(date[0:2]), int(date[2:]))
-        temp = hash[4]
-
-        if temp in ("c", "r"):
-            stype = "big"
-        else:
-            stype = "small"
-
-        number = hash[5]
-
-        return {"date": date, "station_type": stype, "station_number": number}
-
-    @staticmethod
-    def process_sample_hash(hash):
-        dic = PostProcessor.process_station_hash(hash)
-        location = hash[4]
-        dic["location"] = location
-
-        if location == "c":
-            if "deep" in hash or "low" in hash:
-                dic["sample_type"] = "deep"
-                dic["sample_number"] = "-"
-
-        elif location == "r":
-            dic["sample_type"] = hash[6]
-            if dic["sample_type"] in ("p", "P"):
-                dic["sample_number"] = hash[7]
-                dic["sample_type"] = "p"
-
-            elif dic["sample_type"] == "s":
-                dic["sample_number"] = hash[8]
-
-        elif location == "a":
-            dic["sample_type"] = hash[6]
-            dic["sample_number"] = hash[8]
-
-        else:
-            raise ValueError(f"Invalid sample hash {hash}")
-
-        return dic
-
-    @staticmethod
-    def generate_hashdic(namestring):
-
-        temp = namestring.split("_")[1:]
-        temp = "_".join(temp)
-
-        dic = PostProcessor.get_hashes(temp)
-        return dic
-
-    @staticmethod
-    def get_station_from_sample(sample_hash):
-        temp = sample_hash[:4] + sample_hash[5]
-        return temp
 
     # gasex management
     def populate_gasex_tables(self):
@@ -421,6 +391,7 @@ class PostProcessor:
 
                 hashdic = PostProcessor.generate_hashdic(item.name)
 
+                # todo: das ist absoluter Schwachsinn und frisst Ressourcen ohne Ende! --> Vorsortierung
                 try:
                     station = self.db_wizard.stations()
                     station.hash = hashdic["station_hash"]
@@ -518,158 +489,6 @@ class PostProcessor:
     def disconnect(self):
         self.db_wizard.session.close()
 
-
-class WorkDatabaseWizard(DatabaseWizard):
-
-    def __init__(self):
-        super().__init__()
-        self.session.commit()
-
-    def get_dppc_references(self) -> Dict[datetime.date, float]:
-        """A function querying the sfg table for DPPC reference spectra, generating the corresponding objects,
-        calculating the CH integral making use of the SfgAverager class and returning a dictionary of date objects
-        with the corresponding intensities."""
-        dates = {}
-
-        q_dppc = self.session.query(self.sfg). \
-            filter(self.sfg.name.op('GLOB')('*DPPC_*.*')). \
-            filter(self.sfg.measured_time.between('2018-01-01', '2018-12-31')) \
-            .filter(~self.sfg.name.contains('ppp'))
-
-        for item in q_dppc:
-            s = WorkDatabaseWizard.construct_sfg(item)
-            _date = s.meta["time"].date()
-            if _date not in dates:
-                dates[_date] = [s]
-            else:
-                dates[_date].append(s)
-
-        for item in dates:
-            dates[item] = SfgAverager(dates[item]).integral
-
-        # get rid of days where no DPPC spectra were recorded
-        dates = {k: v for k, v in dates.items() if not np.isnan(v)}
-
-        return dates
-
-    # auxiliary functions
-
-    def fetch_by_specid(self, specid, sfg=True) -> BaseSpectrum:
-        """Fetches the SFG spectrum with the id specid from the database and retuns it as an SFG spectrum object."""
-        if sfg:
-            spec = self.session.query(self.sfg).filter(self.sfg.id == specid).one()
-            return self.construct_sfg(spec)
-        else:
-            lt = self.session.query(self.lt).filter(self.lt.id == specid).one()
-            return self.construct_lt(lt)
-
-    def get_spectrum_by_name(self, name) -> SfgSpectrum:
-        """Returns the SFG spectrum object for a given file name"""
-        temp = self.session.query(self.sfg).filter(self.sfg.name == name).one()
-        return self.construct_sfg(temp)
-
-    def get_spectrum_by_property(self, property_, target) -> SfgSpectrum:
-        """A convenience function to collect spectra based on properties like surfactant, sensitizer etc."""
-        temp = self.session.query(self.regular_sfg). \
-            filter(getattr(self.regular_sfg, property_) == target).all()
-        out = []
-        for item in temp:
-            out.append(self.get_spectrum_by_name(item.name))
-        return out
-
-    def convert_regular_to_lt(self, reg_lt) -> LtIsotherm:
-        """Converts a RegularLt object directly into the Lt object of the spectrum module."""
-        lt = self.session.query(self.lt).filter(self.lt.id == reg_lt.ltid).one()
-        return WorkDatabaseWizard.construct_lt(lt)
-
-    def convert_regular_to_sfg(self, reg_sfg) -> SfgSpectrum:
-        """Converts a RegularSfg object directly into the Sfg object of the spectrum module.
-        It remains the former regular_sfg object as part of the new spectrum's meta attribute
-        for access of the metadata stored in the regular_sfg object."""
-        sfg = self.session.query(self.sfg).filter(self.sfg.id == reg_sfg.specid).one()
-        temp = WorkDatabaseWizard.construct_sfg(sfg)
-        temp.meta["regular"] = reg_sfg
-        return temp
-
-    def map_data_to_dates(self, data) -> Dict[datetime.date, List[BaseSpectrum]]:
-        """This function maps a list of spectra to their corresponding date of measurement
-        """
-        dates = {}
-        for item in data:
-            sampling_date = item.measured_time.date()
-            if sampling_date not in dates:
-                dates[sampling_date] = [item]
-            else:
-                dates[sampling_date].append(item)
-        return dates
-
-    def origin_preview_date(self, surfacant="NA", out_dir="out", max_size=6):
-        temp = self.session.query(self.regular_sfg).filter(self.regular_sfg.surfactant == surfacant).all()
-        temp = [self.session.query(self.sfg).filter(self.sfg.id == i.specid).one() for i in temp]
-        dates = self.map_data_to_dates(temp)
-        for key in dates:
-            dir_name = out_dir + "/" + str(key)
-            os.mkdir(dir_name)
-            sfg_spectra = [self.construct_sfg(i) for i in dates[key]]
-
-            for spec in sfg_spectra:
-                df = spec.convert_to_export_dataframe()
-                df.to_csv(f'{dir_name}/' + spec.name + ".csv", index=False, sep=";")
-
-            sub_speclist = [sfg_spectra[i:i + max_size] for i in range(0, len(sfg_spectra), max_size)]
-            for index, item in enumerate(sub_speclist):
-                DummyPlotter(item, save=True, savedir=dir_name, savename=f'preview{index}').plot_all()
-
-    # TODO: direct conversion from regular to Sfg orm object
-
-    @staticmethod
-    def to_array(string) -> np.ndarray:
-        """Converts the raw data stored as strings back to numpy float ndarrays."""
-        try:
-            return np.fromstring(string, sep=",")
-        except TypeError:
-            return np.nan
-
-    @staticmethod
-    def construct_sfg(or_object) -> SfgSpectrum:
-        """A function constructing the SFG object from the orm declarative class."""
-        meta = {"name": or_object.name, "time": or_object.measured_time}
-        args = ("wavenumbers", "sfg", "vis", "ir")
-        args = [WorkDatabaseWizard.to_array(getattr(or_object, i)) for i in args]
-        s = SfgSpectrum(*args, meta)
-        return s
-
-    @staticmethod
-    def construct_lt(or_object) -> LtIsotherm:
-        """A function constructing the LT object from the orm declarative class."""
-        args = (or_object.name, or_object.measured_time)
-        add_args = ["time", "area", "apm", "surface_pressure", "lift_off"]
-        add_args = [WorkDatabaseWizard.to_array(getattr(or_object, i)) for i in add_args]
-        l = LtIsotherm(args[0], args[1], *add_args)
-        return l
-
-
-class LtTokenizer:
-    regex = {
-        "sample_no": re.compile(r'x\d'),
-        "measurement_no": re.compile(r'#\d'),
-        "ratio": re.compile(r'\dto\d'),
-        "surfactant": re.compile(r'\wA'),
-        "sensitizer": re.compile(r'BX\d'),
-        "speed": re.compile(r'^\d.\d*$'),
-        "spreading_volume": re.compile(r'\d\d(ul)?$'),
-        "conc": re.compile(r'\d+(.\d)?mM$')
-    }
-
-    @staticmethod
-    def process(string):
-        out = {}
-        for token in string.split("_"):
-            for item in LtTokenizer.regex:
-                temp = re.match(LtTokenizer.regex[item], token)
-                if temp is not None:
-                    out[item] = token
-        return out
 
 
 if __name__ == "__main__":

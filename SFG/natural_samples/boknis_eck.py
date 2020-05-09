@@ -16,7 +16,7 @@ from sqlalchemy import extract
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from SFG.orm.orm import WorkDatabaseWizard
+# from SFG.orm.orm import WorkDatabaseWizard
 from SFG.spectrum.averagers import SfgAverager
 
 
