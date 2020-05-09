@@ -1,8 +1,8 @@
 import os
 import timeit
 
-from SFG.natural_samples.boknis_eck import BoknisEckExtension
-from SFG.natural_samples.gasex import GasExManager
+# from SFG.natural_samples.boknis_eck import BoknisEckExtension
+# from SFG.natural_samples.gasex import GasExManager
 from SFG.orm.orm import ImportDatabaseWizard, PostProcessor
 
 np = "C:/Users/lange/Desktop/CharmingSFG/SFG/newport"
