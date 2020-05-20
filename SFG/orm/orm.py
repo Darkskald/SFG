@@ -11,7 +11,7 @@ import os
 import re
 import timeit
 from functools import partial
-from typing import Dict
+from typing import Dict, List
 
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
@@ -118,6 +118,7 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.persist_stations(self.get_stations_and_samples())
 
         self.add_regular_sfg()
+        self.add_regular_lt()
 
         # commit
         self.session.commit()
@@ -173,7 +174,7 @@ class ImportDatabaseWizard(DatabaseWizard):
 
     # population of the GasEx-related tables
 
-    def get_stations_and_samples(self) -> Dict[str, str]:
+    def get_stations_and_samples(self) -> Dict[str, List]:
         """This function creates the station and sample tables from GasEx from the names of the SFG spectra
         and LT isotherms"""
 
@@ -230,39 +231,39 @@ class ImportDatabaseWizard(DatabaseWizard):
         regular_sfg_objects = []
         for id, name in names:
             data = refine_regular(name, self.get_substances())
-            regular_sfg_objects.append(self.create_regular_sfg_object(name, data, id))
+            regular_sfg_objects.append(self.create_regular_object(name, data, id))
 
         self.session.add_all(regular_sfg_objects)
         self.session.commit()
 
-        """
-        q = self.session.query(self.sfg).filter \
-            (self.sfg.type == "regular")
+    def add_regular_lt(self):
+        names = self.session.query(self.lt.id, self.lt.name).filter(self.lt.type == 'lt').all()
+        regular_lt_objects = []
+        for id, name in names:
+            data = refine_regular_lt(name)
+            regular_lt_objects.append(self.create_regular_object(name, data, id, sfg=False))
 
-        reg_specs = []
-        
-        # todo: hier sollte die Klasse einfach einen Konstruktor bekommen das ist eleganter
-        for item in q:
-            name = item.name
-            meta_info = refine_regular(name, self.importer.substances)
-            reg_spec = self.regular_sfg()
-            reg_spec.name = name
-            reg_spec.specid = item.id
-
-            for key in meta_info:
-                setattr(reg_spec, key, meta_info[key])
-
-            reg_specs.append(reg_spec)
-
-        self.session.add_all(reg_specs)
+        self.session.add_all(regular_lt_objects)
         self.session.commit()
-        """
 
-    def create_regular_sfg_object(self, name, data, sfg_id):
-        regular_sfg_obect = self.regular_sfg(**data)
-        regular_sfg_obect.name = name
-        regular_sfg_obect.specid = sfg_id
-        return regular_sfg_obect
+    def create_regular_object(self, name, data, parent_id, sfg=True):
+        if sfg:
+            regular_object = self.regular_sfg(**data)
+            regular_object.specid = parent_id
+        else:
+            regular_object = self.regular_lt(**data)
+            regular_object.ltid = parent_id
+
+        regular_object.name = name
+
+        return regular_object
+
+    # todo: regular LT table poplulation
+    # todo GasEx LT table population
+    # todo GasEx SFG table population
+    # todo add rest of PostProcessor functions an delete itf
+
+    # misc
 
     def get_substances(self):
         """This function queries the db_wizard's session for the substances to use this information
@@ -318,29 +319,7 @@ class PostProcessor:
             self.add_salinity()
             self.add_lift_off()
 
-
-    def add_regular_info(self):
-        """This function iterates over all regular type SFG objects, performs the name refinement
-        provided in refine_regular() and persists this information in the regular_sfg table."""
-        q = self.db_wizard.session.query(self.db_wizard.sfg).filter \
-            (self.db_wizard.sfg.type == "regular")
-        reg_specs = []
-        # todo: hier sollte die Klasse einfach einen Konstruktor bekommen das ist eleganter
-        for item in q:
-            name = item.name
-            meta_info = self.refine_regular(name)
-            reg_spec = self.db_wizard.regular_sfg()
-            reg_spec.name = name
-            reg_spec.specid = item.id
-
-            for key in meta_info:
-                setattr(reg_spec, key, meta_info[key])
-
-            reg_specs.append(reg_spec)
-
-        self.db_wizard.session.add_all(reg_specs)
-        self.db_wizard.session.commit()
-
+    # todo: add
     def add_regular_lt_info(self):
         """This function iterates over all regular type SFG objects, performs the name refinement
         provided in refine_regular() and persists this information in the regular_sfg table."""
@@ -367,11 +346,8 @@ class PostProcessor:
         self.db_wizard.session.add_all(reg_specs)
         self.db_wizard.session.commit()
 
-    # auxiliary functions
-
 
     # natural sample name processing
-
 
     # gasex management
     def populate_gasex_tables(self):
@@ -429,18 +405,6 @@ class PostProcessor:
                     self.db_wizard.session.add(temp)
                     self.db_wizard.session.commit()
 
-    def map_samples(self):
-        """Maps the sample table to the corresponding station id (foreign key"""
-
-        q = self.db_wizard.session.query(self.db_wizard.samples)
-        for sample in q:
-            station_hash = self.get_station_from_sample(sample.sample_hash)
-
-            q_stat = self.db_wizard.session.query(self.db_wizard.stations) \
-                .filter(self.db_wizard.stations.hash == station_hash).all()[0]
-            sample.station_id = q_stat.id
-        self.db_wizard.session.commit()
-
     def map_tensions(self):
         """Maps the surface tension table (GasEx) to the corresponding samples"""
         q = self.db_wizard.session.query(self.db_wizard.gasex_surftens)
@@ -453,24 +417,6 @@ class PostProcessor:
                 tension.sample_id = q_stat.id
             except IndexError:
                 print(sample_hash)
-        self.db_wizard.session.commit()
-
-    def add_salinity(self):
-        """This function adds information about the "official" station label, geographical position and
-        salinity (surface and depth) to the station's table"""
-
-        for dic in self.db_wizard.importer.salinity:
-            try:
-                q = self.db_wizard.session.query(self.db_wizard.stations) \
-                    .filter(self.db_wizard.stations.hash == dic["hash"]).all()[0]
-
-                for key in dic:
-                    if key != "hash":
-                        setattr(q, key, dic[key])
-
-            except IndexError:
-                print(f'ERROR: Processing {dic["hash"]}')
-
         self.db_wizard.session.commit()
 
     def add_lift_off(self):
@@ -486,8 +432,40 @@ class PostProcessor:
 
         self.db_wizard.session.commit()
 
+    """
+    DEPRECATED
+    
+        def add_salinity(self):
+        This function adds information about the "official" station label, geographical position and
+        salinity (surface and depth) to the station's table
+
+        for dic in self.db_wizard.importer.salinity:
+            try:
+                q = self.db_wizard.session.query(self.db_wizard.stations) \
+                    .filter(self.db_wizard.stations.hash == dic["hash"]).all()[0]
+
+                for key in dic:
+                    if key != "hash":
+                        setattr(q, key, dic[key])
+
+            except IndexError:
+                print(f'ERROR: Processing {dic["hash"]}')
+    
+        def map_samples(self):
+        Maps the sample table to the corresponding station id (foreign key
+
+        q = self.db_wizard.session.query(self.db_wizard.samples)
+        for sample in q:
+            station_hash = self.get_station_from_sample(sample.sample_hash)
+
+            q_stat = self.db_wizard.session.query(self.db_wizard.stations) \
+                .filter(self.db_wizard.stations.hash == station_hash).all()[0]
+            sample.station_id = q_stat.id
+        self.db_wizard.session.commit()
+    
     def disconnect(self):
         self.db_wizard.session.close()
+    """
 
 
 
