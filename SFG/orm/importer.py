@@ -43,7 +43,7 @@ class Importer:
         # surface tension, GasEx cruise data and Boknis Eck parameters
         self.gasex_tension = pd.read_csv(self.paths["gasex_tension"], sep=';', names=["name", "surface_tension"])
 
-        self.station_plan = pd.read_excel(self.paths["station_plan"]).rename(
+        self.station_plan = pd.read_excel(self.paths["station_plan"], dtype={'hash': str}).rename(
             columns={"Time [UTC]": "time", "Salinity surface": "salinity_surface", "Salinity depth": "salinity_depth",
                      "Temperature surface": "temperature_surface", "Temperature depth": "temperature_depth",
                      "Station Number": "station_number"})

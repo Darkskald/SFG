@@ -53,12 +53,14 @@ class DatabaseWizard:
 
         # GasEx specific
         self.stations = Stations
+        self.station_plan = GasexStationPlan
         self.station_stats = StationStat
         self.samples = Samples
         self.gasex_surftens = GasexSurftens
         self.gasex_lt = GasexLt
         self.gasex_sfg = GasExSfg
         self.gasex_station_plan = GasexStationPlan
+        self.gasex_lift_off = LiftOff
 
         # Misc
         self.substances = Substances
@@ -120,6 +122,12 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.add_regular_sfg()
         self.add_regular_lt()
 
+        self.map_lift_off()
+        self.map_station_plan()
+        self.map_surface_tensions()
+
+        self.populate_gasex_lt_sfg()
+
         # commit
         self.session.commit()
 
@@ -146,7 +154,7 @@ class ImportDatabaseWizard(DatabaseWizard):
         """Processes the surface tension dataset by iterating over the table rows,
          creating instances of the declarative class and filling it with the data. """
         # todo: what does this factor mean?tension.surface_tension = row["tension"] * 0.99703
-        #self.session.add_all(tensions)
+        # self.session.add_all(tensions)
 
     def persist_substances(self):
         """Processes the subtances dataset by generating instances of the declarative substances
@@ -258,13 +266,57 @@ class ImportDatabaseWizard(DatabaseWizard):
 
         return regular_object
 
-    # todo: regular LT table poplulation
-    # todo GasEx LT table population
-    # todo GasEx SFG table population
-    # todo add rest of PostProcessor functions an delete itf
+    # additional GasEx tables
+
+    def map_lift_off(self):
+        lift_off = self.session.query(self.gasex_lift_off).all()
+        for l in lift_off:
+            id = self.session.query(self.lt.id).filter(self.lt.name == l.name).one()[0]
+            l.lt_id = id
+        self.session.commit()
+
+    def map_station_plan(self):
+        stations = self.session.query(self.stations.hash, self.stations.id).all()
+        for tup in stations:
+            plan_entry = self.session.query(self.station_plan).filter(self.station_plan.hash == tup[0]).one()
+            plan_entry.station_id = tup[1]
+        self.session.commit()
+
+    def map_surface_tensions(self):
+        tensions = self.session.query(self.gasex_surftens).all()
+        for t in tensions:
+            sample_hash = get_hashes("d_" + t.name)["sample_hash"]
+            id = self.session.query(self.samples.id).filter(self.samples.sample_hash == sample_hash).one()[0]
+            t.sample_id = id
+        self.session.commit()
+
+    def populate_gasex_lt_sfg(self):
+        sfg = self.session.query(self.sfg).filter(self.sfg.type == "gasex_sfg").all()
+        lt = self.session.query(self.lt).filter(self.lt.type == "gasex_lt").all()
+        orm_objects = []
+
+        for s in sfg:
+            gasex_sfg = self.gasex_sfg()
+            hashes = get_hashes(s.name)
+            sample_id = \
+                self.session.query(self.samples.id).filter(self.samples.sample_hash == hashes["sample_hash"]).one()[0]
+            gasex_sfg.sfg_id = s.id
+            gasex_sfg.sample_id = sample_id
+            orm_objects.append(gasex_sfg)
+
+        for l in lt:
+            gasex_lt = self.gasex_lt()
+            hashes = get_hashes(l.name)
+            sample_id = \
+                self.session.query(self.samples.id).filter(self.samples.sample_hash == hashes["sample_hash"]).one()[0]
+            gasex_lt.lt_id = l.id
+            gasex_lt.sample_id = sample_id
+            orm_objects.append(gasex_lt)
+
+        self.session.add_all(orm_objects)
+        self.session.commit()
 
     # misc
-
     def get_substances(self):
         """This function queries the db_wizard's session for the substances to use this information
         for the regular_refine() method."""
@@ -298,174 +350,6 @@ dort ohnehin im RAM vorgehalten werden. Das Tokenizen mus auf jeen Fall von dem 
 
 --> das Parsing kann irgendwie standardisiert weren
 """
-
-
-class PostProcessor:
-    """The PostProcessor class is designed to work with the ImportDatabaseWizard. While the IDW just
-    initially populates the database with the raw data, the PP creates relationships (eg. between
-    samples, stations and measurements) and adds additional data like Lift-off points."""
-
-    def __init__(self, database_wizard, new=True):
-
-        self.db_wizard = database_wizard
-        self.substances = self.get_substances()
-        if new:
-            self.add_regular_info()
-            self.add_regular_lt_info()
-
-            self.populate_gasex_tables()
-            self.map_samples()
-            self.map_tensions()
-            self.add_salinity()
-            self.add_lift_off()
-
-    # todo: add
-    def add_regular_lt_info(self):
-        """This function iterates over all regular type SFG objects, performs the name refinement
-        provided in refine_regular() and persists this information in the regular_sfg table."""
-        q = self.db_wizard.session.query(self.db_wizard.lt).filter \
-            (self.db_wizard.lt.type == "lt")
-        reg_specs = []
-
-        for item in q:
-            name = item.name
-            meta_info = refine_regular_lt(name)
-            reg_spec = self.db_wizard.regular_lt()
-            reg_spec.name = name
-            reg_spec.ltid = item.id
-
-            for key in meta_info:
-                setattr(reg_spec, key, meta_info[key])
-
-            # ensure that BXn isotherms are interpreted correctly
-            if reg_spec.surfactant is None and reg_spec.sensitizer is not None:
-                reg_spec.surfactant = reg_spec.sensitizer
-                reg_spec.sensitizer = None
-            reg_specs.append(reg_spec)
-
-        self.db_wizard.session.add_all(reg_specs)
-        self.db_wizard.session.commit()
-
-
-    # natural sample name processing
-
-    # gasex management
-    def populate_gasex_tables(self):
-        """This function iterates over the gasex_sfg spectra and gasex_lt isotherms, extracts information
-        about corresponding samples and stations and matches them to their ids. In the course of this
-        method, the stations, samples, gasex_lt and gasex_sfg tables are populated."""
-
-        q_sfg = self.db_wizard.session.query(self.db_wizard.sfg) \
-            .filter(self.db_wizard.sfg.type == "gasex_sfg")
-
-        q_lt = self.db_wizard.session.query(self.db_wizard.lt) \
-            .filter(self.db_wizard.lt.type == "gasex_lt")
-
-        for dataset in q_sfg, q_lt:
-
-            for item in dataset:
-
-                hashdic = PostProcessor.generate_hashdic(item.name)
-
-                # todo: das ist absoluter Schwachsinn und frisst Ressourcen ohne Ende! --> Vorsortierung
-                try:
-                    station = self.db_wizard.stations()
-                    station.hash = hashdic["station_hash"]
-                    station.type = hashdic["station_type"]
-                    station.date = hashdic["date"]
-                    station.number = hashdic["station_number"]
-                    self.db_wizard.session.add(station)
-                    self.db_wizard.session.commit()
-                except IntegrityError:
-                    self.db_wizard.session.rollback()
-
-                try:
-                    sample = self.db_wizard.samples()
-                    sample.sample_hash = hashdic["sample_hash"]
-                    sample.location = hashdic["location"]
-                    sample.type = hashdic["sample_type"]
-                    sample.number = hashdic["sample_number"]
-                    self.db_wizard.session.add(sample)
-                    self.db_wizard.session.commit()
-                except IntegrityError:
-                    self.db_wizard.session.rollback()
-
-                finally:
-                    sample_id = self.db_wizard.session.query(self.db_wizard.samples) \
-                        .filter(self.db_wizard.samples.sample_hash == hashdic["sample_hash"])
-
-                    if dataset == q_lt:
-                        temp = self.db_wizard.gasex_lt()
-                    elif dataset == q_sfg:
-                        temp = self.db_wizard.gasex_sfg()
-
-                    temp.sample_id = sample_id.all()[0].id
-                    temp.sample_hash = hashdic["sample_hash"]
-                    temp.name = item.name
-                    self.db_wizard.session.add(temp)
-                    self.db_wizard.session.commit()
-
-    def map_tensions(self):
-        """Maps the surface tension table (GasEx) to the corresponding samples"""
-        q = self.db_wizard.session.query(self.db_wizard.gasex_surftens)
-
-        for tension in q:
-            try:
-                sample_hash = self.get_hashes(tension.name)["sample_hash"]
-                q_stat = self.db_wizard.session.query(self.db_wizard.samples) \
-                    .filter(self.db_wizard.samples.sample_hash == sample_hash).all()[0]
-                tension.sample_id = q_stat.id
-            except IndexError:
-                print(sample_hash)
-        self.db_wizard.session.commit()
-
-    def add_lift_off(self):
-        """A function adding the manually determined lift-off points to the gasex_lt table."""
-        for _, lift_off in self.db_wizard.importer.gasex_lift_off.iterrows():
-            try:
-                q = self.db_wizard.session.query(self.db_wizard.lt) \
-                    .filter(self.db_wizard.lt.name == lift_off["name"]).all()[0]
-                q.lift_off = lift_off["lift_off"]
-            except IndexError:
-                with open("corrupt.txt", "a") as logfile:
-                    logfile.write(lift_off["name"] + "\n")
-
-        self.db_wizard.session.commit()
-
-    """
-    DEPRECATED
-    
-        def add_salinity(self):
-        This function adds information about the "official" station label, geographical position and
-        salinity (surface and depth) to the station's table
-
-        for dic in self.db_wizard.importer.salinity:
-            try:
-                q = self.db_wizard.session.query(self.db_wizard.stations) \
-                    .filter(self.db_wizard.stations.hash == dic["hash"]).all()[0]
-
-                for key in dic:
-                    if key != "hash":
-                        setattr(q, key, dic[key])
-
-            except IndexError:
-                print(f'ERROR: Processing {dic["hash"]}')
-    
-        def map_samples(self):
-        Maps the sample table to the corresponding station id (foreign key
-
-        q = self.db_wizard.session.query(self.db_wizard.samples)
-        for sample in q:
-            station_hash = self.get_station_from_sample(sample.sample_hash)
-
-            q_stat = self.db_wizard.session.query(self.db_wizard.stations) \
-                .filter(self.db_wizard.stations.hash == station_hash).all()[0]
-            sample.station_id = q_stat.id
-        self.db_wizard.session.commit()
-    
-    def disconnect(self):
-        self.db_wizard.session.close()
-    """
 
 
 

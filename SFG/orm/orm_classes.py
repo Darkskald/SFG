@@ -81,6 +81,7 @@ class BoknisDatabaseParameters(Base):
 class GasexStationPlan(Base):
     __tablename__ = 'gasex_station_plan'
     id = Column(Integer, primary_key=True)
+    station_id = Column(Integer, ForeignKey('stations.id'))
     Leg = Column(Text)
     time = Column(TIMESTAMP)
     station_number = Column(Text)
@@ -137,10 +138,10 @@ class Substances(Base):
 class LiftOff(Base):
     __tablename__ = 'gasex_lift_off'
     id = Column(Integer, primary_key=True)
-    sample_id = Column(Integer, ForeignKey('samples.id'))
+    lt_id = Column(Integer, ForeignKey('lt.id'))
     name = Column(Text)
     lift_off = Column(Float)
-    sample = relationship("Samples")
+    sample = relationship("Lt")
 
 
 # calculated
@@ -162,9 +163,8 @@ class BoknisEck(Base):
 class GasExSfg(Base):
     __tablename__ = 'gasex_sfg'
     id = Column(Integer, primary_key=True)
-    name = Column(Text, ForeignKey('sfg.name'), unique=True)
     sample_id = Column(Integer, ForeignKey('samples.id'))
-    sample_hash = Column(Text)
+    sfg_id = Column(Integer, ForeignKey('sfg.id'))
 
 
 class RegularSfg(Base):
@@ -240,10 +240,8 @@ class RegularLt(Base):
 class GasexLt(Base):
     __tablename__ = 'gasex_lt'
     id = Column(Integer, primary_key=True)
-    ltid = Column(Integer, ForeignKey('lt.id'))
-    name = Column(Text)
+    lt_id = Column(Integer, ForeignKey('lt.id'))
     sample_id = Column(Integer, ForeignKey('samples.id'))
-    sample_hash = Column(Text)
     parent = relationship("Lt",  uselist=False, back_populates="children2")
 
 
@@ -262,13 +260,6 @@ class Stations(Base):
     type = Column(Text)
     date = Column(TIMESTAMP)
     number = Column(Integer)
-    label = Column(Text)
-    longitude = Column(Text)
-    latitude = Column(Text)
-    surface_salinity = Column(Text)
-    deep_salinity = Column(Text)
-    surface_temperature = Column(Text)
-    deep_temperature = Column(Text)
 
 
 class StationStat(Base):
