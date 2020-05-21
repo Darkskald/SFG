@@ -249,6 +249,7 @@ class SfgSpectrum(BaseSpectrum):
 
     # CH baseline correction and integration
 
+    # todo das hier ist ganz großer Mist und richtig error-prone
     def make_ch_baseline(self, debug=False):
 
         # todo: interchange high and low at the slice borders function
