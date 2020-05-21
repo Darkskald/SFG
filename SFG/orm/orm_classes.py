@@ -22,6 +22,10 @@ class SFG(Base):
 
     __table_args__ = (UniqueConstraint("name", "type"),)
 
+    regular = relationship('RegularSfg', uselist=False, back_populates='sfg')
+    gasex = relationship('GasExSfg', uselist=False, back_populates='sfg')
+    boknis = relationship('BoknisEck', uselist=False, back_populates='sfg')
+
 
 class Lt(Base):
     __tablename__ = 'lt'
@@ -34,14 +38,10 @@ class Lt(Base):
     area = Column(Text)
     apm = Column(Text)
     surface_pressure = Column(Text)
-    lift_off = Column(Text)
 
-
-    children = relationship("RegularLt", uselist=False,
-                            back_populates="parent")
-
-    children2 = relationship("GasexLt", uselist=False,
-                             back_populates="parent")
+    regular = relationship('RegularLt', uselist=False, back_populates='lt')
+    gasex = relationship('GasexLt', uselist=False, back_populates='lt')
+    lift_off = relationship('LiftOff', uselist=False, back_populates='lt')
 
 
 class IR(Base):
@@ -93,10 +93,14 @@ class GasexStationPlan(Base):
     temperature_surface = Column(Text)
     temperature_depth = Column(Text)
 
+    station = relationship('Stations', back_populates='station_plan')
+
 
 class BoknisWaterSamples(Base):
     __tablename__ = 'boknis_water_samples'
     id = Column(Integer, primary_key=True)
+    sfg_id = Column(Integer, ForeignKey('sfg.id'))
+
     Sample = Column(Text)
     sampler_no = Column(Integer)
     dips_per_sample = Column(Integer)
@@ -121,6 +125,8 @@ class BoknisWaterSamples(Base):
     Storage = Column(Text)
     experiment_date = Column(Date)
 
+    spectrum = relationship('BoknisEck', back_populates='table_entry')
+
 
 class Substances(Base):
     __tablename__ = 'substances'
@@ -143,6 +149,8 @@ class LiftOff(Base):
     lift_off = Column(Float)
     sample = relationship("Lt")
 
+    lt = relationship('Lt', uselist=False, back_populates='lift_off')
+
 
 # calculated
 
@@ -152,6 +160,8 @@ class BoknisEck(Base):
     id = Column(Integer, primary_key=True)
     name = Column(Text, unique=True)
     specid = Column(Integer, ForeignKey('sfg.id'))
+    table_entry_id = Column(Integer, ForeignKey('boknis_water_samples.id'))
+
     sample_type = Column(Text)
     sampling_date = Column(Date)
     sample_number = Column(Integer)
@@ -159,12 +169,18 @@ class BoknisEck(Base):
     is_mapped = Column(Boolean)
     depth = Column(Integer)
 
+    sfg = relationship('SFG', back_populates='boknis')
+    table_entry = relationship('BoknisWaterSamples', uselist=False, back_populates='spectrum')
+
 
 class GasExSfg(Base):
     __tablename__ = 'gasex_sfg'
     id = Column(Integer, primary_key=True)
     sample_id = Column(Integer, ForeignKey('samples.id'))
     sfg_id = Column(Integer, ForeignKey('sfg.id'))
+
+    sfg = relationship('SFG', back_populates='gasex')
+    sample = relationship('Samples', back_populates='sfg')
 
 
 class RegularSfg(Base):
@@ -183,6 +199,8 @@ class RegularSfg(Base):
     measurement_no = Column(Text)
     ratio = Column(Text)
     comment = Column(Text)
+
+    sfg = relationship('SFG', back_populates='regular')
 
 
 class MeasurementDay(Base):
@@ -230,7 +248,8 @@ class RegularLt(Base):
     speed = Column(Text)
     sample_no = Column(Text)
     measurement_no = Column(Text)
-    parent = relationship("Lt", uselist=False, back_populates="children")
+
+    lt = relationship("Lt", uselist=False, back_populates="regular")
 
     def __repr__(self):
         representation = f"""RegularLT object (id {self.id}) {self.name}"""
@@ -242,7 +261,9 @@ class GasexLt(Base):
     id = Column(Integer, primary_key=True)
     lt_id = Column(Integer, ForeignKey('lt.id'))
     sample_id = Column(Integer, ForeignKey('samples.id'))
-    parent = relationship("Lt",  uselist=False, back_populates="children2")
+
+    lt = relationship("Lt", back_populates="gasex")
+    sample = relationship('Samples', back_populates='lt')
 
 
 class GasexSurftens(Base):
@@ -252,6 +273,8 @@ class GasexSurftens(Base):
     surface_tension = Column(Text)
     sample_id = Column(Integer, ForeignKey('samples.id'))
 
+    sample = relationship('Samples', back_populates='tension')
+
 
 class Stations(Base):
     __tablename__ = 'stations'
@@ -260,6 +283,9 @@ class Stations(Base):
     type = Column(Text)
     date = Column(TIMESTAMP)
     number = Column(Integer)
+
+    samples = relationship('Samples', back_populates='station')
+    station_plan = relationship('GasexStationPlan', uselist=False, back_populates='station')
 
 
 class StationStat(Base):
@@ -348,5 +374,8 @@ class Samples(Base):
     max_pressure = Column(Float)
     lift_off = Column(Float)
     surface_tension = Column(Float)
-    # todo: design decision: make a convenience table or related different tables?
-    # child = relationship("Child", uselist=False, back_populates="parent")
+
+    station = relationship('Stations', back_populates='samples')
+    tension = relationship('GasexSurftens', uselist=False, back_populates='sample')
+    sfg = relationship('GasExSfg', uselist=False, back_populates='sample')
+    lt = relationship('GasexLt', back_populates='sample')

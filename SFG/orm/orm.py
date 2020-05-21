@@ -6,21 +6,18 @@ Created on Tue Jun 25 11:42:19 2019
 
 ORM-part of SQlalchemy
 """
-import datetime
+
 import os
-import re
 import timeit
 from functools import partial
 from typing import Dict, List
 
 from sqlalchemy import create_engine
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from SFG.orm.importer import Importer
 from SFG.orm.orm_classes import *
-from SFG.orm.parsing import refine_regular_lt, get_hashes, sample_hash_to_station_hash, process_station_hash, \
-    process_sample_hash, get_station_type, refine_regular
+from SFG.orm.parsing import *
 
 
 class DatabaseWizard:
@@ -29,6 +26,7 @@ class DatabaseWizard:
     def __init__(self):
 
         # SQL init
+        # todo: this path is not reliable
         self.engine = create_engine(f'sqlite:///{os.getcwd()}/orm.db', echo=False)
         self.Base = Base
 
@@ -86,6 +84,9 @@ class DatabaseWizard:
         return type(name, (self.Base,), dic)
 
 
+# todo: correction factor of old surface tension function
+
+
 class ImportDatabaseWizard(DatabaseWizard):
     """This class is designed to take care about the initial raw data import from the measurement files.
     It provides the same declarative classes as the base class DatabaseWizard and will integrate with
@@ -116,16 +117,16 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.importer.water_samples.to_sql('boknis_water_samples', con=self.engine, if_exists='append',
                                            index=False)
 
-        # todo this is strange
         self.persist_stations(self.get_stations_and_samples())
 
+        # metainfo refinement of regular samples
         self.add_regular_sfg()
         self.add_regular_lt()
 
+        # GasEx-specific
         self.map_lift_off()
         self.map_station_plan()
         self.map_surface_tensions()
-
         self.populate_gasex_lt_sfg()
 
         # commit
@@ -169,7 +170,7 @@ class ImportDatabaseWizard(DatabaseWizard):
 
     def persist_xy_spectra(self):
         """Generates declarative class instances for  UV, Raman and IR data."""
-        spec_properties = {"raman": [self.raman, "wavenumbers", "intensities"],
+        spec_properties = {"raman": [self.raman, "wavenumbers", "intensity"],
                            "ir": [self.ir, "wavenumbers", "transmission"],
                            "uv": [self.uv, "wavelength", "absorbance"]}
         for key in spec_properties:
@@ -337,25 +338,7 @@ class ImportDatabaseWizard(DatabaseWizard):
         return model
 
 
-"""
-letzlich passieren hier mehrere Dinge: die Namen werden geparst, die Metadaten extrahiet und die Metadaten
-anschließend persistiert. Es wäre eine Überlegung wert, diesen Schritt in den Importer zu verlegen, da die Daten
-dort ohnehin im RAM vorgehalten werden. Das Tokenizen mus auf jeen Fall von dem Persistieren klar getrennt werden
-
---> Hier muss eindeutig eine klare uns vernünftige Architektur her
-
---> das Parsing braucht Zugriff auf die Substances
-
---> das Persisting kann weiterhin im PostProcessor passieren
-
---> das Parsing kann irgendwie standardisiert weren
-"""
-
-
-
 if __name__ == "__main__":
-    # P = PostProcessor(D)
-    # P.disconnect()
     start = timeit.default_timer()
     D = ImportDatabaseWizard()
     end = timeit.default_timer()
