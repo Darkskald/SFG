@@ -7,13 +7,22 @@ from SFG.orm.orm_classes import Samples
 
 class SampleWrapper:
 
+    # todo: mit Gernot abklären was mit den anderen Lts passieren soll
     def __init__(self, sample: Samples):
         self.sample = sample
 
-    # todo: proper temperature + salinity correction
     def get_tension(self):
         try:
-            return self.sample.tension.surface_tension
+            # correct the surface tension value for the difference between calibration (20) and real lab temperature(21)
+            raw = float(self.sample.tension.surface_tension) * 0.99703
+
+            if self.sample.type == "deep":
+                raw += SampleWrapper.correct_salinity(float(self.sample.station.station_plan.salinity_depth))
+            else:
+                raw += SampleWrapper.correct_salinity(float(self.sample.station.station_plan.salinity_surface))
+
+            return round(raw, 2)
+
         except AttributeError:
             return None
 
@@ -38,10 +47,15 @@ class SampleWrapper:
         else:
             return None
 
-    # todo: das kann man auch elegant über eine relation lösen
     # todo: fix the problems with the integration and baseline correction
     def get_coverage(self, dates):
         pass
+
+    @staticmethod
+    def correct_salinity(salinity):
+        """A function yielding a salinity-dependent correction factor for the surface tension. The reference salinity
+        where the factor equals zero is 17 PSU."""
+        return 0.52552 - 0.0391 * salinity
 
 
 if __name__ == "__main__":
@@ -50,4 +64,4 @@ if __name__ == "__main__":
     s = w.session.query(w.samples).all()
     for j in s:
         sw = SampleWrapper(j)
-        sw.get_lift_off()
+        print(sw.get_tension())
