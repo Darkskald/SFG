@@ -184,14 +184,6 @@ class SfgSpectrum(BaseSpectrum):
         """
         return np.max(self.y)
 
-    def yield_peaklist(self, mode="norm"):
-
-        out = []
-        tup = self.detailed_analysis(threshold=1.5, intensity=mode)
-        for peak in tup:
-            out.append(peak[0])
-        return out
-
     def yield_spectral_range(self):
         """returns a list containing maximum and minimum wavenumer and the number of data points"""
         return [min(self.x), max(self.x), len(self.x)]
@@ -284,13 +276,6 @@ class SfgSpectrum(BaseSpectrum):
 
     def correct_baseline(self):
 
-        if np.max(self.x) >= 3000:
-            borders = (2750, 3000)
-        else:
-            borders = (2750, np.max(self.x))
-
-        func = self.make_ch_baseline()
-
         if self.baseline_corrected is None:
             temp = copy.deepcopy(self.y)
 
@@ -298,9 +283,15 @@ class SfgSpectrum(BaseSpectrum):
             # if the baseline correction already was performed, return immediately
             return
 
+        if np.max(self.x) >= 3000:
+            borders = (2750, 3000)
+        else:
+            borders = (2750, np.max(self.x))
+
+        func = self.make_ch_baseline()
+
         xvals = self.x.copy()
         corr = func(xvals)
-
 
         # ensure that only the region of the spec defined in the borders is used
         # xvals is a vector being 0 everywhere except in the to-correct area where it
@@ -316,13 +307,28 @@ class SfgSpectrum(BaseSpectrum):
 
         self.baseline_corrected = temp
 
-    def calculate_ch_integral(self):
-        self.correct_baseline()
-        if max(self.x) >= 3000:
-            borders = self.slice_by_borders(np.min(self.x), 3000)
-        else:
-            borders = self.slice_by_borders(np.min(self.x), max(self.x))
+    def calculate_ch_integral(self, old_baseline=False) -> float:
+        """Calculate the integral of the spectrum in the range of 2750-3000 wavenumbers"""
 
+        # choose between the old and new style of baseline correction
+        if old_baseline:
+            self.correct_baseline()
+        else:
+            self.baseline_corrected = self.full_baseline_correction()
+
+        # check upper border
+        if max(self.x) >= 3000:
+            upper = 3000
+        else:
+            upper = max(self.x)
+
+        # check lower border
+        if min(self.x) <= 2750:
+            lower = 2750
+        else:
+            lower = min(self.x)
+
+        borders = self.slice_by_borders(lower, upper)
         x_array = self.x[borders[0]:borders[1] + 1]
         y_array = self.baseline_corrected[borders[0]:borders[1] + 1]
         integral = self.integrate_peak(x_array, y_array)
@@ -344,15 +350,6 @@ class SfgSpectrum(BaseSpectrum):
             return np.nan
 
     # auxiliary function
-
-    def create_pointlist(self, y_array):
-
-        output = []
-        for i, (a, b) in enumerate(zip(self.x[::-1], y_array)):
-            output.append((a, b, i))
-
-        return output
-
     def slice_by_borders(self, lower, upper):
         """Takes a high (upper) and a low (lower) reciprocal centimeter value as argument. Returns
         the indices of the wavenumber array of the spectrum that are the borders of this interval."""
