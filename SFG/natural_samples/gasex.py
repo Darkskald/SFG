@@ -1,7 +1,8 @@
 import os
+import itertools as ito
 import numpy as np
 
-from SFG.orm.interact import WorkDatabaseWizard
+from SFG.orm.interact import DbInteractor
 from SFG.orm.orm_classes import Samples
 
 
@@ -28,7 +29,7 @@ class SampleWrapper:
 
     def get_max_pressure(self):
         try:
-            lt_isotherms = list(map(WorkDatabaseWizard.construct_lt, [i.lt for i in self.sample.lt]))
+            lt_isotherms = list(map(DbInteractor.construct_lt, [i.lt for i in self.sample.lt]))
             temp = sorted(lt_isotherms, key=lambda x: x.measured_time)
             pressure = round(temp[0].get_maximum_pressure(), 1)
             return pressure
@@ -40,7 +41,7 @@ class SampleWrapper:
         if len(temp) > 0:
             try:
                 lo = temp[0].lift_off.lift_off
-                lt = WorkDatabaseWizard.construct_lt(temp[0])
+                lt = DbInteractor.construct_lt(temp[0])
                 return np.round(lo / (np.max(lt.area)), 3)
             except AttributeError:
                 return None
@@ -59,9 +60,24 @@ class SampleWrapper:
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
     os.chdir("..")
-    w = WorkDatabaseWizard()
-    s = w.session.query(w.samples).all()
-    for j in s:
-        sw = SampleWrapper(j)
-        print(sw.get_tension())
+    w = DbInteractor()
+    t = w.session.query(w.sfg).filter(w.sfg.type == 'boknis_ref').all()
+    temp = ito.groupby(t, key=lambda x: x.measured_time.date())
+
+    measurement_days = {key: list(specs) for key, specs in temp}
+    for key in measurement_days:
+        specs = measurement_days[key]
+        for s in specs:
+            s_t = DbInteractor.construct_sfg(s)
+            integral = round(s_t.calculate_ch_integral(), 4)
+            plt.plot(s_t.x, s_t.y, label=f'{s_t.name} {str(integral)}')
+
+        plt.title(str(key))
+        plt.legend()
+        plt.savefig("/home/flo/Schreibtisch/dppc_check/" + str(key) + ".png")
+        plt.cla()
+
+    print(measurement_days)

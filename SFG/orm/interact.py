@@ -8,7 +8,7 @@ from SFG.spectrum.averagers import SfgAverager, DummyPlotter
 from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
 
 
-class WorkDatabaseWizard(DatabaseWizard):
+class DbInteractor(DatabaseWizard):
 
     def __init__(self):
         super().__init__()
@@ -26,7 +26,7 @@ class WorkDatabaseWizard(DatabaseWizard):
             .filter(~self.sfg.name.contains('ppp'))
 
         for item in q_dppc:
-            s = WorkDatabaseWizard.construct_sfg(item)
+            s = DbInteractor.construct_sfg(item)
             _date = s.meta["time"].date()
             if _date not in dates:
                 dates[_date] = [s]
@@ -69,14 +69,14 @@ class WorkDatabaseWizard(DatabaseWizard):
     def convert_regular_to_lt(self, reg_lt) -> LtIsotherm:
         """Converts a RegularLt object directly into the Lt object of the spectrum module."""
         lt = self.session.query(self.lt).filter(self.lt.id == reg_lt.ltid).one()
-        return WorkDatabaseWizard.construct_lt(lt)
+        return DbInteractor.construct_lt(lt)
 
     def convert_regular_to_sfg(self, reg_sfg) -> SfgSpectrum:
         """Converts a RegularSfg object directly into the Sfg object of the spectrum module.
         It remains the former regular_sfg object as part of the new spectrum's meta attribute
         for access of the metadata stored in the regular_sfg object."""
         sfg = self.session.query(self.sfg).filter(self.sfg.id == reg_sfg.specid).one()
-        temp = WorkDatabaseWizard.construct_sfg(sfg)
+        temp = DbInteractor.construct_sfg(sfg)
         temp.meta["regular"] = reg_sfg
         return temp
 
@@ -124,7 +124,7 @@ class WorkDatabaseWizard(DatabaseWizard):
         """A function constructing the SFG object from the orm declarative class."""
         meta = {"name": or_object.name, "time": or_object.measured_time}
         args = ("wavenumbers", "sfg", "vis", "ir")
-        args = [WorkDatabaseWizard.to_array(getattr(or_object, i)) for i in args]
+        args = [DbInteractor.to_array(getattr(or_object, i)) for i in args]
         s = SfgSpectrum(*args, meta)
         return s
 
@@ -133,6 +133,6 @@ class WorkDatabaseWizard(DatabaseWizard):
         """A function constructing the LT object from the orm declarative class."""
         args = (or_object.name, or_object.measured_time)
         add_args = ["time", "area", "apm", "surface_pressure", "lift_off"]
-        add_args = [WorkDatabaseWizard.to_array(getattr(or_object, i)) for i in add_args]
+        add_args = [DbInteractor.to_array(getattr(or_object, i)) for i in add_args]
         l = LtIsotherm(args[0], args[1], *add_args)
         return l
