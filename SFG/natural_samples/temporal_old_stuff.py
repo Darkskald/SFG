@@ -1,6 +1,6 @@
 import os
 
-from SFG.orm.interact import WorkDatabaseWizard
+from SFG.orm.interact import DbInteractor
 
 import numpy as np
 import pandas as pd
@@ -19,7 +19,7 @@ class GasExManager:
     is generated. This is suitable for plotting and data analysis."""
 
     def __init__(self, new=True):
-        self.wdw = WorkDatabaseWizard()
+        self.wdw = DbInteractor()
 
         if new:
             self.stations = self.get_stations()
@@ -299,7 +299,7 @@ class Station:
 
 # refactor
 
-class GasExWorkDatabaseWizard(WorkDatabaseWizard):
+class GasExWorkDatabaseWizard(DbInteractor):
 
     def __init__(self):
         super().__init__()
