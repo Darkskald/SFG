@@ -66,7 +66,7 @@ if __name__ == "__main__":
     w = DbInteractor()
     t = w.session.query(w.sfg).filter(w.sfg.type == 'boknis_ref').all()
     temp = ito.groupby(t, key=lambda x: x.measured_time.date())
-
+    # todo: include SfgAverager class in benchmark
     measurement_days = {key: list(specs) for key, specs in temp}
     for key in measurement_days:
         specs = measurement_days[key]
