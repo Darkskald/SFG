@@ -314,7 +314,11 @@ class SfgSpectrum(BaseSpectrum):
         if old_baseline:
             self.correct_baseline()
         else:
-            self.baseline_corrected = self.full_baseline_correction()
+            try:
+                self.baseline_corrected = self.full_baseline_correction()
+            except ValueError:
+                print(f'{self} does not yield acceptable baseline by peakutils!')
+                self.correct_baseline()
 
         # check upper border
         if max(self.x) >= 3000:

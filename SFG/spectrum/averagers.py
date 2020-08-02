@@ -60,17 +60,6 @@ class SfgAverager:
 
         else:
             self.day_counter = {}
-            """
-            if baseline:
-                try:
-                    for i in self.spectra:
-                        i.y = i.full_baseline_correction()
-                except ValueError:
-                    if i.baseline_corrected:
-                        i.y = i.baseline_corrected
-                    else:
-                        i.correct_baseline()
-            """
 
             self.average_spectrum = self.average_spectra(baseline=baseline)
             self.integral = self.average_spectrum.calculate_ch_integral()
@@ -83,6 +72,7 @@ class SfgAverager:
                     self.integral = 0
                     self.coverage = 0
 
+    # todo: mit Gernot abklären ob von allen Baseline oder nur vom average
     def average_spectra(self, baseline=True):
         """Function performing the averaging: it ensures that all spectra are interpolated to have the same shape,
         then they are averaged. A AverageSpectrum  object is constructed and returned."""
@@ -134,12 +124,7 @@ class SfgAverager:
         if baseline:
             try:
                 s.y = s.full_baseline_correction()
-            except ValueError:
-                if s.baseline_corrected:
-                    s.y = s.baseline_corrected
-                else:
-                    s.correct_baseline()
-            except ZeroDivisionError:
+            except (ValueError, ZeroDivisionError):
                 if s.baseline_corrected:
                     s.y = s.baseline_corrected
                 else:

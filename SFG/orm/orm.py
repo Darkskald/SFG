@@ -9,15 +9,25 @@ ORM-part of SQlalchemy
 
 import os
 import timeit
+from datetime import timedelta
 from functools import partial
-from typing import Dict, List
+import itertools as ito
+from typing import List
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.exc import NoResultFound
 
+from SFG.orm.boknis_dtos import BoknisEck, BoknisDatabaseParameters, BoknisWaterSamples, MeasurementDay, BoknisEckData
+from SFG.orm.gasex_dtos import GasExSfg, GasexLt, GasexSurftens, GasexStations, StationStat, GasexSamples, \
+    GasexStationPlan, LiftOff
 from SFG.orm.importer import Importer
-from SFG.orm.orm_classes import *
+from SFG.orm.base_dtos import *
 from SFG.orm.parsing import *
+
+import numpy as np
+
+from SFG.spectrum.spectrum import SfgSpectrum
 
 
 class DatabaseWizard:
@@ -50,10 +60,10 @@ class DatabaseWizard:
         self.be_water_samples = BoknisWaterSamples
 
         # GasEx specific
-        self.stations = Stations
+        self.stations = GasexStations
         self.station_plan = GasexStationPlan
         self.station_stats = StationStat
-        self.samples = Samples
+        self.samples = GasexSamples
         self.gasex_surftens = GasexSurftens
         self.gasex_lt = GasexLt
         self.gasex_sfg = GasExSfg
@@ -82,6 +92,29 @@ class DatabaseWizard:
         elif name == "lt":
             dic["__table_args__"] = ((UniqueConstraint("name", "measured_time")),)
         return type(name, (self.Base,), dic)
+
+    @staticmethod
+    def to_array(string) -> np.ndarray:
+        """Converts the raw data stored as strings back to numpy float ndarrays."""
+        try:
+            return np.fromstring(string, sep=",")
+        except TypeError:
+            return np.nan
+
+    @staticmethod
+    def construct_sfg(or_object, time_correction=False) -> SfgSpectrum:
+        """A function constructing the SFG object from the orm declarative class."""
+        meta = {"name": or_object.name, "time": or_object.measured_time}
+        args = ("wavenumbers", "sfg", "vis", "ir")
+        args = [ImportDatabaseWizard.to_array(getattr(or_object, i)) for i in args]
+        s = SfgSpectrum(*args, meta)
+
+        # as some spectra are recorded after midnight, it is necessary to date it back to get the correct DPPC reference
+        if time_correction:
+            if 0 <= s.meta["time"].hour < 8:
+                s.meta["time"] -= timedelta(days=1)
+
+        return s
 
 
 # todo: correction factor of old surface tension function
@@ -130,6 +163,11 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.populate_gasex_lt_sfg()
 
         # commit
+        self.get_measurement_days()
+        self.generate_boknis()
+        self.match_boknis_table()
+        self.populate_be_days()
+
         self.session.commit()
 
     # import of the raw data
@@ -222,7 +260,7 @@ class ImportDatabaseWizard(DatabaseWizard):
             self.session.commit()
             id_counter += 1
 
-    def create_sample_object(self, sample, station_id) -> Samples:
+    def create_sample_object(self, sample, station_id) -> GasexSamples:
         sample_object = self.samples()
         sample_object.station_id = station_id
         sample_object.sample_hash = sample
@@ -327,6 +365,128 @@ class ImportDatabaseWizard(DatabaseWizard):
             substances[item.abbreviation] = item.sensitizing
         return substances
 
+    def get_measurement_days(self):
+        boknis = self.session.query(self.sfg).filter(self.sfg.type == 'boknis_ref').all()
+        other_dppc = self.session.query(self.regular_sfg).filter(self.regular_sfg.surfactant == "DPPC").filter(
+            self.regular_sfg.sensitizer != None).all()
+        other_dppc = list(map(lambda x: x.sfg, other_dppc))
+
+        temp = ito.groupby(boknis + other_dppc, key=lambda x: x.measured_time.date())
+        measurement_days = {key: list(specs) for key, specs in temp}
+        for key in measurement_days:
+            specs = measurement_days[key]
+            md = self.measurement_days()
+            md.date = key
+            integrals = []
+            for s in specs:
+                s_t = self.construct_sfg(s)
+                integral = round(s_t.calculate_ch_integral(), 4)
+                integrals.append(integral)
+            md.dppc_integral = np.sum(integrals)/len(specs)
+            md.dppc_no = len(specs)
+            self.session.add(md)
+        self.session.commit()
+
+    # boknis
+
+    def generate_boknis(self):
+        """Populates the SQL table for BoknisEck spectra with metadata obtained
+        from the systematic names of the SFG table."""
+
+        samples = self.session.query(self.sfg).filter(self.sfg.type == "boknis")
+        boknis_specs = []
+
+        for item in samples:
+            boknis_spec = self.boknis_eck()
+            boknis_spec.specid = item.id
+            boknis_spec.name = item.name
+
+            for ex in numreg:
+                temp = re.search(ex, item.name)
+
+                if temp is not None:
+                    refined = item.name[temp.start():temp.end()]
+                    temp = re.search("\d{1,2}", refined)
+                    number = refined[temp.start():temp.end()]
+                    number_match = True
+                    break
+
+            if number_match is False:
+                repstr = f'Number parsing was not possible for {item.name}\n'
+                self.log += repstr
+
+            for ex in datereg:
+
+                temp = re.search(ex, item.name)
+
+                if temp is not None:
+                    refined = item.name[temp.start():temp.end()]
+                    temp = re.search("\d{8}", refined)
+                    sampling_date = refined[temp.start():temp.end()]
+                    date_match = True
+                    break
+
+            if date_match is False:
+                print(f'Date parsing was not possible for {item.name}\n')
+
+            if number is not None:
+                number = int(number)
+
+            boknis_spec.sample_number = number
+            boknis_spec.sampling_date = ImportDatabaseWizard.convert_date(sampling_date)
+            boknis_spec.is_mapped = False
+
+            boknis_specs.append(boknis_spec)
+
+        self.session.add_all(boknis_specs)
+        self.session.commit()
+
+    def match_boknis_table(self):
+        entries = self.session.query(self.be_water_samples).all()
+        list(map(self.map_boknis, entries))
+        self.session.commit()
+
+    def map_boknis(self, entry: BoknisWaterSamples):
+        try:
+            temp: BoknisEck = self.session.query(self.boknis_eck).join(self.sfg).filter(
+                self.boknis_eck.sampling_date == entry.sampling_date).filter(
+                self.boknis_eck.sample_number == entry.Sample).order_by(self.sfg.measured_time).all()[0]
+
+            temp.is_mapped = True
+            temp.table_entry_id = entry.id
+            entry.sfg_id = temp.id
+            if entry.sampler_no in (4, 3):
+                temp.sample_type = "deep"
+            elif entry.sampler_no in (1, 2):
+                temp.sample_type = "sml"
+
+        # todo: establish logging
+        except (NoResultFound, IndexError) as e:
+                # print(f'{entry} {e} has no suitable Spectrum!')
+                pass
+
+    def populate_be_days(self):
+        dates = set([i for i, in self.session.query(self.boknis_eck.sampling_date).filter(
+            self.boknis_eck.table_entry_id != None).all()])
+
+        for d in dates:
+            new_day = self.be_data()
+            new_day.sampling_date = d
+            self.session.add(new_day)
+        self.session.commit()
+
+        spectra = self.session.query(self.boknis_eck).filter(self.boknis_eck.table_entry_id != None).all()
+        for s in spectra:
+            day_id = self.session.query(self.be_data).filter(self.be_data.sampling_date == s.sampling_date).one().id
+            s.boknis_sampling_day_id = day_id
+
+        entries = self.session.query(self.be_water_samples).filter(self.be_water_samples.sfg_id != None).all()
+        for e in entries:
+            day_id = self.session.query(self.be_data).filter(self.be_data.sampling_date == e.sampling_date).one().id
+            e.sampling_day_id = day_id
+
+        self.session.commit()
+
     # auxiliary functions (static)
     @staticmethod
     def convert_xy_spectra(spectrum_dict, properties):
@@ -336,6 +496,15 @@ class ImportDatabaseWizard(DatabaseWizard):
         setattr(model, properties[1], spectrum_dict["data"]["x"])
         setattr(model, properties[2], spectrum_dict["data"]["y"])
         return model
+
+    @staticmethod
+    def convert_date(date):
+        temp = str(date)
+        year = int(temp[0:4])
+        month = int(temp[4:6])
+        day = int(temp[6:])
+
+        return datetime.date(year, month, day)
 
 
 if __name__ == "__main__":
