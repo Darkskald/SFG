@@ -2,6 +2,7 @@ import datetime
 import os
 from typing import Dict, List
 import numpy as np
+import itertools as ito
 
 from SFG.orm.orm import DatabaseWizard
 from SFG.spectrum.averagers import SfgAverager, DummyPlotter
@@ -13,11 +14,18 @@ class DbInteractor(DatabaseWizard):
     def __init__(self):
         super().__init__()
         self.session.commit()
+        self.references = self.get_reference_integrals()
 
+    def get_reference_integrals(self) -> Dict[datetime.date, float]:
+        temp = self.session.query(self.measurement_days).all()
+        q = {key: list(value)[0].dppc_integral for key, value in ito.groupby(temp, key=lambda x: x.date)}
+        return q
+
+    """
     def get_dppc_references(self) -> Dict[datetime.date, float]:
-        """A function querying the sfg table for DPPC reference spectra, generating the corresponding objects,
+        A function querying the sfg table for DPPC reference spectra, generating the corresponding objects,
         calculating the CH integral making use of the SfgAverager class and returning a dictionary of date objects
-        with the corresponding intensities."""
+        with the corresponding intensities.
         dates = {}
 
         q_dppc = self.session.query(self.sfg). \
@@ -40,6 +48,7 @@ class DbInteractor(DatabaseWizard):
         dates = {k: v for k, v in dates.items() if not np.isnan(v)}
 
         return dates
+        """
 
     # auxiliary functions
 
@@ -109,24 +118,18 @@ class DbInteractor(DatabaseWizard):
             for index, item in enumerate(sub_speclist):
                 DummyPlotter(item, save=True, savedir=dir_name, savename=f'preview{index}').plot_all()
 
-    # TODO: direct conversion from regular to Sfg orm object
+    # debugging
 
-    @staticmethod
-    def to_array(string) -> np.ndarray:
-        """Converts the raw data stored as strings back to numpy float ndarrays."""
-        try:
-            return np.fromstring(string, sep=",")
-        except TypeError:
-            return np.nan
-
-    @staticmethod
-    def construct_sfg(or_object) -> SfgSpectrum:
-        """A function constructing the SFG object from the orm declarative class."""
-        meta = {"name": or_object.name, "time": or_object.measured_time}
-        args = ("wavenumbers", "sfg", "vis", "ir")
-        args = [DbInteractor.to_array(getattr(or_object, i)) for i in args]
-        s = SfgSpectrum(*args, meta)
-        return s
+    def get_unmapped_be(self, selection, output_directory):
+        if selection == "entry":
+            temp = self.session.query(self.be_water_samples).filter(self.be_water_samples.sfg_id == None).order_by(
+                self.be_water_samples.sampling_date).all()
+        elif selection == "spectra":
+            temp = self.session.query(self.boknis_eck).filter(self.boknis_eck.table_entry_id == None).order_by(
+                self.boknis_eck.sampling_date).all()
+        with open(f'{output_directory}/{selection}_debug_log.txt', 'w') as outfile:
+            for t in temp:
+                outfile.write(str(t) + '\n')
 
     @staticmethod
     def construct_lt(or_object) -> LtIsotherm:

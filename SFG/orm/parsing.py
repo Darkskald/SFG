@@ -2,7 +2,8 @@ import datetime
 import re
 from typing import Dict
 
-# todo: this module requires docmentation
+
+# todo: this module requires documentation
 
 class InvalidNameError(Exception):
     pass
@@ -18,6 +19,23 @@ lt_regex = {
     "spreading_volume": re.compile(r'\d\d(ul)?$'),
     "conc": re.compile(r'\d+(.\d)?mM$')
 }
+
+# for parsing of Boknis Eck systematic names
+
+n1 = re.compile("\D\d{1,2}\D")
+n2 = re.compile("[ a-zA-Z_-]\d{1,2}$")
+n3 = re.compile("\d{1,2}-?#$")
+n4 = re.compile("-#\d{1,2}$")
+
+numreg = [n1, n2, n3, n4]
+# sampling dates to extract the sampling date of a sample from the filename:
+d1 = re.compile("^\d{8}_\d{1,2}\D")
+d2 = re.compile("_[a-zA-z -]*\d{8}")
+d3 = re.compile("^\d{8}_[a-zA-Z]*[ -]")
+d4 = re.compile("^\d{8}_\d{1,2}$")
+d5 = re.compile("^\d{8}_[a-zA-Z]{2}\d{1,2}-")
+
+datereg = [d1, d2, d3, d4, d5]
 
 
 def refine_regular_lt(string):
@@ -143,7 +161,7 @@ def get_station_type(sample_hash):
     else:
         stype = "small"
 
-    return temp
+    return stype
 
 
 def process_sample_hash(sample_hash) -> Dict:

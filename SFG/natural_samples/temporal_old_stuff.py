@@ -8,7 +8,7 @@ from scipy import stats
 from typing import Tuple
 
 # an sich ist dieser Manager auch obsolet. das geht alles auf sample-Ebene
-from SFG.orm.orm_classes import Samples
+from SFG.orm.gasex_dtos import GasexSamples
 
 
 class GasExManager:
