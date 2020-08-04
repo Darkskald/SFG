@@ -81,18 +81,6 @@ class DatabaseWizard:
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
 
-    def factory(self, dic):
-        """A convenience class to create the classes for sqlalchemy ORM. The information to create
-        the tables are stored in dictionaries (class attributes of the DatabaseWizard)"""
-        name = dic["__tablename__"]
-
-        if name == "sfg":
-            dic["__table_args__"] = ((UniqueConstraint("name", "type")),)
-
-        elif name == "lt":
-            dic["__table_args__"] = ((UniqueConstraint("name", "measured_time")),)
-        return type(name, (self.Base,), dic)
-
     @staticmethod
     def to_array(string) -> np.ndarray:
         """Converts the raw data stored as strings back to numpy float ndarrays."""
@@ -368,11 +356,12 @@ class ImportDatabaseWizard(DatabaseWizard):
     def get_measurement_days(self):
         boknis = self.session.query(self.sfg).filter(self.sfg.type == 'boknis_ref').all()
         other_dppc = self.session.query(self.regular_sfg).filter(self.regular_sfg.surfactant == "DPPC").filter(
-            self.regular_sfg.sensitizer != None).all()
+            self.regular_sfg.sensitizer is not None).all()
         other_dppc = list(map(lambda x: x.sfg, other_dppc))
 
         temp = ito.groupby(boknis + other_dppc, key=lambda x: x.measured_time.date())
         measurement_days = {key: list(specs) for key, specs in temp}
+        # todo: create an auxiliary dto mapping the DPPC reference to this entries
         for key in measurement_days:
             specs = measurement_days[key]
             md = self.measurement_days()
@@ -382,10 +371,12 @@ class ImportDatabaseWizard(DatabaseWizard):
                 s_t = self.construct_sfg(s)
                 integral = round(s_t.calculate_ch_integral(), 4)
                 integrals.append(integral)
-            md.dppc_integral = np.sum(integrals)/len(specs)
+            md.dppc_integral = np.sum(integrals) / len(specs)
             md.dppc_no = len(specs)
             self.session.add(md)
         self.session.commit()
+
+    # todo: create a relation between the SFG measurements and the corresponding reference integral
 
     # boknis
 
@@ -462,8 +453,8 @@ class ImportDatabaseWizard(DatabaseWizard):
 
         # todo: establish logging
         except (NoResultFound, IndexError) as e:
-                # print(f'{entry} {e} has no suitable Spectrum!')
-                pass
+            # print(f'{entry} {e} has no suitable Spectrum!')
+            pass
 
     def populate_be_days(self):
         dates = set([i for i, in self.session.query(self.boknis_eck.sampling_date).filter(
