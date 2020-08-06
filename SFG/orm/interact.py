@@ -137,7 +137,7 @@ class DbInteractor(DatabaseWizard):
     def get_coverage(self, spectrum: SFG) -> float:
         """Calculate the surface coverage of a given SFG spectrum object by dividing its CH integral by the CH integral
         obtained during the corresponding day of measurement and taking the square root."""
-        reference = self.get_reference_integrals()
+        reference = self.get_reference_integrals()[spectrum.measured_time.date()]
         integral = DbInteractor.construct_sfg(spectrum).calculate_ch_integral()
         return np.sqrt(integral/reference)
 
@@ -171,14 +171,14 @@ class SampleProcessor:
         if len(first_measured) > 0:
             lt_spec_object = DbInteractor.construct_lt(first_measured[0])
             temp["max_surface_pressure"] = lt_spec_object.get_maximum_pressure()
-            temp["lift_off_compression_ration"] = (first_measured[0].lt.lift_off.lift_off) / np.max(lt_spec_object.area) if \
-                first_measured[0].lt.lift_off is not None else None
+            temp["lift_off_compression_ration"] = (first_measured[0].lift_off.lift_off) / np.max(lt_spec_object.area) if \
+                first_measured[0].lift_off is not None else None
         else:
             temp["max_surface_pressure"] = None
             temp["lift_off_compression_ration"] = None
         
         # SFG coverage
-        temp["coverage"] = self.ia.get_coverage(sample.sfg(sample.sfg.sfg)) if sample.sfg is not None else None
+        temp["coverage"] = self.ia.get_coverage(sample.sfg.sfg) if sample.sfg is not None else None
         return temp
 
     def get_list_of_sample_dicts(self):
