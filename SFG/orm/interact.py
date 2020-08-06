@@ -4,7 +4,8 @@ from typing import Dict, List
 import numpy as np
 import itertools as ito
 
-from SFG.orm.orm import DatabaseWizard
+from SFG.orm.gasex_dtos import GasexSamples, GasexLt, GasExSfg
+from SFG.orm.orm import DatabaseWizard, Lt, SFG
 from SFG.spectrum.averagers import SfgAverager, DummyPlotter
 from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
 
@@ -17,6 +18,7 @@ class DbInteractor(DatabaseWizard):
         self.references = self.get_reference_integrals()
 
     def get_reference_integrals(self) -> Dict[datetime.date, float]:
+        """Get a map of the dates of measurement dates to the respective DPPC integrals"""
         temp = self.session.query(self.measurement_days).all()
         q = {key: list(value)[0].dppc_integral for key, value in ito.groupby(temp, key=lambda x: x.date)}
         return q
@@ -131,6 +133,14 @@ class DbInteractor(DatabaseWizard):
             for t in temp:
                 outfile.write(str(t) + '\n')
 
+    # essential
+    def get_coverage(self, spectrum: SFG) -> float:
+        """Calculate the surface coverage of a given SFG spectrum object by dividing its CH integral by the CH integral
+        obtained during the corresponding day of measurement and taking the square root."""
+        reference = self.get_reference_integrals()
+        integral = DbInteractor.construct_sfg(spectrum).calculate_ch_integral()
+        return np.sqrt(integral/reference)
+
     @staticmethod
     def construct_lt(or_object) -> LtIsotherm:
         """A function constructing the LT object from the orm declarative class."""
@@ -139,3 +149,39 @@ class DbInteractor(DatabaseWizard):
         add_args = [DbInteractor.to_array(getattr(or_object, i)) for i in add_args]
         l = LtIsotherm(args[0], args[1], *add_args)
         return l
+
+
+class SampleProcessor:
+    """This class has the purpose to map a list of sample objects to a list of property dictionaries that
+    might be converted to pandas dataframe for data analysis."""
+
+    def __init__(self, samples: List[GasexSamples], interactor: DbInteractor):
+        self.samples = samples
+        self.ia = interactor
+
+    def convert_to_dict(self, sample: GasexSamples):
+        # create the basic dictionary
+        temp = sample.to_basic_dict()
+
+        # add the surface tension
+        temp["surface_tension"] = sample.tension.surface_tension
+
+        # add the surface pressure of the first measured LT
+        first_measured: List[GasexLt] = SampleProcessor.sort_by_measured_time([s.lt for s in sample.lt])
+        if len(first_measured) > 0:
+            lt_spec_object = DbInteractor.construct_lt(first_measured[0])
+            temp["max_surface_pressure"] = lt_spec_object.get_maximum_pressure()
+            temp["lift_off_compression_ration"] = (first_measured[0].lift_off.lift_off) / np.max(lt_spec_object.area) if \
+                first_measured[0].lift_off.lift_off is not None else None
+        else:
+            temp["max_surface_pressure"] = None
+            temp["lift_off_compression_ration"] = None
+        
+        # SFG coverage
+        temp["coverage"] = self.ia.get_coverage(sample.sfg(sample.sfg.sfg)) if sample.sfg is not None else None
+        return temp
+
+
+    @staticmethod
+    def sort_by_measured_time(spec_list):
+        return sorted(spec_list, key=lambda x: x.measured_time)
