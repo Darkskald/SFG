@@ -46,6 +46,7 @@ class GasexStations(Base):
     station_plan = relationship('GasexStationPlan', uselist=False, back_populates='station')
 
 
+@DeprecationWarning
 class StationStat(Base):
     __tablename__ = 'station_stats'
     id = Column(Integer, primary_key=True)
@@ -135,7 +136,8 @@ class GasexSamples(Base):
     lt = relationship('GasexLt', back_populates='sample')
 
     def to_basic_dict(self):
-        return {"sample_hash": self.sample_hash, "type": self.type, "number": self.number, "location": self.location}
+        return {"sample_hash": self.sample_hash, "cruise": 1 if self.sample_hash.startswith('06') else 2,
+                "type": self.type, "number": self.number, "location": self.location}
 
 
 class GasexStationPlan(Base):
