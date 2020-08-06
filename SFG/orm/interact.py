@@ -171,8 +171,8 @@ class SampleProcessor:
         if len(first_measured) > 0:
             lt_spec_object = DbInteractor.construct_lt(first_measured[0])
             temp["max_surface_pressure"] = lt_spec_object.get_maximum_pressure()
-            temp["lift_off_compression_ration"] = (first_measured[0].lift_off.lift_off) / np.max(lt_spec_object.area) if \
-                first_measured[0].lift_off.lift_off is not None else None
+            temp["lift_off_compression_ration"] = (first_measured[0].lt.lift_off.lift_off) / np.max(lt_spec_object.area) if \
+                first_measured[0].lt.lift_off is not None else None
         else:
             temp["max_surface_pressure"] = None
             temp["lift_off_compression_ration"] = None
