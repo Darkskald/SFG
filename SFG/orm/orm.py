@@ -497,7 +497,7 @@ class ImportDatabaseWizard(DatabaseWizard):
 
         return datetime.date(year, month, day)
 
-
+# todo: add meaningful string representations for the DTOs
 if __name__ == "__main__":
     start = timeit.default_timer()
     D = ImportDatabaseWizard()

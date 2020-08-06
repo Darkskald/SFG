@@ -20,6 +20,7 @@ class GasexLt(Base):
     lt_id = Column(Integer, ForeignKey('lt.id'))
     sample_id = Column(Integer, ForeignKey('gasex_samples.id'))
 
+    lift_off = relationship('LiftOff', back_populates='lt')
     lt = relationship("Lt", back_populates="gasex")
     sample = relationship('GasexSamples', back_populates='lt')
 
@@ -128,15 +129,18 @@ class GasexSamples(Base):
     location = Column(Text)
     type = Column(Text)
     number = Column(Integer)
-    coverage = Column(Float)
-    max_pressure = Column(Float)
-    lift_off = Column(Float)
-    surface_tension = Column(Float)
+    # coverage = Column(Float)
+    # max_pressure = Column(Float)
+    # lift_off = Column(Float)
+    # surface_tension = Column(Float)
 
     station = relationship('GasexStations', back_populates='samples')
     tension = relationship('GasexSurftens', uselist=False, back_populates='sample')
     sfg = relationship('GasExSfg', uselist=False, back_populates='sample')
     lt = relationship('GasexLt', back_populates='sample')
+
+    def to_basic_dict(self):
+        return {"sample_hash": self.sample_hash, "type": self.type, "number": self.number, "location": self.location}
 
 
 class GasexStationPlan(Base):
