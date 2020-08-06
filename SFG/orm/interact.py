@@ -164,7 +164,7 @@ class SampleProcessor:
         temp = sample.to_basic_dict()
 
         # add the surface tension
-        temp["surface_tension"] = sample.tension.surface_tension
+        temp["surface_tension"] = sample.tension.surface_tension if sample.tension is not None else None
 
         # add the surface pressure of the first measured LT
         first_measured: List[GasexLt] = SampleProcessor.sort_by_measured_time([s.lt for s in sample.lt])
@@ -181,6 +181,8 @@ class SampleProcessor:
         temp["coverage"] = self.ia.get_coverage(sample.sfg(sample.sfg.sfg)) if sample.sfg is not None else None
         return temp
 
+    def get_list_of_sample_dicts(self):
+        return list(map(self.convert_to_dict, self.samples))
 
     @staticmethod
     def sort_by_measured_time(spec_list):
