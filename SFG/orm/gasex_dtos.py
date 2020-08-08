@@ -13,6 +13,9 @@ class GasExSfg(Base):
     sfg = relationship('SFG', back_populates='gasex')
     sample = relationship('GasexSamples', back_populates='sfg')
 
+    def __repr__(self):
+        return f'GasEx_SFG_{self.sample.sample_hash}'
+
 
 class GasexLt(Base):
     __tablename__ = 'gasex_lt'
@@ -23,6 +26,9 @@ class GasexLt(Base):
     lt = relationship("Lt", back_populates="gasex")
     sample = relationship('GasexSamples', back_populates='lt')
 
+    def __repr__(self):
+        return f'GasEx_LT_{self.sample.sample_hash}'
+
 
 class GasexSurftens(Base):
     __tablename__ = 'gasex_surftens'
@@ -32,6 +38,9 @@ class GasexSurftens(Base):
     sample_id = Column(Integer, ForeignKey('gasex_samples.id'))
 
     sample = relationship('GasexSamples', back_populates='tension')
+
+    def __repr__(self):
+        return f'GasEx_tension_{self.sample.sample_hash}'
 
 
 class GasexStations(Base):
@@ -44,6 +53,13 @@ class GasexStations(Base):
 
     samples = relationship('GasexSamples', back_populates='station')
     station_plan = relationship('GasexStationPlan', uselist=False, back_populates='station')
+
+    def __repr__(self):
+        return f'GasEx_Station_{self.hash}_{self.type}'
+
+    def to_basic_dict(self):
+        """Return a basic dictionary of the station's properties"""
+        return {"station_hash": self.hash, "date": self.date, "number": self.number, "station_type": self.type}
 
 
 @DeprecationWarning
@@ -134,6 +150,9 @@ class GasexSamples(Base):
     tension = relationship('GasexSurftens', uselist=False, back_populates='sample')
     sfg = relationship('GasExSfg', uselist=False, back_populates='sample')
     lt = relationship('GasexLt', back_populates='sample')
+
+    def __repr__(self):
+        return f'GasEx_Sample_{self.sample_hash}_object'
 
     def to_basic_dict(self):
         return {"sample_hash": self.sample_hash, "cruise": 1 if self.sample_hash.startswith('06') else 2,
