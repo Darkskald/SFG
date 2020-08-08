@@ -4,7 +4,7 @@ from typing import Dict, List
 import numpy as np
 import itertools as ito
 
-from SFG.orm.gasex_dtos import GasexSamples, GasexLt, GasExSfg
+from SFG.orm.gasex_dtos import GasexSamples, GasexLt, GasExSfg, GasexStations
 from SFG.orm.orm import DatabaseWizard, Lt, SFG
 from SFG.spectrum.averagers import SfgAverager, DummyPlotter
 from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
@@ -150,10 +150,13 @@ class DbInteractor(DatabaseWizard):
         l = LtIsotherm(args[0], args[1], *add_args)
         return l
 
-
+# todo: move processors to natural samples package!
+# todo: add pandas as dependency and return dataframe directly
 class SampleProcessor:
     """This class has the purpose to map a list of sample objects to a list of property dictionaries that
-    might be converted to pandas dataframe for data analysis."""
+    might be converted to a pandas dataframe for data analysis."""
+
+    # todo: add the salinity correction to the surface tension!
 
     def __init__(self, samples: List[GasexSamples], interactor: DbInteractor):
         self.samples = samples
@@ -187,3 +190,35 @@ class SampleProcessor:
     @staticmethod
     def sort_by_measured_time(spec_list):
         return sorted(spec_list, key=lambda x: x.measured_time)
+
+    @staticmethod
+    def map_samples_to_category(samples: List[GasexSamples]) -> Dict[str, List[GasexSamples]]:
+        """Match the samples to their corresponding types."""
+        category_map = {category: list(group) for category, group in ito.groupby(samples, lambda x: x.type)}
+        category_map["sml"] = [i for i in samples if i.type in ("p", "s")]
+        return category_map
+
+
+class StationProcessor:
+    """This class has the purpose to map a list of station objects to a list of property dictionaries that
+    might be converted to a pandas dataframe for data analysis. Note that this class has the ability to average multiple
+    SFG spectra and other measurements to get an average value for plate, screen and SML, bulk samples."""
+
+    def __init__(self, stations: List[GasexStations], interactor: DbInteractor):
+        self.station = stations
+        self.interactor = interactor
+
+    def convert_to_dict(self, station: GasexStations):
+        temp = station.to_basic_dict()
+        # properties to get:
+        # plate
+        # screen
+        # deep
+        # SML
+        # for_each: coverage, max.pressure, lift_off, tension
+
+    def get_list_of_station_dcits(self):
+        pass
+
+
+
