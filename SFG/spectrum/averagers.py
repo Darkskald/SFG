@@ -6,6 +6,10 @@ import numpy as np
 from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm
 
 
+class CoverageCalculationImpossibleError(Exception):
+    pass
+
+
 class AverageSpectrum(SfgSpectrum):
 
     def __init__(self, wavenumbers, intensities, meta):
@@ -43,6 +47,7 @@ class SfgAverager:
     """This class takes a list of SFG spectra and generates an average spectrum of them by interpolation and
     averaging. It is possible to pass a dictionary of date:dppc_integral key-value-pairs in order to calculate
     the coverage."""
+
     def __init__(self, spectra, references=None, enforce_scale=False, name="default", debug=False, baseline=False):
         self.failure_count = 0
         self.log = ""
@@ -116,8 +121,8 @@ class SfgAverager:
         in_new = [n.name for n in self.spectra]
         s_meta = {"name": newname, "made_from": in_new, "std": std}
 
-        #with open("blabla.txt", "a") as outfile:
-           #outfile.write(f'name: {newname} x: {root_x_scale}, y: {average}\n')
+        # with open("blabla.txt", "a") as outfile:
+        # outfile.write(f'name: {newname} x: {root_x_scale}, y: {average}\n')
 
         s = AverageSpectrum(root_x_scale, average, s_meta)
 
@@ -171,8 +176,8 @@ class SfgAverager:
             return coverage
 
         else:
-            #print(f'Coverage not available for reference samples, integral is {self.integral}!')
-            pass
+            raise CoverageCalculationImpossibleError(
+                f'Coverage not available for reference samples, integral is {self.integral}!')
 
     def benchmark(self):
         self.create_log()
@@ -195,8 +200,8 @@ class SfgAverager:
         self.log += 80 * "-" + "\n"
         s = f'integral: {self.integral}\ncoverage: {self.coverage}\n'
 
-        #with open(name, "w") as outfile:
-            #outfile.write(self.log)
+        # with open(name, "w") as outfile:
+        # outfile.write(self.log)
 
     @staticmethod
     def enforce_base():
@@ -236,7 +241,7 @@ class LtAverager:
             x_array = getattr(item, area_var)
             area, pressure = item.cut_away_decay(x_array)
             new_pressure = np.interp(root_x_scale[::-1], area[::-1],
-                                      pressure[::-1])
+                                     pressure[::-1])
             to_average.append(new_pressure)
 
         to_average = np.array(to_average)
@@ -298,4 +303,3 @@ class DummyPlotter:
             path = self.savedir + "/" + self.savename + ".png"
             plt.savefig(path)
             plt.close()
-

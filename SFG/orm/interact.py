@@ -4,9 +4,8 @@ from typing import Dict, List
 import numpy as np
 import itertools as ito
 
-from SFG.orm.gasex_dtos import GasexSamples, GasexLt, GasExSfg, GasexStations
-from SFG.orm.orm import DatabaseWizard, Lt, SFG
-from SFG.spectrum.averagers import SfgAverager, DummyPlotter
+from SFG.orm.orm import DatabaseWizard, SFG
+from SFG.spectrum.averagers import DummyPlotter
 from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
 
 
@@ -139,7 +138,7 @@ class DbInteractor(DatabaseWizard):
         obtained during the corresponding day of measurement and taking the square root."""
         reference = self.get_reference_integrals()[spectrum.measured_time.date()]
         integral = DbInteractor.construct_sfg(spectrum).calculate_ch_integral()
-        return np.sqrt(integral/reference)
+        return np.sqrt(integral / reference)
 
     @staticmethod
     def construct_lt(or_object) -> LtIsotherm:
@@ -149,76 +148,6 @@ class DbInteractor(DatabaseWizard):
         add_args = [DbInteractor.to_array(getattr(or_object, i)) for i in add_args]
         l = LtIsotherm(args[0], args[1], *add_args)
         return l
-
-# todo: move processors to natural samples package!
-# todo: add pandas as dependency and return dataframe directly
-class SampleProcessor:
-    """This class has the purpose to map a list of sample objects to a list of property dictionaries that
-    might be converted to a pandas dataframe for data analysis."""
-
-    # todo: add the salinity correction to the surface tension!
-
-    def __init__(self, samples: List[GasexSamples], interactor: DbInteractor):
-        self.samples = samples
-        self.ia = interactor
-
-    def convert_to_dict(self, sample: GasexSamples):
-        # create the basic dictionary
-        temp = sample.to_basic_dict()
-
-        # add the surface tension
-        temp["surface_tension"] = sample.tension.surface_tension if sample.tension is not None else None
-
-        # add the surface pressure of the first measured LT
-        first_measured: List[GasexLt] = SampleProcessor.sort_by_measured_time([s.lt for s in sample.lt])
-        if len(first_measured) > 0:
-            lt_spec_object = DbInteractor.construct_lt(first_measured[0])
-            temp["max_surface_pressure"] = lt_spec_object.get_maximum_pressure()
-            temp["lift_off_compression_ration"] = (first_measured[0].lift_off.lift_off) / np.max(lt_spec_object.area) if \
-                first_measured[0].lift_off is not None else None
-        else:
-            temp["max_surface_pressure"] = None
-            temp["lift_off_compression_ration"] = None
-        
-        # SFG coverage
-        temp["coverage"] = self.ia.get_coverage(sample.sfg.sfg) if sample.sfg is not None else None
-        return temp
-
-    def get_list_of_sample_dicts(self):
-        return list(map(self.convert_to_dict, self.samples))
-
-    @staticmethod
-    def sort_by_measured_time(spec_list):
-        return sorted(spec_list, key=lambda x: x.measured_time)
-
-    @staticmethod
-    def map_samples_to_category(samples: List[GasexSamples]) -> Dict[str, List[GasexSamples]]:
-        """Match the samples to their corresponding types."""
-        category_map = {category: list(group) for category, group in ito.groupby(samples, lambda x: x.type)}
-        category_map["sml"] = [i for i in samples if i.type in ("p", "s")]
-        return category_map
-
-
-class StationProcessor:
-    """This class has the purpose to map a list of station objects to a list of property dictionaries that
-    might be converted to a pandas dataframe for data analysis. Note that this class has the ability to average multiple
-    SFG spectra and other measurements to get an average value for plate, screen and SML, bulk samples."""
-
-    def __init__(self, stations: List[GasexStations], interactor: DbInteractor):
-        self.station = stations
-        self.interactor = interactor
-
-    def convert_to_dict(self, station: GasexStations):
-        temp = station.to_basic_dict()
-        # properties to get:
-        # plate
-        # screen
-        # deep
-        # SML
-        # for_each: coverage, max.pressure, lift_off, tension
-
-    def get_list_of_station_dcits(self):
-        pass
 
 
 
