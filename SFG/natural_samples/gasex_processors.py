@@ -25,7 +25,8 @@ class SampleProcessor:
         temp = sample.to_basic_dict()
 
         # add the surface tension
-        temp["surface_tension"] = sample.tension.surface_tension if sample.tension is not None else None
+        tension = SampleProcessor.get_corrected_salinity(sample)
+        temp["surface_tension"] = tension if tension is not None else None
 
         # add the surface pressure of the first measured LT
         first_measured: List[GasexLt] = SampleProcessor.sort_by_measured_time([s.lt for s in sample.lt])
@@ -46,6 +47,21 @@ class SampleProcessor:
         return list(map(self.convert_to_dict, self.samples))
 
     @staticmethod
+    def get_corrected_salinity(sample: GasexSamples):
+        temp = sample.tension.surface_tension if sample.tension is not None else None
+        if temp is not None:
+            # first step: correct the surface tension value for the difference between calibration (20 °C)
+            # and real lab temperature(21 °C)
+            raw = float(sample.tension.surface_tension) * 0.99703
+
+            # second step: correct for the salinity according to the type of the sample (surface or bulk)
+            if sample.type == "deep":
+                raw += SampleProcessor.correct_salinity(float(sample.station.station_plan.salinity_depth))
+            else:
+                raw += SampleProcessor.correct_salinity(float(sample.station.station_plan.salinity_surface))
+            return round(raw, 2)
+
+    @staticmethod
     def sort_by_measured_time(spec_list):
         return sorted(spec_list, key=lambda x: x.measured_time)
 
@@ -55,6 +71,12 @@ class SampleProcessor:
         category_map = {category: list(group) for category, group in ito.groupby(samples, lambda x: x.type)}
         category_map["sml"] = [i for i in samples if i.type in ("p", "s")]
         return category_map
+
+    @staticmethod
+    def correct_salinity(salinity: float) -> float:
+        """A function yielding a salinity-dependent correction factor for the surface tension. The reference salinity
+        where the factor equals zero is 17 PSU."""
+        return 0.52552 - 0.0391 * salinity
 
 
 class StationProcessor:
@@ -99,7 +121,8 @@ class StationProcessor:
     def average_sfg_spectra(self, samples: List[GasexSamples]) -> Tuple[AverageSpectrum, float]:
         """Averages the SFG spectra belonging to the provided list of samples. Returns the average spectrum
         and the calculated coverage."""
-        spectra = list(map(self.interactor.construct_sfg, [i.sfg.sfg for i in samples if (i is not None and i.sfg is not None)]))
+        spectra = list(
+            map(self.interactor.construct_sfg, [i.sfg.sfg for i in samples if (i is not None and i.sfg is not None)]))
 
         # calculate the average spectrum, enforce default wavenumber scaling and baseline correction
         averager = SfgAverager(spectra, enforce_scale=True, baseline=True,

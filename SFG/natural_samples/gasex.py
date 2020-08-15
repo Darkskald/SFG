@@ -52,7 +52,9 @@ class SampleWrapper:
         else:
             return None
 
+    @DeprecationWarning
     def get_coverage(self, references):
+        """ATTENTION: THIS IS APPARENTLY WRONG BECAUSE THE SQUARE ROOT IS MISSING"""
         reference = references[self.sample.sfg.sfg.measured_time.date()]
         integral = DbInteractor.construct_sfg(self.sample.sfg.sfg).calculate_ch_integral()
         return integral/reference
