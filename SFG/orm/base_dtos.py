@@ -6,8 +6,6 @@ from sqlalchemy.orm import relationship
 Base = declarative_base()
 
 
-# independent
-
 class SFG(Base):
     __tablename__ = "sfg"
     id = Column(Integer, primary_key=True)
@@ -24,6 +22,9 @@ class SFG(Base):
     regular = relationship('RegularSfg', uselist=False, back_populates='sfg')
     gasex = relationship('GasExSfg', uselist=False, back_populates='sfg')
     boknis = relationship('BoknisEck', uselist=False, back_populates='sfg')
+
+    def __repr__(self):
+        return (f'SFG spectrum DTO {self.name}')
 
 
 class Lt(Base):
@@ -42,6 +43,9 @@ class Lt(Base):
     gasex = relationship('GasexLt', uselist=False, back_populates='lt')
     lift_off = relationship('LiftOff', uselist=False, back_populates='lt')
 
+    def __repr__(self):
+        return f'Langmuir trough isotherm DTO {self.name}'
+
 
 class IR(Base):
     __tablename__ = 'ir'
@@ -49,6 +53,9 @@ class IR(Base):
     name = Column(Text)
     wavenumbers = Column(Text)
     transmission = Column(Text)
+
+    def __repr__(self):
+        return f'Infrared spectrum DTO {self.name}'
 
 
 class Raman(Base):
@@ -58,6 +65,9 @@ class Raman(Base):
     wavenumbers = Column(Text)
     intensity = Column(Text)
 
+    def __repr__(self):
+        return f'Raman spectrum DTO {self.name}'
+
 
 class UV(Base):
     __tablename__ = 'uv'
@@ -65,6 +75,9 @@ class UV(Base):
     name = Column(Text)
     wavelength = Column(Text)
     absorbance = Column(Text)
+
+    def __repr__(self):
+        return f'UV spectrum DTO {self.name}'
 
 
 class Substances(Base):
@@ -76,6 +89,9 @@ class Substances(Base):
     sensitizing = Column(Text)
 
     def __repr__(self):
+        return f'Infrared spectrum DTO {self.name}'
+
+    def __str__(self):
         out = f"""compound {self.name}, abbreviation {self.abbreviation}, molar mass: {self.molar_mass}, sensitizing: {self.sensitizing}"""
         return out
 
@@ -99,6 +115,9 @@ class RegularSfg(Base):
 
     sfg = relationship('SFG', back_populates='regular')
 
+    def __repr__(self):
+        return f'Regular SFG DTO {self.name}'
+
 
 class RegularLt(Base):
     __tablename__ = 'regular_lt'
@@ -117,5 +136,4 @@ class RegularLt(Base):
     lt = relationship("Lt", uselist=False, back_populates="regular")
 
     def __repr__(self):
-        representation = f"""RegularLT object (id {self.id}) {self.name}"""
-        return representation
+        return f'Regular LT DTO {self.name}'

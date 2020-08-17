@@ -176,7 +176,7 @@ class SfgSpectrum(BaseSpectrum):
             print(f'intercept: {intercept}, slope: {slope}, left:{left}, right: {right}')
 
         def baseline(x):
-            return x*slope+intercept
+            return x * slope + intercept
 
         return baseline
 
@@ -480,6 +480,7 @@ class AverageSpectrum(SfgSpectrum):
         super().set_regions()
 
 
+@DeprecationWarning
 class DummyPlotter:
     """A test class to monitor the interaction of the subclasses of AbstractSpectrum with plotting routines."""
 
