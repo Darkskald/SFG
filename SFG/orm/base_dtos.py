@@ -145,3 +145,15 @@ class MeasurementDay(Base):
     date = Column(Date, unique=True)
     dppc_integral = Column(Float)
     dppc_no = Column(Integer)
+
+    references = relationship('ReferenceSpectrum', back_populates="measurement_day")
+
+
+class ReferenceSpectrum(Base):
+    __tablename__ = 'reference_spectra'
+    id = Column(Integer, primary_key=True)
+    sfg_id = Column(Integer, ForeignKey('sfg.id'))
+    measurement_day_id = Column(Integer, ForeignKey('measurement_days.id'))
+
+    measurement_day = relationship('MeasurementDay', uselist=False, back_populates='references')
+    sfg = relationship('SFG')
