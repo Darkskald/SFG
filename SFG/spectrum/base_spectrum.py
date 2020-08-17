@@ -47,7 +47,7 @@ class BaseSpectrum(metaclass=MetaSpectrum):
         upper_index = np.argmax(self.x >= upper)
         return int(lower_index), int(upper_index)
 
-    def get_xrange(self, lower, upper):
+    def get_xrange(self):
         # todo: ensure this functions work as well for y_values
         """Returns the slice of the x values in the borders of lower to upper"""
         lower, upper = self.get_xrange_indices()
@@ -90,7 +90,7 @@ class BaseSpectrum(metaclass=MetaSpectrum):
     def to_pandas_dataframe(self) -> pd.DataFrame:
        pd.DataFrame(data=self.properties_to_dict())
 
-    def to_csv(self):
+    def to_csv(self) -> None:
         self.to_pandas_dataframe().to_csv(self.name + ".csv", index=False, sep=";")
 
     def to_json(self) -> str:
