@@ -1,6 +1,7 @@
 import copy
 import csv
 import datetime
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -294,7 +295,8 @@ class SfgAverager:
     averaging. It is possible to pass a dictionary of date:dppc_integral key-value-pairs in order to calculate
     the coverage."""
 
-    def __init__(self, spectra, references=None, enforce_scale=False, name="default", debug=False, baseline=False):
+    def __init__(self, spectra: List[SfgSpectrum], references=None, enforce_scale=False, name="default", debug=False,
+                 baseline=False):
         self.failure_count = 0
         self.log = ""
         self.log += "Log file for averaging spectra\n"

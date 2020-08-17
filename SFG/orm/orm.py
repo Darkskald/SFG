@@ -18,7 +18,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
-from SFG.orm.boknis_dtos import BoknisEck, BoknisDatabaseParameters, BoknisWaterSamples, MeasurementDay, BoknisEckData
+from SFG.orm.boknis_dtos import BoknisEck, BoknisDatabaseParameters, BoknisWaterSamples, BoknisEckData
 from SFG.orm.gasex_dtos import GasExSfg, GasexLt, GasexSurftens, GasexStations, StationStat, GasexSamples, \
     GasexStationPlan, LiftOff
 from SFG.orm.importer import Importer
