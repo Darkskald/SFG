@@ -6,7 +6,7 @@ import pandas as pd
 
 from SFG.orm.gasex_dtos import GasexSamples, GasexLt, GasexStations
 from SFG.orm.interact import DbInteractor
-from SFG.spectrum.averagers import AverageSpectrum, SfgAverager
+from SFG.spectrum.sfg_spectrum import SfgAverager, AverageSpectrum
 
 
 class SampleProcessor:

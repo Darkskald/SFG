@@ -3,7 +3,7 @@ from functools import partial
 
 from SFG.orm.interact import DbInteractor
 from SFG.orm.boknis_dtos import BoknisEckData
-from SFG.spectrum.averagers import SfgAverager
+from SFG.spectrum.sfg_spectrum import SfgAverager
 
 
 class BoknisWrapper:

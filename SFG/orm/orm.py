@@ -27,7 +27,8 @@ from SFG.orm.parsing import *
 
 import numpy as np
 
-from SFG.spectrum.spectrum import SfgSpectrum, BaseSpectrum
+from SFG.spectrum.base_spectrum import BaseSpectrum
+from SFG.spectrum.sfg_spectrum import SfgSpectrum
 
 
 class DatabaseWizard:
@@ -486,7 +487,6 @@ class ImportDatabaseWizard(DatabaseWizard):
         day = int(temp[6:])
         return datetime.date(year, month, day)
 
-# todo: add meaningful string representations for the DTOs
 if __name__ == "__main__":
     start = timeit.default_timer()
     D = ImportDatabaseWizard()

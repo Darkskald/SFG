@@ -5,8 +5,9 @@ import numpy as np
 import itertools as ito
 
 from SFG.orm.orm import DatabaseWizard, SFG
-from SFG.spectrum.averagers import DummyPlotter
-from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm, BaseSpectrum
+from SFG.spectrum.base_spectrum import BaseSpectrum
+from SFG.spectrum.sfg_spectrum import SfgSpectrum, DummyPlotter
+from SFG.spectrum.langmuir_isotherm import LtIsotherm
 
 
 class DbInteractor(DatabaseWizard):
