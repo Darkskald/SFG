@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+# todo: remove all plotting from the core spectrum module
 
 class BatchPlotter:
 

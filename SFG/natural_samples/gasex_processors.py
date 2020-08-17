@@ -1,5 +1,4 @@
 import itertools as ito
-from functools import partial
 from typing import List, Dict, Tuple
 
 import numpy as np
@@ -145,3 +144,5 @@ class StationProcessor:
         temp = df[value].astype('float64').describe()[["count", "mean", "std"]].to_dict()
         temp["value"] = value
         return temp
+
+# todo: day of the year conversion function is required!
