@@ -40,7 +40,7 @@ class BoknisDatabaseParameters(Base):
     boknis_sampling_day = relationship('BoknisEckData', uselist=False, back_populates='parameters')
 
 
-@DeprecationWarning
+# todo: remove
 class BoknisWaterSamples(Base):
     __tablename__ = 'boknis_water_samples'
     id = Column(Integer, primary_key=True)
