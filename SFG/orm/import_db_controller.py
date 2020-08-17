@@ -103,7 +103,6 @@ class DatabaseWizard:
         if time_correction:
             if 0 <= s.meta["time"].hour < 8:
                 s.meta["time"] -= timedelta(days=1)
-
         return s
 
 
@@ -383,12 +382,24 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.session.commit()
 
     def map_measurement_days_to_spectra(self) -> None:
+        """
         days = self.session.query(self.measurement_days).all()
         for day in days:
             spectra = self.session.query(self.sfg).filter(func.DATE(self.sfg.measured_time) == day.date).all()
             for spectrum in spectra:
                 spectrum.measurement_day_id = day.id
             self.session.commit()
+        """
+        temp = self.session.query(self.sfg).all()
+        for s in temp:
+            if 0 <= s.measured_time.hour < 8:
+                s.measured_time -= timedelta(days=1)
+            day = self.session.query(self.measurement_days).filter(
+                func.DATE(s.measured_time) == self.measurement_days.date).one_or_none()
+            s.measurement_day_id = day.id if day is not None else None
+        self.session.commit()
+
+
 
     # boknis
     def generate_boknis(self) -> None:
