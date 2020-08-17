@@ -56,6 +56,7 @@ class DatabaseWizard:
         # BE specific
         # todo measurement days for all SFG
         self.measurement_days = MeasurementDay
+        self.reference_spectra = ReferenceSpectrum
         self.be_data = BoknisEckData
         self.be_params = BoknisDatabaseParameters
         self.be_water_samples = BoknisWaterSamples
@@ -353,18 +354,29 @@ class ImportDatabaseWizard(DatabaseWizard):
         temp = ito.groupby(boknis + other_dppc, key=lambda x: x.measured_time.date())
         measurement_days = {key: list(specs) for key, specs in temp}
         # todo: create an auxiliary dto mapping the DPPC reference to this entries
+        measurement_day_increment = 1
         for key in measurement_days:
             specs = measurement_days[key]
             md = self.measurement_days()
+            md.id = measurement_day_increment
             md.date = key
             integrals = []
             for s in specs:
+                # create the reference spectrum object
+                r = self.reference_spectra()
+                r.sfg_id = s.id
+                r.measurement_day_id = md.id
+                self.session.add(r)
+
+                # calculate the average integral without averager class
                 s_t = self.construct_sfg(s)
                 integral = round(s_t.calculate_ch_integral(), 4)
                 integrals.append(integral)
+
             md.dppc_integral = np.sum(integrals) / len(specs)
             md.dppc_no = len(specs)
             self.session.add(md)
+            measurement_day_increment += 1
         self.session.commit()
 
     # todo: create a relation between the SFG measurements and the corresponding reference integral
@@ -486,6 +498,7 @@ class ImportDatabaseWizard(DatabaseWizard):
         month = int(temp[4:6])
         day = int(temp[6:])
         return datetime.date(year, month, day)
+
 
 if __name__ == "__main__":
     start = timeit.default_timer()
