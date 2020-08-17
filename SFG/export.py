@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import SFG as sf
-from SFG.orm.orm import WorkDatabaseWizard
+from SFG.orm.import_db_controller import WorkDatabaseWizard
 from SFG.spectrum.sfg_spectrum import DummyPlotter
 
 # p = pathlib.Path().cwd() / "SFG" / "mpl_config" / "origin.mpltstyle"

@@ -3,7 +3,7 @@ import timeit
 
 # from SFG.natural_samples.boknis_eck import BoknisEckExtension
 # from SFG.natural_samples.gasex import GasExManager
-from SFG.orm.orm import ImportDatabaseWizard
+from SFG.orm.import_db_controller import ImportDatabaseWizard
 
 np = "C:/Users/lange/Desktop/CharmingSFG/SFG/newport"
 db = "C:/Users/lange/Desktop/CharmingSFG/SFG/orm.db"

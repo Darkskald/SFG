@@ -4,7 +4,7 @@ from typing import Dict, List
 import numpy as np
 import itertools as ito
 
-from SFG.orm.orm import DatabaseWizard, SFG
+from SFG.orm.import_db_controller import DatabaseWizard, SFG
 from SFG.spectrum.base_spectrum import BaseSpectrum
 from SFG.spectrum.sfg_spectrum import SfgSpectrum, DummyPlotter
 from SFG.spectrum.langmuir_isotherm import LtIsotherm
