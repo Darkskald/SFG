@@ -1,4 +1,6 @@
-from SFG.spectrum.spectrum import SfgSpectrum, LtIsotherm, SfgAverager
+from SFG.spectrum.base_spectrum import SfgAverager
+from SFG.spectrum.sfg_spectrum import SfgSpectrum
+from SFG.spectrum.langmuir_isotherm import LtIsotherm
 import pandas as pd
 import sqlite3
 import numpy as np

@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 # from SFG.orm.orm import WorkDatabaseWizard
-from SFG.spectrum.averagers import SfgAverager
+from SFG.spectrum.sfg_spectrum import SfgAverager
 
 
 class BoknisEckExtension:

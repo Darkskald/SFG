@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 
 from SFG.natural_samples import BEDatabaseWizard, BoknisEckExtension
-from SFG.spectrum.averagers import DummyPlotter
+from SFG.spectrum.sfg_spectrum import DummyPlotter
 
 dirname = os.path.dirname(__file__)
 p = os.path.join(dirname, 'mpl_config/origin.mpltstyle')

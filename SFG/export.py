@@ -7,7 +7,7 @@ import pandas as pd
 
 import SFG as sf
 from SFG.orm.orm import WorkDatabaseWizard
-from SFG.spectrum.averagers import DummyPlotter
+from SFG.spectrum.sfg_spectrum import DummyPlotter
 
 # p = pathlib.Path().cwd() / "SFG" / "mpl_config" / "origin.mpltstyle"
 # plt.style.use(str(p))
@@ -173,7 +173,8 @@ def origin_preview_date():
         dir_name = str(key)
         os.mkdir(dir_name)
         sfg_spectra = [w.construct_sfg(i) for i in dates[key]]
-        for spec in sfg_spectra: # type:sf.spectrum.SfgSpectrum
+        for spec in sfg_spectra: # type:import SFG.spectrum.sfg_spectrum
+SFG.spectrum.sfg_spectrum.SfgSpectrum
             df = spec.convert_to_export_dataframe()
             df.to_csv(f'{dir_name}/'+spec.name + ".csv", index=False, sep=";")
         DummyPlotter(sfg_spectra, save=True, savedir=dir_name).plot_all()

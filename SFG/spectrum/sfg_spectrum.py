@@ -1,104 +1,15 @@
 import copy
 import csv
-import json
+import datetime
 
 import numpy as np
 import pandas as pd
 import peakutils
-from scipy.integrate import simps as sp
-from scipy.integrate import trapz as tp
+from matplotlib import pyplot as plt
+from scipy.integrate import simps as sp, trapz as tp
 
-from SFG.spectrum.exceptions import InvalidSpectrumError, IntegrationError
-
-
-class MetaSpectrum(type):
-
-    def __call__(cls, *args, **kwargs):
-        temp = super().__call__(*args, **kwargs)
-
-        for attr in ("x", "y", "x_unit", "y_unit", "name"):
-            if not hasattr(temp, attr):
-                raise InvalidSpectrumError(f'Tried to instantiate spectrum object without suitable attribute {attr}!')
-
-        return temp
-
-
-class BaseSpectrum(metaclass=MetaSpectrum):
-
-    def __init__(self, name=None, x=None, y=None, x_unit=None, y_unit=None, timestamp=None):
-        self.name = name
-        self.x = x
-        self.y = y
-        self.x_unit = x_unit
-        self.y_unit = y_unit
-        self.timestamp = timestamp
-
-    # magic methods
-
-    def __repr__(self):
-        return f'{type(self).__name__} Object with name "{self.name}"'
-
-    # working on the data
-    def yield_spectral_range(self):
-        """returns a list containing maximum and minimum wavenumer and the number of data points"""
-        return [min(self.x), max(self.x), len(self.x)]
-
-    def get_xrange_indices(self, lower, upper):
-        """Takes a high (upper) and a low (lower) target x value as argument. Returns
-        the indices of the wavenumber array of the spectrum that are the borders of this interval."""
-        lower_index = np.argmax(self.x >= lower)
-        upper_index = np.argmax(self.x >= upper)
-        return int(lower_index), int(upper_index)
-
-    def get_xrange(self, lower, upper):
-        # todo: ensure this functions work as well for y_values
-        """Returns the slice of the x values in the borders of lower to upper"""
-        lower, upper = self.get_xrange_indices()
-        return self.x[lower, upper + 1]
-
-    def normalize(self, external=None):
-        """Normalize the spectrum's y data either to the maximum of the y values or an
-        external factor"""
-        if external is None:
-            return np.max(self.y)
-        else:
-            return self.y/external
-
-    def integrate_slice(self, x_array, y_array):
-        """Integrates the y_array which has a spacing given by the x_array. First it tries to apply
-        simpson rule integration rule, but if this fails the function invokes integration via
-        trapeziodal rule"""
-        try:
-            area = sp(y_array, x_array)
-            if np.isnan(area):
-                print(f"""Integration failed in spectrum {self.name} using Simpson's rule. 
-                Falling back to trapezoidal rule.""")
-                area = tp(y_array, x_array)
-            return area
-        except:
-            raise IntegrationError(f'Integration not possible for {self.name}')
-
-    # export functions
-    def properties_to_dict(self):
-        temp = {
-                "name": self.name,
-                "x_unit": self.x_unit,
-                "y_unit": self.y_unit,
-                "x": self.x,
-                "y": self.y,
-                "timestamp": self.timestamp
-                }
-        return temp
-
-    def to_pandas_dataframe(self) -> pd.DataFrame:
-       pd.DataFrame(data=self.properties_to_dict())
-
-    def to_csv(self):
-        self.to_pandas_dataframe().to_csv(self.name + ".csv", index=False, sep=";")
-
-    def to_json(self) -> str:
-        temp = self.properties_to_dict()
-        return json.dumps(temp)
+from SFG.spectrum.exceptions import CoverageCalculationImpossibleError
+from SFG.spectrum.base_spectrum import BaseSpectrum
 
 
 class SfgSpectrum(BaseSpectrum):
@@ -375,141 +286,244 @@ class SfgSpectrum(BaseSpectrum):
         return np.concatenate([left - base, right - base2])
 
 
-class LtIsotherm(BaseSpectrum):
-    """A class to represent experimental Langmuir trough isotherms, handling time, area, area per molecule and
-    surface pressure"""
+class SfgAverager:
+    # todo: throw an error and plot the spectra if the integral is NAN or zero!
+    # todo: the benchmark function MUST display the integral value and the baseline
+    # todo: replace print comments by professional logging
+    """This class takes a list of SFG spectra and generates an average spectrum of them by interpolation and
+    averaging. It is possible to pass a dictionary of date:dppc_integral key-value-pairs in order to calculate
+    the coverage."""
 
-    def __init__(self, name, measured_time, time, area, apm, pressure, lift_off=None, correct=True):
+    def __init__(self, spectra, references=None, enforce_scale=False, name="default", debug=False, baseline=False):
+        self.failure_count = 0
+        self.log = ""
+        self.log += "Log file for averaging spectra\n"
+        self.spectra = spectra
+        self.references = references
+        self.enforce_scale = enforce_scale
         self.name = name
-        self.measured_time = measured_time
-        self.time = time
-        self.area = area
-        self.apm = apm
-        self.pressure = pressure
-        self.compression_factor = self.calc_compression_factor()
 
-        # todo: remove this hack which ensures the spectrum complies with the metaclass
-        self.x = None
-        self.y = None
-        self.x_unit = "area/ cm$^{2}$"
-        self.y_unit = "surface pressure/ mNm$^{-1}$"
+        if len(self.spectra) == 0:
+            print("Warning: zero spectra to average in SfgAverager!")
+            self.average_spectrum = None
+            self.integral = None
+            self.coverage = None
 
-        self.speed = None
-        self.measurement_number = None
-
-        self.lift_off = lift_off
-
-        if correct is True:
-            p = np.min(self.pressure)
-            if p < 0:
-                self.pressure += np.abs(p)
-
-        self.setup_spec()
-
-    def __lt__(self, other):
-        if self.get_maximum_pressure() < other.get_maximum_pressure():
-            return True
-
-    def setup_spec(self) -> None:
-        self._x = self.area
-        self._y = self.pressure
-
-    def drop_ascii(self) -> None:
-        """Drops an ascii file with semikolon-separated data in the form time;area;surface pressure. Intention
-        is easy interfacing with external software like Excel or Origin"""
-
-        with open(self.name + ".out", "w") as outfile:
-            for a, b, c in zip(self.time, self.area, self.pressure):
-                outfile.write(str(a) + ";" + str(b) + ";" + str(c) + "\n")
-
-    def convert_to_export_dataframe(self):
-        """This function returns a Pandas dataframe, suitable for data export to
-        origin and similar other programs"""
-        data = {
-            "time": self.time,
-            "area": self.area,
-            "area per molecule": self.apm,
-            "surface pressure": self.pressure
-        }
-        return pd.DataFrame(data=data)
-
-    def get_maximum_pressure(self, shrinked=None):
-        """Returns the maximum measured surface pressure. Note: This property is uesd for the less-then
-        operator implementation of this class!"""
-        if shrinked == None:
-            return np.max(self.pressure)
         else:
+            self.day_counter = {}
+
+            self.average_spectrum = self.average_spectra(baseline=baseline)
+            self.integral = self.average_spectrum.calculate_ch_integral()
+            self.coverage = self.calc_coverage()
+
+            if debug:
+                if self.integral < 0:
+                    self.benchmark()
+                    print("Warning: negative integral value in SfgAverager!")
+                    self.integral = 0
+                    self.coverage = 0
+
+    # todo: mit Gernot abklären ob von allen Baseline oder nur vom average
+    def average_spectra(self, baseline=True):
+        """Function performing the averaging: it ensures that all spectra are interpolated to have the same shape,
+        then they are averaged. A AverageSpectrum  object is constructed and returned."""
+        to_average = []
+
+        # sort spectra by length of the wavenumber array (lambda)
+        if self.enforce_scale is False:
+            self.spectra.sort(key=lambda x: x.yield_wn_length(), reverse=True)
+            root_x_scale = self.spectra[0].x
+        else:
+            root_x_scale = SfgAverager.enforce_base()
+
+        # get y values by interpolation and collect the y values in a list
+        # collect the dates of measurement for DPPC referencing
+        for item in self.spectra:
+
+            if 0 <= item.meta["time"].hour < 8:
+                item.meta["time"] -= datetime.timedelta(days=1)
+
+            date = item.meta["time"].date()
+
+            if date not in self.day_counter:
+                self.day_counter[date] = 1
+            else:
+                self.day_counter[date] += 1
+
+            new_intensity = np.interp(root_x_scale, item.x, item.y)
+            mask = (root_x_scale > np.max(item.x)) | (root_x_scale < np.min(item.x))
+            new_intensity[mask] = np.nan
+            to_average.append(new_intensity)
+
+        to_average = np.array(to_average)
+        average = np.nanmean(to_average, axis=0)
+        std = np.nanstd(to_average, axis=0)
+
+        # prepare meta data for average spectrum
+        if self.name == "default":
+            newname = self.spectra[0].name + "baseAV"
+        else:
+            newname = self.name
+        in_new = [n.name for n in self.spectra]
+        s_meta = {"name": newname, "made_from": in_new, "std": std}
+
+        # with open("blabla.txt", "a") as outfile:
+        # outfile.write(f'name: {newname} x: {root_x_scale}, y: {average}\n')
+
+        s = AverageSpectrum(root_x_scale, average, s_meta)
+
+        if baseline:
             try:
-                return np.max(shrinked)
-            except:
-                # todo specify the type of error numpy will throw
-                raise TypeError("Can not calc maximum for this operand")
+                s.y = s.full_baseline_correction()
+            except (ValueError, ZeroDivisionError):
+                if s.baseline_corrected:
+                    s.y = s.baseline_corrected
+                else:
+                    s.correct_baseline()
 
-    def calc_compression_factor(self):
-        max = np.max(self.area)
-        return self.area / max
+        return s
 
-    def derive_pressure(self):
-        """Calculates the difference quotient of the surface pressure with respect to the area.
-        Useful for calculation of surface elasticity"""
-        return np.diff(self.pressure) / np.diff(self.area)
+    def calc_reference_part(self):
+        """Calculate the participation of each DPPC references. This is important if the spectra to average are
+        measured on different sampling days. If, for example,  5 samples are to average and 3 of them are measured
+        on one day, 2 on another, the final coverage is calculated by dividing the AveragedSpectrum integral by the
+        weighted sum of the DPPC integrals of the corresponding days, in our example (2/5 * DPPC_1) + (3/5 * DPPC_2)"""
 
-    def create_pointlist(self, x_array):
-        """Returns a list containing the index, the x_array (usually area or time) and the surface pressure.
-        This is used for example by the GUI functions to find the closest datapoint to a mouse-defined position
-        in the plot"""
+        spec_number = len(self.spectra)
+        total = 0
+        self.log += f'Start of the reference calculating section: \n'
 
-        output = []
-        for i, (a, b) in enumerate(zip(x_array, self.pressure)):
-            output.append((a, b, i))
-        return output
+        for date in self.day_counter:
+            # divide by total number of spectra in the average
+            self.log += f'date {date} divided by the number of spectra {spec_number}\n'
+            self.day_counter[date] /= spec_number
 
-    def get_slice(self, x_array, lower, upper, smooth=False):
-        """Returns a slice of the x_array (usually time or area) defined by the lower and upper integer
-        index."""
+            # multiply the weighting factor by the integral of the day
+            try:
+                self.log += f"""Now multiplying the factor {self.day_counter[date]} 
+                by the reference integral {self.references[date]}\n"""
 
-        x_out = x_array[lower:upper + 1]
-        if smooth == False:
-            y_out = self.pressure[lower:upper + 1]
+                self.day_counter[date] *= self.references[date]
+                total += self.day_counter[date]
+            except KeyError:
+                self.failure_count += 1
+                self.log += f'Error: no suitable DPPC reference found four date {date}\n'
+
+        self.log += f'Finalizing calculation. The total factor now is {total}.\n'
+
+        return total
+
+    @DeprecationWarning
+    def calc_coverage(self):
+        """A convenience function  to calculate the surface coverage"""
+
+        if self.references is not None:
+            dppc_factor = self.calc_reference_part()
+            coverage = np.sqrt(self.integral / dppc_factor)
+            return coverage
+
         else:
-            y_out = self.smooth()[lower:upper + 1]
+            raise CoverageCalculationImpossibleError(
+                f'Coverage not available for reference samples, integral is {self.integral}!')
 
-        return x_out, y_out
+    @DeprecationWarning
+    def benchmark(self):
+        self.create_log()
+        l = [i for i in self.spectra]
+        l.append(self.average_spectrum)
+        p = DummyPlotter(l, save=True, savename=self.spectra[0].name, special="AV")
+        p.plot_all()
 
-    def calculate_elasticity(self) -> np.ndarray:
-        """Returns the surface elasticity of the isotherm"""
+    def create_log(self):
 
-        xdata = self.area[::-1]
-        ydata = self.pressure[::-1]
-        out = []
+        name = "benchmark/" + self.spectra[0].name + ".log"
 
-        for i in range(len(self.pressure) - 1):
-            p = abs(ydata[i + 1] - ydata[i])
-            a = abs((xdata[i + 1] - xdata[i]))
-            A = (xdata[i + 1] - xdata[i]) / 2
+        s = f'This average contains {len(self.spectra)} SFG spectra:\n'
 
-            out.append(p / a * A)
+        self.log += 80 * "-" + "\n"
+        self.log += s
+        for i in self.spectra:
+            self.log += (i.name + "\n")
 
-        return np.array(out[::-1])
+        self.log += 80 * "-" + "\n"
+        s = f'integral: {self.integral}\ncoverage: {self.coverage}\n'
 
-    def cut_away_decay(self, x_array):
-        max_area = np.argmax(self.area < 31.2)
-        return self.get_slice(x_array, 0, max_area)
+        # with open(name, "w") as outfile:
+        # outfile.write(self.log)
 
-    # todo: replace with numpy argmax function
     @staticmethod
-    def get_closest_index(array_datapoints, check) -> int:
-        d = 1000000000000
-        index = None
-        for point in array_datapoints:
-
-            d_temp = np.sqrt((check[0] - point[0]) ** 2 + (check[1] - point[1]) ** 2)
-            if d_temp < d:
-                d = d_temp
-                index = point[2]
-
-        return index
+    def enforce_base():
+        reg1 = np.arange(2750, 3055, 5)
+        reg2 = np.arange(3050, 3670, 20)
+        reg3 = np.arange(3650, 3845, 5)
+        new = np.concatenate((reg1, reg2, reg3), axis=None)
+        return new
 
 
+class AverageSpectrum(SfgSpectrum):
+
+    def __init__(self, wavenumbers, intensities, meta):
+        self.x = wavenumbers
+        self.y = intensities
+        self.x_unit = "wavenumber/ cm$^{-1}$"
+        self.y_unit = "SFG intensity/ arb. u."
+        self.name = meta["name"]
+
+        self.meta = meta
+        self.baseline_corrected = None
+        self.regions = None
+
+        # ensure nan-values in intensity and their corresponding wavenumbers are removed
+        mask = np.isfinite(self.y)
+        self.y = self.y[mask]
+        self.x = self.x[mask]
+        super().set_regions()
 
 
+class DummyPlotter:
+    """A test class to monitor the interaction of the subclasses of AbstractSpectrum with plotting routines."""
+
+    # todo: remove from module
+    def __init__(self, speclist, save=False, savedir="", savename="Default", special=None):
+        self.speclist = speclist
+        self.special = special
+        self.save = save
+        self.savedir = savedir
+        self.savename = savename
+
+    def plot_all(self, base=False, marker=True):
+        for spectrum in self.speclist:
+
+            if base is True:
+                if isinstance(spectrum, AverageSpectrum):
+                    func = spectrum.make_ch_baseline()
+                    testx = np.linspace(2750, 3000, 1000)
+                    testy = func(testx)
+                    plt.plot(testx, testy, color="black")
+                    integral = spectrum.calculate_ch_integral()
+                    plt.title(str(round(integral, 6)))
+
+            if self.special is None:
+                if marker:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", linestyle="-")
+                else:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name)
+
+            else:
+                if self.special not in spectrum.name:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", alpha=0.3)
+                else:
+                    plt.plot(spectrum.x, spectrum.y, label=spectrum.name, marker="^", linestyle="-", color="r")
+
+        plt.xlabel(spectrum.x_unit)
+        plt.ylabel(spectrum.y_unit)
+        plt.minorticks_on()
+        plt.legend()
+
+        if self.save is False:
+            plt.show()
+
+        else:
+            path = self.savedir + "/" + self.savename + ".png"
+            plt.savefig(path)
+            plt.close()

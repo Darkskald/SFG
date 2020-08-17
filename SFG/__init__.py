@@ -2,5 +2,5 @@
 # TODO add documentation
 
 from .orm import orm, base_dtos,importer
-from .spectrum import averagers, plotting, spectrum
-# from .natural_samples import boknis_eck, gasex
+from .spectrum import plotting, base_spectrum
+
