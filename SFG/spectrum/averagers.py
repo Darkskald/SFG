@@ -167,6 +167,7 @@ class SfgAverager:
 
         return total
 
+    @DeprecationWarning
     def calc_coverage(self):
         """A convenience function  to calculate the surface coverage"""
 
@@ -179,6 +180,7 @@ class SfgAverager:
             raise CoverageCalculationImpossibleError(
                 f'Coverage not available for reference samples, integral is {self.integral}!')
 
+    @DeprecationWarning
     def benchmark(self):
         self.create_log()
         l = [i for i in self.spectra]
@@ -257,6 +259,7 @@ class LtAverager:
         return s
 
 
+# todo: remove from module
 class DummyPlotter:
     """A test class to monitor the interaction of the subclasses of AbstractSpectrum with plotting routines."""
 

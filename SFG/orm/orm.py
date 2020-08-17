@@ -27,7 +27,7 @@ from SFG.orm.parsing import *
 
 import numpy as np
 
-from SFG.spectrum.spectrum import SfgSpectrum
+from SFG.spectrum.spectrum import SfgSpectrum, BaseSpectrum
 
 
 class DatabaseWizard:
@@ -105,9 +105,6 @@ class DatabaseWizard:
         return s
 
 
-# todo: correction factor of old surface tension function
-
-
 class ImportDatabaseWizard(DatabaseWizard):
     """This class is designed to take care about the initial raw data import from the measurement files.
     It provides the same declarative classes as the base class DatabaseWizard and will integrate with
@@ -125,7 +122,7 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.persist_sfg()
         self.persist_lt()
 
-        # station plan of the GasEx cruise, surface tensions and lift-off points
+        # station plan of the GasEx cruise, surface tensions and lift-off points making use of dataframe method "to_sql"
         self.importer.station_plan.to_sql('gasex_station_plan', con=self.engine, if_exists='append', index=False)
         self.importer.gasex_tension.to_sql('gasex_surftens', con=self.engine, if_exists='append', index=False)
         self.importer.gasex_lift_off.to_sql('gasex_lift_off', con=self.engine, if_exists='append', index=False)
@@ -150,17 +147,16 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.map_surface_tensions()
         self.populate_gasex_lt_sfg()
 
-        # commit
+        # BoknisEck-specific
         self.get_measurement_days()
         self.generate_boknis()
         self.match_boknis_table()
         self.populate_be_days()
 
+        # commit
         self.session.commit()
 
-    # import of the raw data
-
-    def persist_sfg(self):
+    def persist_sfg(self) -> None:
         """Iterates over all folders containing SFG files. Calls the persist_sfg() for each file."""
         folders = [*self.importer.regular_sfg, *self.importer.gasex_sfg, *self.importer.boknis]
         self.engine.execute(
@@ -168,7 +164,7 @@ class ImportDatabaseWizard(DatabaseWizard):
             folders
         )
 
-    def persist_lt(self):
+    def persist_lt(self) -> None:
         """Iterates over all folders containing LT files. Calls the write_lt() for each file."""
         folders = [*self.importer.gasex_lt, *self.importer.lt]
 
@@ -176,12 +172,6 @@ class ImportDatabaseWizard(DatabaseWizard):
             self.lt.__table__.insert(),
             folders
         )
-
-    def persist_tensions(self):
-        """Processes the surface tension dataset by iterating over the table rows,
-         creating instances of the declarative class and filling it with the data. """
-        # todo: what does this factor mean?tension.surface_tension = row["tension"] * 0.99703
-        # self.session.add_all(tensions)
 
     def persist_substances(self):
         """Processes the subtances dataset by generating instances of the declarative substances
@@ -295,21 +285,21 @@ class ImportDatabaseWizard(DatabaseWizard):
 
     # additional GasEx tables
 
-    def map_lift_off(self):
+    def map_lift_off(self) -> None:
         lift_off = self.session.query(self.gasex_lift_off).all()
         for l in lift_off:
             id = self.session.query(self.lt.id).filter(self.lt.name == l.name).one()[0]
             l.lt_id = id
         self.session.commit()
 
-    def map_station_plan(self):
+    def map_station_plan(self) -> None:
         stations = self.session.query(self.stations.hash, self.stations.id).all()
         for tup in stations:
             plan_entry = self.session.query(self.station_plan).filter(self.station_plan.hash == tup[0]).one()
             plan_entry.station_id = tup[1]
         self.session.commit()
 
-    def map_surface_tensions(self):
+    def map_surface_tensions(self) -> None:
         tensions = self.session.query(self.gasex_surftens).all()
         for t in tensions:
             sample_hash = get_hashes("d_" + t.name)["sample_hash"]
@@ -317,7 +307,7 @@ class ImportDatabaseWizard(DatabaseWizard):
             t.sample_id = id
         self.session.commit()
 
-    def populate_gasex_lt_sfg(self):
+    def populate_gasex_lt_sfg(self) -> None:
         sfg = self.session.query(self.sfg).filter(self.sfg.type == "gasex_sfg").all()
         lt = self.session.query(self.lt).filter(self.lt.type == "gasex_lt").all()
         orm_objects = []
@@ -344,7 +334,7 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.session.commit()
 
     # misc
-    def get_substances(self):
+    def get_substances(self) -> List[Substances]:
         """This function queries the db_wizard's session for the substances to use this information
         for the regular_refine() method."""
         substances = {}
@@ -353,7 +343,7 @@ class ImportDatabaseWizard(DatabaseWizard):
             substances[item.abbreviation] = item.sensitizing
         return substances
 
-    def get_measurement_days(self):
+    def get_measurement_days(self) -> None:
         boknis = self.session.query(self.sfg).filter(self.sfg.type == 'boknis_ref').all()
         other_dppc = self.session.query(self.regular_sfg).filter(self.regular_sfg.surfactant == "DPPC").filter(
             self.regular_sfg.sensitizer is not None).all()
@@ -380,7 +370,7 @@ class ImportDatabaseWizard(DatabaseWizard):
 
     # boknis
 
-    def generate_boknis(self):
+    def generate_boknis(self) -> None:
         """Populates the SQL table for BoknisEck spectra with metadata obtained
         from the systematic names of the SFG table."""
 
@@ -432,12 +422,12 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.session.add_all(boknis_specs)
         self.session.commit()
 
-    def match_boknis_table(self):
+    def match_boknis_table(self) -> None:
         entries = self.session.query(self.be_water_samples).all()
         list(map(self.map_boknis, entries))
         self.session.commit()
 
-    def map_boknis(self, entry: BoknisWaterSamples):
+    def map_boknis(self, entry: BoknisWaterSamples) -> None:
         try:
             temp: BoknisEck = self.session.query(self.boknis_eck).join(self.sfg).filter(
                 self.boknis_eck.sampling_date == entry.sampling_date).filter(
@@ -456,7 +446,7 @@ class ImportDatabaseWizard(DatabaseWizard):
             # print(f'{entry} {e} has no suitable Spectrum!')
             pass
 
-    def populate_be_days(self):
+    def populate_be_days(self) -> None:
         dates = set([i for i, in self.session.query(self.boknis_eck.sampling_date).filter(
             self.boknis_eck.table_entry_id != None).all()])
 
@@ -480,7 +470,7 @@ class ImportDatabaseWizard(DatabaseWizard):
 
     # auxiliary functions (static)
     @staticmethod
-    def convert_xy_spectra(spectrum_dict, properties):
+    def convert_xy_spectra(spectrum_dict, properties) -> BaseSpectrum:
         model = properties[0]()
         # set the x value
         setattr(model, 'name', spectrum_dict["name"])
@@ -489,12 +479,11 @@ class ImportDatabaseWizard(DatabaseWizard):
         return model
 
     @staticmethod
-    def convert_date(date):
+    def convert_date(date: str) -> datetime.date:
         temp = str(date)
         year = int(temp[0:4])
         month = int(temp[4:6])
         day = int(temp[6:])
-
         return datetime.date(year, month, day)
 
 # todo: add meaningful string representations for the DTOs

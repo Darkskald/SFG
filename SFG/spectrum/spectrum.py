@@ -1,15 +1,10 @@
-from abc import ABC, abstractmethod
 import copy
 import csv
 import json
+
 import numpy as np
-import datetime
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator, MultipleLocator
 import pandas as pd
 import peakutils
-from scipy import stats
-from scipy.signal import savgol_filter
 from scipy.integrate import simps as sp
 from scipy.integrate import trapz as tp
 
@@ -501,9 +496,9 @@ class LtIsotherm(BaseSpectrum):
         max_area = np.argmax(self.area < 31.2)
         return self.get_slice(x_array, 0, max_area)
 
+    # todo: replace with numpy argmax function
     @staticmethod
     def get_closest_index(array_datapoints, check) -> int:
-        # todo: replace with numpy argmax function
         d = 1000000000000
         index = None
         for point in array_datapoints:

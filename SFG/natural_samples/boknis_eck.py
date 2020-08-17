@@ -973,7 +973,3 @@ def plot_all_years(b: BEDatabaseWizard, selection="sml") -> None:
         fig.suptitle(str(year))
         plt.tight_layout()
         plt.savefig(f'{year}_deep.png')
-
-
-if __name__ == "__main__":
-    BoknisEckExtension(new=True)
