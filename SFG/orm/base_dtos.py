@@ -11,6 +11,7 @@ class SFG(Base):
     id = Column(Integer, primary_key=True)
     name = Column(Text)
     measured_time = Column(TIMESTAMP)
+    measurement_day_id = Column(Integer, ForeignKey('measurement_days.id'))
     type = Column(Text)
     wavenumbers = Column(Text)
     sfg = Column(Text)
@@ -22,6 +23,7 @@ class SFG(Base):
     regular = relationship('RegularSfg', uselist=False, back_populates='sfg')
     gasex = relationship('GasExSfg', uselist=False, back_populates='sfg')
     boknis = relationship('BoknisEck', uselist=False, back_populates='sfg')
+    measurement_day = relationship('MeasurementDay', back_populates='spectra')
 
     def __repr__(self):
         return (f'SFG spectrum DTO {self.name}')
@@ -147,6 +149,7 @@ class MeasurementDay(Base):
     dppc_no = Column(Integer)
 
     references = relationship('ReferenceSpectrum', back_populates="measurement_day")
+    spectra = relationship('SFG', back_populates='measurement_day')
 
 
 class ReferenceSpectrum(Base):

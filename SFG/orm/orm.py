@@ -14,7 +14,7 @@ from functools import partial
 import itertools as ito
 from typing import List
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -143,6 +143,10 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.add_regular_sfg()
         self.add_regular_lt()
 
+        # map reference samples
+        self.get_measurement_days()
+        self.map_measurement_days_to_spectra()
+
         # GasEx-specific
         self.map_lift_off()
         self.map_station_plan()
@@ -150,7 +154,6 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.populate_gasex_lt_sfg()
 
         # BoknisEck-specific
-        self.get_measurement_days()
         self.generate_boknis()
         self.match_boknis_table()
         self.populate_be_days()
@@ -379,10 +382,15 @@ class ImportDatabaseWizard(DatabaseWizard):
             measurement_day_increment += 1
         self.session.commit()
 
-    # todo: create a relation between the SFG measurements and the corresponding reference integral
+    def map_measurement_days_to_spectra(self) -> None:
+        days = self.session.query(self.measurement_days).all()
+        for day in days:
+            spectra = self.session.query(self.sfg).filter(func.DATE(self.sfg.measured_time) == day.date).all()
+            for spectrum in spectra:
+                spectrum.measurement_day_id = day.id
+            self.session.commit()
 
     # boknis
-
     def generate_boknis(self) -> None:
         """Populates the SQL table for BoknisEck spectra with metadata obtained
         from the systematic names of the SFG table."""
