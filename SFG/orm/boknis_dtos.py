@@ -40,6 +40,7 @@ class BoknisDatabaseParameters(Base):
     boknis_sampling_day = relationship('BoknisEckData', uselist=False, back_populates='parameters')
 
 
+@DeprecationWarning
 class BoknisWaterSamples(Base):
     __tablename__ = 'boknis_water_samples'
     id = Column(Integer, primary_key=True)
@@ -78,16 +79,7 @@ class BoknisWaterSamples(Base):
         return temp
 
 
-class MeasurementDay(Base):
-    __tablename__ = 'measurement_days'
-    id = Column(Integer, primary_key=True)
-    date = Column(Date, unique=True)
-    dppc_integral = Column(Float)
-    dppc_no = Column(Integer)
-
-
 class BoknisEckData(Base):
-
     __tablename__ = 'be_data'
     id = Column(Integer, primary_key=True)
     sampling_date = Column(Date, unique=True)
@@ -96,21 +88,21 @@ class BoknisEckData(Base):
     samples = relationship('BoknisWaterSamples', back_populates='boknis_sampling_day')
     parameters = relationship('BoknisDatabaseParameters', back_populates='boknis_sampling_day')
 
-    #bulk_no = Column(Integer)
-    #sml_no = Column(Integer)
+    # bulk_no = Column(Integer)
+    # sml_no = Column(Integer)
 
-    #sml_coverage = Column(Float)
-    #one_coverage = Column(Float)
+    # sml_coverage = Column(Float)
+    # one_coverage = Column(Float)
 
-    #sml_ch = Column(Float)
-    #sml_oh1 = Column(Float)
-    #sml_oh2 = Column(Float)
-    #sml_dangling = Column(Float)
+    # sml_ch = Column(Float)
+    # sml_oh1 = Column(Float)
+    # sml_oh2 = Column(Float)
+    # sml_dangling = Column(Float)
 
-    #bulk_coverage = Column(Float)
-    #bulk_ch = Column(Float)
-    #bulk_oh1 = Column(Float)
-    #bulk_oh2 = Column(Float)
-    #bulk_dangling = Column(Float)
+    # bulk_coverage = Column(Float)
+    # bulk_ch = Column(Float)
+    # bulk_oh1 = Column(Float)
+    # bulk_oh2 = Column(Float)
+    # bulk_dangling = Column(Float)
 
-    #chlorophyll = Column(Float)
+    # chlorophyll = Column(Float)

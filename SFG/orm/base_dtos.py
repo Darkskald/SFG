@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, ForeignKey, UniqueConstraint, TIMESTAMP
+from sqlalchemy import Column, Integer, Text, ForeignKey, UniqueConstraint, TIMESTAMP, Date, Float
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -137,3 +137,11 @@ class RegularLt(Base):
 
     def __repr__(self):
         return f'Regular LT DTO {self.name}'
+
+
+class MeasurementDay(Base):
+    __tablename__ = 'measurement_days'
+    id = Column(Integer, primary_key=True)
+    date = Column(Date, unique=True)
+    dppc_integral = Column(Float)
+    dppc_no = Column(Integer)
