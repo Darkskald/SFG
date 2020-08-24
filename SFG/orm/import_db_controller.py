@@ -395,7 +395,7 @@ class ImportDatabaseWizard(DatabaseWizard):
             if 0 <= s.measured_time.hour < 8:
                 s.measured_time -= timedelta(days=1)
             day = self.session.query(self.measurement_days).filter(
-                func.DATE(s.measured_time) == self.measurement_days.date).one_or_none()
+                func.DATE(s.measured_time) == self.measurement_days.date).one_or_none() 
             s.measurement_day_id = day.id if day is not None else None
         self.session.commit()
 
