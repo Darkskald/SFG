@@ -61,6 +61,10 @@ class GasexStations(Base):
         """Return a basic dictionary of the station's properties"""
         return {"station_hash": self.hash, "date": self.date, "number": self.number, "station_type": self.type}
 
+    def get_doy(self) -> int:
+        """Convert the datetime of the station to the day of the year"""
+        return self.date.timetuple().tm_yday
+
 
 @DeprecationWarning
 class StationStat(Base):
