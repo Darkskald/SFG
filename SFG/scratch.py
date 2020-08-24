@@ -17,12 +17,15 @@ s = SampleProcessor(samples, interactor)
 
 for sa in s.samples:
     print(s.get_corrected_salinity(sa))
-"""
-
-temp = interactor.session.query(interactor.sfg).all()
 
 for s in temp:
     if 0 <= s.measured_time.hour < 8:
         s.measured_time -= timedelta(days=1)
     temp = interactor.session.query(interactor.measurement_days).filter(func.DATE(s.measured_time) == interactor.measurement_days.date).all()
     print(temp)
+temp = interactor.session.query(interactor.sfg).all()
+"""
+
+stations = interactor.session.query(interactor.stations).all()
+for s in stations:
+    print(s.get_doy())
