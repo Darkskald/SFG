@@ -415,7 +415,6 @@ class SfgAverager:
 
         return total
 
-    @DeprecationWarning
     def calc_coverage(self):
         """A convenience function  to calculate the surface coverage"""
 
