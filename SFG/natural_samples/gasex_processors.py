@@ -31,7 +31,9 @@ class SampleProcessor:
         first_measured: List[GasexLt] = SampleProcessor.sort_by_measured_time([s.lt for s in sample.lt])
         if len(first_measured) > 0:
             lt_spec_object = DbInteractor.construct_lt(first_measured[0])
-            temp["max_surface_pressure"] = lt_spec_object.get_maximum_pressure()
+            temp_surface_pressure = lt_spec_object.get_maximum_pressure()
+            # remove obvious outliers with a surface pressure bigger than pure water
+            temp["max_surface_pressure"] = temp_surface_pressure if temp_surface_pressure < 72 else None
             temp["lift_off_compression_ratio"] = (first_measured[0].lift_off.lift_off) / np.max(lt_spec_object.area) if \
                 first_measured[0].lift_off is not None else None
         else:
@@ -157,10 +159,18 @@ class SamplePlotProcessor:
             "max_surface_pressure": f'max. surface pressure/ {self.tension_unit}',
             "lift_off_compression_ratio": "lift-off compression ratio",
         }
+        self.label_map = {
+            "s": "screen",
+            "p": "plate",
+            "a": "Alkor",
+            "r": "zodiac",
+            "sml": "SML",
+            "deep": "bulk"
+        }
 
     def split_dataset(self, category: str, variants: Tuple[str, str]):
         """Splits the dataframe by the given categories into two."""
-        return (self.filter_by_category(category, i) for i in variants)
+        return (*(self.filter_by_category(category, i) for i in variants), *variants)
 
     def filter_by_category(self, category: str, value: str) -> pd.DataFrame:
         """A convenience function to filter for a specific column value"""
@@ -170,15 +180,18 @@ class SamplePlotProcessor:
         """Convert the plate and screen tag to SML in order to put them all together."""
         return self.df["type"].apply(lambda x: "sml" if x in ('s', 'p') else x)
 
-    def unwrap_properties_for_plotting(self, df1, df2):
+    def unwrap_properties_for_plotting(self, df1, df2, label_1, label_2):
         """Prepare a dictionary that is suitable for the low-level plotly plotting API."""
         dicts_for_plotly_trace = {}
         for prop in self.properties:
-            temp = [SamplePlotProcessor.get_plotly_dict_from_dataframe(i, prop) for i in
-                    (df1, df2)]
-            dicts_for_plotly_trace[self.properties[prop]] = temp
+            temp1 = self.get_plotly_dict_from_dataframe(df1, prop, label_1)
+            temp2 = self.get_plotly_dict_from_dataframe(df2, prop, label_2)
+            dicts_for_plotly_trace[self.properties[prop]] = sorted([*temp1, *temp2], key=lambda x: x['name'])
+
         return dicts_for_plotly_trace
 
-    @staticmethod
-    def get_plotly_dict_from_dataframe(df: pd.DataFrame, _property: str):
-        return {'x': df['cruise'], 'y': df[_property]}
+    def get_plotly_dict_from_dataframe(self, df: pd.DataFrame, _property: str, label: str):
+        cruise_1 = df[df['cruise'] == 1]
+        cruise_2 = df[df['cruise'] == 2]
+        return ({'name': f'C1, {self.label_map[label]}', 'y': cruise_1[_property]},
+                {'name': f'C2, {self.label_map[label]}', 'y': cruise_2[_property]})
