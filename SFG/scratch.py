@@ -2,18 +2,21 @@ from datetime import timedelta
 
 from sqlalchemy import func
 
-from SFG.natural_samples.gasex_processors import StationProcessor, SampleProcessor
+from SFG.natural_samples.gasex_processors import StationProcessor, SampleProcessor, SamplePlotProcessor
 from SFG.orm.interact import DbInteractor
 
 import pandas as pd
 
 interactor = DbInteractor()
 stations = interactor.session.query(interactor.stations).all()
+samples = interactor.session.query(interactor.samples).all()
+samp = SampleProcessor(samples, interactor)
+smps = pd.DataFrame(samp.get_list_of_sample_dicts())
 
-temp = sorted([s.get_corrected_doy() for s in stations])
-print(len(temp))
+sps = SamplePlotProcessor(smps)
+out = sps.unwrap_properties_for_plotting(*sps.split_dataset("type", ('s', 'p')))
 
-
+print(out)
 """
 stations = interactor.session.query(interactor.stations).all()
 samples = interactor.session.query(interactor.samples).all()

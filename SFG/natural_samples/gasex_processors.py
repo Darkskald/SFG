@@ -145,4 +145,44 @@ class StationProcessor:
         temp["value"] = value
         return temp
 
-# todo: day of the year conversion function is required!
+
+class SamplePlotProcessor:
+
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
+        self.tension_unit = "mNm<sup>-1</sup>"
+        self.properties = {
+            "coverage": "surface coverage",
+            "surface_tension": f'surface tension/ {self.tension_unit}',
+            "max_surface_pressure": f'max. surface pressure/ {self.tension_unit}',
+            "lift_off_compression_ratio": "lift-off compression ratio",
+        }
+
+    def split_dataset(self, category: str, variants: Tuple[str, str]):
+        """Splits the dataframe by the given categories into two."""
+        return (self.filter_by_category(category, i) for i in variants)
+
+    def filter_by_category(self, category: str, value: str) -> pd.DataFrame:
+        """A convenience function to filter for a specific column value"""
+        return self.df[self.df[category] == value]
+
+    def gather_sml(self) -> pd.Series:
+        """Convert the plate and screen tag to SML in order to put them all together."""
+        return self.df["type"].apply(lambda x: "sml" if x in ('s', 'p') else x)
+
+    def unwrap_properties_for_plotting(self, df1, df2):
+        """Prepare a dictionary that is suitable for the low-level plotly plotting API."""
+        dicts_for_plotly_trace = {}
+        row_index = 1
+        col_index = 1
+        for prop in self.properties:
+            temp = [SamplePlotProcessor.get_plotly_dict_from_dataframe(i, prop, row_index, col_index) for i in
+                    (df1, df2)]
+            dicts_for_plotly_trace[self.properties[prop]] = temp
+            row_index += 1
+            col_index += 1
+        return dicts_for_plotly_trace
+
+    @staticmethod
+    def get_plotly_dict_from_dataframe(df: pd.DataFrame, _property: str, row: int, col: int):
+        return {'x': df['cruise'], 'y': df[_property], "row": row, "col": col}
