@@ -9,6 +9,7 @@ SFG/spectrum/__pycache__/
 SFG/__pycache__/
 SFG/natural_samples/__pycache__/
 SFG/newport/
+SFG/orm/__pycache__/
 __pycache__/
 test.db
 Wasserproben_komplett.xlsx
