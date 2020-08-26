@@ -59,11 +59,18 @@ class GasexStations(Base):
 
     def to_basic_dict(self):
         """Return a basic dictionary of the station's properties"""
-        return {"station_hash": self.hash, "date": self.date, "number": self.number, "station_type": self.type}
+        return {"station_hash": self.hash, "date": self.date, "number": self.number, "doy": self.get_corrected_doy(),
+                "station_type": self.type}
 
     def get_doy(self) -> int:
         """Convert the datetime of the station to the day of the year"""
         return self.date.timetuple().tm_yday
+
+    def get_corrected_doy(self) -> float:
+        """As there exist max. four stations a day and it is in general not desirable to plot all datapoints of one
+         day of a year at exaclty the same location, this hack adds a fraction to the day of the year based on the sample
+         number: corrected_doy = doy + (station_number-1)/4"""
+        return self.get_doy() + (1 - self.number) / 4
 
 
 @DeprecationWarning
@@ -160,7 +167,8 @@ class GasexSamples(Base):
 
     def to_basic_dict(self):
         return {"sample_hash": self.sample_hash, "cruise": 1 if self.sample_hash.startswith('06') else 2,
-                "type": self.type, "number": self.number, "location": self.location}
+                "doy": self.station.get_corrected_doy(), "type": self.type, "number": self.number,
+                "location": self.location}
 
 
 class GasexStationPlan(Base):

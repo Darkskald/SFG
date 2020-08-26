@@ -8,6 +8,11 @@ from SFG.orm.interact import DbInteractor
 import pandas as pd
 
 interactor = DbInteractor()
+stations = interactor.session.query(interactor.stations).all()
+
+temp = sorted([s.get_corrected_doy() for s in stations])
+print(len(temp))
+
 
 """
 stations = interactor.session.query(interactor.stations).all()
@@ -28,8 +33,7 @@ temp = interactor.session.query(interactor.sfg).all()
 stations = interactor.session.query(interactor.stations).all()
 for s in stations:
     print(s.get_doy())
-
-"""
+    
 from SFG.orm import interact
 from SFG.natural_samples.gasex_processors import StationProcessor
 import itertools as ito
@@ -43,4 +47,7 @@ interactor = interact.DbInteractor()
 stations = interactor.session.query(interactor.stations).all()
 sp = StationProcessor(stations, interactor)
 df = sp.get_station_data_frame()
+
+
+"""
 
