@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='SFG',
-    version='0.6.3.7',
+    version='0.6.3.8',
     packages=['SFG', 'SFG.orm', 'SFG.legacy', 'SFG.spectrum', 'SFG.natural_samples'],
     url='https://github.com/Darkskald/SFG',
     license='MIT',

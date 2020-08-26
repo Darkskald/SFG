@@ -173,16 +173,12 @@ class SamplePlotProcessor:
     def unwrap_properties_for_plotting(self, df1, df2):
         """Prepare a dictionary that is suitable for the low-level plotly plotting API."""
         dicts_for_plotly_trace = {}
-        row_index = 1
-        col_index = 1
         for prop in self.properties:
-            temp = [SamplePlotProcessor.get_plotly_dict_from_dataframe(i, prop, row_index, col_index) for i in
+            temp = [SamplePlotProcessor.get_plotly_dict_from_dataframe(i, prop) for i in
                     (df1, df2)]
             dicts_for_plotly_trace[self.properties[prop]] = temp
-            row_index += 1
-            col_index += 1
         return dicts_for_plotly_trace
 
     @staticmethod
-    def get_plotly_dict_from_dataframe(df: pd.DataFrame, _property: str, row: int, col: int):
-        return {'x': df['cruise'], 'y': df[_property], "row": row, "col": col}
+    def get_plotly_dict_from_dataframe(df: pd.DataFrame, _property: str):
+        return {'x': df['cruise'], 'y': df[_property]}
