@@ -1,8 +1,10 @@
 import itertools as ito
+from string import Template
 from typing import List, Dict, Tuple
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 from SFG.orm.gasex_dtos import GasexSamples, GasexLt, GasexStations
 from SFG.orm.interact import DbInteractor
@@ -168,6 +170,10 @@ class SamplePlotProcessor:
             "deep": "bulk"
         }
 
+        self.stat_titles = {
+            ""
+        }
+
     def split_dataset(self, category: str, variants: Tuple[str, str]):
         """Splits the dataframe by the given categories into two."""
         return (*(self.filter_by_category(category, i) for i in variants), *variants)
@@ -195,3 +201,78 @@ class SamplePlotProcessor:
         cruise_2 = df[df['cruise'] == 2]
         return ({'name': f'C1, {self.label_map[label]}', 'y': cruise_1[_property]},
                 {'name': f'C2, {self.label_map[label]}', 'y': cruise_2[_property]})
+
+
+class SampleLatexProcessor:
+    table_template = Template(
+        """\centering\n \caption[SFG spectral regionss]{Spectral regions probed during VSFG 
+        measurements of the SML samples}\n\label{tab:sfgreg}\n$tabular\end{table}""")
+
+    def render_tabular(self, values):
+        table = """\\begin{tabular}{cccc}\n
+        \\hline\n 
+        category & t-statistics & p-Value & equal mean\Tstrut\Bstrut \\\\ \n
+        \\hline\n"""
+        for value in values:
+            table += f'{value["category"]} & {value["tstat"]} & {value["pval"]}  & {value["equal"]} \\\\ \n'
+        return table + "\end{tabular}"
+
+    def render_table(self, values):
+        return self.table_template.substitute(tabular=self.render_tabular(values))
+
+
+# helper functions for statistics
+
+def by_category(df, category, value) -> pd.DataFrame:
+    """Filter a dataframe according to a column having a specific value"""
+    return df[df[category] == value]
+
+
+def split_dataset(df: pd.DataFrame, category: str, variants: Tuple[str, str]):
+    """Splits the dataframe by the given categories into two."""
+    return tuple(by_category(df, category, i) for i in variants)
+
+
+def first_split_then_cruise(df: pd.DataFrame, category: str, variants: Tuple[str, str]):
+    """Splits the dataframe first according to the category and variants and each of this variants by cruise"""
+    var1, var2 = split_dataset(df, category, variants)
+    return {variants[0]: split_dataset(var1, 'cruise', (1, 2)), variants[1]: split_dataset(var2, 'cruise', (1, 2))}
+
+def first_cruise_then_split(df: pd.DataFrame, category: str, variants: Tuple[str, str]):
+    cruise1, cruise2 = split_dataset(df, 'cruise', (1, 2))
+    return {variants[0]: split_dataset(cruise1, category, variants), variants[1]: split_dataset(cruise2, category, variants)}
+
+
+def compare_columns_by_ttest(col1, col2):
+    return stats.ttest_ind(col1, col2, equal_var=False, nan_policy='omit')
+
+
+def apply_ttest_along_properties(df1: pd.DataFrame, df2: pd.DataFrame):
+    """Apply the two-sided t test to all the properties for convenience"""
+    properties = ('surface_tension', 'coverage', 'max_surface_pressure', 'lift_off_compression_ratio')
+    return {i: compare_columns_by_ttest(df1[i], df2[i]) for i in properties}
+
+
+def apply_ttest_by_category_and_cruise(df: pd.DataFrame, category: str, variants: Tuple[str, str]):
+    separated = first_split_then_cruise(df, category, variants)
+    print(variants[0])
+    print(separated[variants[0]][0])
+    print(variants[1])
+    print(separated[variants[1]][1])
+    cruise1 = apply_ttest_along_properties(separated[variants[0]][0], separated[variants[1]][0])
+    cruise2 = apply_ttest_along_properties(separated[variants[0]][1], separated[variants[1]][1])
+    return {"cruise1": cruise1, "Cruise2": cruise2}
+
+def apply_ttest_by_cruise_and_category(df: pd.DataFrame, category: str, variants: Tuple[str, str]):
+    separated = first_split_then_cruise(df, category, variants)
+    variant1 = apply_ttest_along_properties(separated[variants[0]][0], separated[variants[0]][1])
+    variant2 = apply_ttest_along_properties(separated[variants[1]][0], separated[variants[1]][1])
+
+    return {variants[0]: variant1, variants[1]: variant2}
+
+
+
+
+def gather_sml(df: pd.DataFrame) -> pd.Series:
+    """Convert the plate and screen tag to SML in order to put them all together."""
+    return df["type"].apply(lambda x: "sml" if x in ('s', 'p') else x)

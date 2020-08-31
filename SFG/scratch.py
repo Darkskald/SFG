@@ -1,25 +1,36 @@
-from datetime import timedelta
+from datetime import timedelta, date
 
 from sqlalchemy import func
 
-from SFG.natural_samples.gasex_processors import StationProcessor, SampleProcessor, SamplePlotProcessor
+from SFG.natural_samples.gasex_processors import StationProcessor, SampleProcessor, SamplePlotProcessor, \
+    SampleLatexProcessor, first_split_then_cruise, apply_ttest_along_properties, apply_ttest_by_category_and_cruise, \
+    gather_sml
 from SFG.orm.interact import DbInteractor
 
 import pandas as pd
 
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import plotly.express as px
 
 interactor = DbInteractor()
 stations = interactor.session.query(interactor.stations).all()
 samples = interactor.session.query(interactor.samples).all()
+stp = StationProcessor(stations, interactor)
 samp = SampleProcessor(samples, interactor)
 smps = pd.DataFrame(samp.get_list_of_sample_dicts())
 
 sps = SamplePlotProcessor(smps)
-sps.df["type"] = sps.gather_sml()
-out = sps.unwrap_properties_for_plotting(*sps.split_dataset("type", ('sml', 'deep')))
+#
 
+#sml, deep, _, _ = sps.split_dataset("type", ('sml', 'deep'))
+
+
+#test = apply_ttest_by_category_and_cruise(smps, 'type', ('sml', 'deep'))
+#print(test)
+#print(sml[sml["cruise"] == 1])
+# print(sps.compare_columns_by_ttest(sml["max_surface_pressure"], deep["max_surface_pressure"]))
+#test = [{"category": "surace_tension", "tstat": -1.34, "pval": 1.2, "equal": "accepted"}]
 
 
 def plot_sample_by_plotly(dic):
@@ -32,6 +43,12 @@ def plot_sample_by_plotly(dic):
         if count == 0:
             fig.add_trace(go.Box(**dic[key][0], marker_color="red", boxmean=True), row=row, col=col)
             fig.add_trace(go.Box(**dic[key][1], marker_color="green", boxmean=True), row=row, col=col)
+            # hack for marker and mean
+            fig.add_trace(
+                go.Scatter(x=[0], y=[-1], name="mean", mode="lines", line=dict(dash='dot', color='red'), visible="legendonly"))
+            fig.add_trace(
+                go.Scatter(x=[0], y=[-1], name="median", mode="lines", line=dict(color='red'), visible="legendonly"))
+            # fig.add_trace(go.Scatter(name="mean"))
         else:
             fig.add_trace(go.Box(**dic[key][0], marker_color="red", boxmean=True, showlegend=False), row=row, col=col)
             fig.add_trace(go.Box(**dic[key][1], marker_color="green", boxmean=True, showlegend=False), row=row, col=col)
@@ -42,40 +59,9 @@ def plot_sample_by_plotly(dic):
 
     fig.update_layout(height=1000, width=1400, font_size=18)
     fig.show()
+
+
+# this code is used to produce box plots
+#smps["type"] = gather_sml(smps)
+out = sps.unwrap_properties_for_plotting(*sps.split_dataset("location", ('a', 'r')))
 plot_sample_by_plotly(out)
-"""
-stations = interactor.session.query(interactor.stations).all()
-samples = interactor.session.query(interactor.samples).all()
-
-s = SampleProcessor(samples, interactor)
-
-for sa in s.samples:
-    print(s.get_corrected_salinity(sa))
-
-for s in temp:
-    if 0 <= s.measured_time.hour < 8:
-        s.measured_time -= timedelta(days=1)
-    temp = interactor.session.query(interactor.measurement_days).filter(func.DATE(s.measured_time) == interactor.measurement_days.date).all()
-    print(temp)
-temp = interactor.session.query(interactor.sfg).all()
-
-stations = interactor.session.query(interactor.stations).all()
-for s in stations:
-    print(s.get_doy())
-    
-from SFG.orm import interact
-from SFG.natural_samples.gasex_processors import StationProcessor
-import itertools as ito
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
-
-interactor = interact.DbInteractor()
-stations = interactor.session.query(interactor.stations).all()
-sp = StationProcessor(stations, interactor)
-df = sp.get_station_data_frame()
-
-
-"""
