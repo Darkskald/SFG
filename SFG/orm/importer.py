@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 
 import pandas as pd
+import yaml
 
 
 class Importer:
@@ -128,9 +129,8 @@ class Importer:
     @staticmethod
     def import_liftoffs(file):
         """Imports the lift-off points determined manually from a file"""
-        col_names = ["name", "lift_off"]
-        temp = pd.read_csv(file, sep=';', names=col_names, skiprows=1)
-        return temp
+        with open(file) as infile:
+            return pd.DataFrame(yaml.load(infile, Loader=yaml.FullLoader).items(), columns=["name", "lift_off"])
 
     # other spectra
     @staticmethod

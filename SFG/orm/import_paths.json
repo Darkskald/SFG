@@ -4,7 +4,7 @@
   "boknis": "boknis",
   "lt": "lt",
   "gasex_lt": "gasex_lt",
-  "gasex_lift_off": "liftoff_points.csv",
+  "gasex_lift_off": "liftoff.yaml",
   "gasex_tension": "gasex_surftens.txt",
   "substances": "substances.json",
   "ir": "IR",
