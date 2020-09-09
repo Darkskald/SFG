@@ -19,7 +19,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
 from SFG.orm.boknis_dtos import BoknisEck, BoknisDatabaseParameters, BoknisWaterSamples, BoknisEckData
-from SFG.orm.gasex_dtos import GasExSfg, GasexLt, GasexSurftens, GasexStations, StationStat, GasexSamples, \
+from SFG.orm.gasex_dtos import GasExSfg, GasexLt, GasexSurftens, GasexStations, GasexSamples, \
     GasexStationPlan, LiftOff
 from SFG.orm.importer import Importer
 from SFG.orm.base_dtos import *
@@ -64,7 +64,6 @@ class DatabaseWizard:
         # GasEx specific
         self.stations = GasexStations
         self.station_plan = GasexStationPlan
-        self.station_stats = StationStat
         self.samples = GasexSamples
         self.gasex_surftens = GasexSurftens
         self.gasex_lt = GasexLt
