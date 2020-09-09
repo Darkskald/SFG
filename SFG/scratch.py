@@ -62,6 +62,6 @@ def plot_sample_by_plotly(dic):
 
 
 # this code is used to produce box plots
-#smps["type"] = gather_sml(smps)
-out = sps.unwrap_properties_for_plotting(*sps.split_dataset("location", ('a', 'r')))
+smps["type"] = gather_sml(smps)
+out = sps.unwrap_properties_for_plotting(*sps.split_dataset("type", ("sml", 'deep')))
 plot_sample_by_plotly(out)

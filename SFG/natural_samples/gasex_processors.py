@@ -238,6 +238,7 @@ def first_split_then_cruise(df: pd.DataFrame, category: str, variants: Tuple[str
     var1, var2 = split_dataset(df, category, variants)
     return {variants[0]: split_dataset(var1, 'cruise', (1, 2)), variants[1]: split_dataset(var2, 'cruise', (1, 2))}
 
+
 def first_cruise_then_split(df: pd.DataFrame, category: str, variants: Tuple[str, str]):
     cruise1, cruise2 = split_dataset(df, 'cruise', (1, 2))
     return {variants[0]: split_dataset(cruise1, category, variants), variants[1]: split_dataset(cruise2, category, variants)}
