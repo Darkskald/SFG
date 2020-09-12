@@ -14,6 +14,8 @@ from functools import partial
 import itertools as ito
 from typing import List
 
+from specsnake.base_spectrum import BaseSpectrum
+from specsnake.sfg_spectrum import SfgSpectrum
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
@@ -26,9 +28,6 @@ from SFG.orm.base_dtos import *
 from SFG.orm.parsing import *
 
 import numpy as np
-
-from SFG.spectrum.base_spectrum import BaseSpectrum
-from SFG.spectrum.sfg_spectrum import SfgSpectrum
 
 
 class DatabaseWizard:
