@@ -5,11 +5,10 @@ from typing import List, Dict, Tuple
 import numpy as np
 import pandas as pd
 from scipy import stats
+from specsnake.sfg_spectrum import AverageSpectrum, SfgAverager
 
 from SFG.orm.gasex_dtos import GasexSamples, GasexLt, GasexStations
 from SFG.orm.interact import DbInteractor
-from SFG.spectrum.sfg_spectrum import SfgAverager, AverageSpectrum
-
 
 class SampleProcessor:
     """This class has the purpose to map a list of sample objects to a list of property dictionaries that

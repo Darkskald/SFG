@@ -4,10 +4,11 @@ from typing import Dict, List
 import numpy as np
 import itertools as ito
 
+from specsnake.base_spectrum import BaseSpectrum
+from specsnake.langmuir_isotherm import LtIsotherm
+from specsnake.sfg_spectrum import SfgSpectrum, DummyPlotter
+
 from SFG.orm.import_db_controller import DatabaseWizard, SFG
-from SFG.spectrum.base_spectrum import BaseSpectrum
-from SFG.spectrum.sfg_spectrum import SfgSpectrum, DummyPlotter
-from SFG.spectrum.langmuir_isotherm import LtIsotherm
 
 
 class DbInteractor(DatabaseWizard):
