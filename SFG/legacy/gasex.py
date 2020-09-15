@@ -2,13 +2,13 @@ import os
 from functools import partial
 
 from SFG.orm.interact import DbInteractor
-from SFG.orm.boknis_dtos import BoknisEckData
+from SFG.orm.boknis_dtos import BoknisEckSamplingDay
 from SFG.spectrum.sfg_spectrum import SfgAverager
 
 
 class BoknisWrapper:
 
-    def __init__(self, day: BoknisEckData):
+    def __init__(self, day: BoknisEckSamplingDay):
         self.day = day
 
     def get_by_type(self, type="sml"):
@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     os.chdir("..")
     w = DbInteractor()
-    t = w.session.query(w.be_data).all()
+    t = w.session.query(w.be_sampling_day).all()
     for t_x in t:
         b = BoknisWrapper(t_x)
         print(len(t))

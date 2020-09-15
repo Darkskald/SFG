@@ -20,7 +20,7 @@ from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
-from SFG.orm.boknis_dtos import BoknisEck, BoknisDatabaseParameters, BoknisWaterSamples, BoknisEckData
+from SFG.orm.boknis_dtos import BoknisEck, BoknisEckChlorophyll, BoknisWaterSamples, BoknisEckSamplingDay
 from SFG.orm.gasex_dtos import GasExSfg, GasexLt, GasexSurftens, GasexStations, GasexSamples, \
     GasexStationPlan, LiftOff
 from SFG.orm.importer import Importer
@@ -53,11 +53,10 @@ class DatabaseWizard:
         self.regular_lt = RegularLt
 
         # BE specific
-        # todo measurement days for all SFG
         self.measurement_days = MeasurementDay
         self.reference_spectra = ReferenceSpectrum
-        self.be_data = BoknisEckData
-        self.be_params = BoknisDatabaseParameters
+        self.be_sampling_day = BoknisEckSamplingDay
+        self.be_chlorophyll = BoknisEckChlorophyll
         self.be_water_samples = BoknisWaterSamples
 
         # GasEx specific
@@ -127,7 +126,7 @@ class ImportDatabaseWizard(DatabaseWizard):
         self.importer.gasex_lift_off.to_sql('gasex_lift_off', con=self.engine, if_exists='append', index=False)
 
         # import BoknisEck metadata
-        self.importer.be_database_parameters.to_sql('boknis_database_parameters', con=self.engine, if_exists='append',
+        self.importer.be_database_parameters.to_sql('be_chlorophyll', con=self.engine, if_exists='append',
                                                     index=False)
 
         # import the Boknis Eck table by Kristian
@@ -393,11 +392,9 @@ class ImportDatabaseWizard(DatabaseWizard):
             if 0 <= s.measured_time.hour < 8:
                 s.measured_time -= timedelta(days=1)
             day = self.session.query(self.measurement_days).filter(
-                func.DATE(s.measured_time) == self.measurement_days.date).one_or_none() 
+                func.DATE(s.measured_time) == self.measurement_days.date).one_or_none()
             s.measurement_day_id = day.id if day is not None else None
         self.session.commit()
-
-
 
     # boknis
     def generate_boknis(self) -> None:
@@ -481,19 +478,21 @@ class ImportDatabaseWizard(DatabaseWizard):
             self.boknis_eck.table_entry_id != None).all()])
 
         for d in dates:
-            new_day = self.be_data()
+            new_day = self.be_sampling_day()
             new_day.sampling_date = d
             self.session.add(new_day)
         self.session.commit()
 
         spectra = self.session.query(self.boknis_eck).filter(self.boknis_eck.table_entry_id != None).all()
         for s in spectra:
-            day_id = self.session.query(self.be_data).filter(self.be_data.sampling_date == s.sampling_date).one().id
+            day_id = self.session.query(self.be_sampling_day).filter(
+                self.be_sampling_day.sampling_date == s.sampling_date).one().id
             s.boknis_sampling_day_id = day_id
 
         entries = self.session.query(self.be_water_samples).filter(self.be_water_samples.sfg_id != None).all()
         for e in entries:
-            day_id = self.session.query(self.be_data).filter(self.be_data.sampling_date == e.sampling_date).one().id
+            day_id = self.session.query(self.be_sampling_day).filter(
+                self.be_sampling_day.sampling_date == e.sampling_date).one().id
             e.sampling_day_id = day_id
 
         self.session.commit()
