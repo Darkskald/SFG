@@ -10,6 +10,7 @@ from specsnake.sfg_spectrum import AverageSpectrum, SfgAverager
 from SFG.orm.gasex_dtos import GasexSamples, GasexLt, GasexStations
 from SFG.orm.interact import DbInteractor
 
+
 class SampleProcessor:
     """This class has the purpose to map a list of sample objects to a list of property dictionaries that
     might be converted to a pandas dataframe for data analysis."""
@@ -240,7 +241,8 @@ def first_split_then_cruise(df: pd.DataFrame, category: str, variants: Tuple[str
 
 def first_cruise_then_split(df: pd.DataFrame, category: str, variants: Tuple[str, str]):
     cruise1, cruise2 = split_dataset(df, 'cruise', (1, 2))
-    return {variants[0]: split_dataset(cruise1, category, variants), variants[1]: split_dataset(cruise2, category, variants)}
+    return {variants[0]: split_dataset(cruise1, category, variants),
+            variants[1]: split_dataset(cruise2, category, variants)}
 
 
 def compare_columns_by_ttest(col1, col2):
@@ -263,14 +265,13 @@ def apply_ttest_by_category_and_cruise(df: pd.DataFrame, category: str, variants
     cruise2 = apply_ttest_along_properties(separated[variants[0]][1], separated[variants[1]][1])
     return {"cruise1": cruise1, "Cruise2": cruise2}
 
+
 def apply_ttest_by_cruise_and_category(df: pd.DataFrame, category: str, variants: Tuple[str, str]):
     separated = first_split_then_cruise(df, category, variants)
     variant1 = apply_ttest_along_properties(separated[variants[0]][0], separated[variants[0]][1])
     variant2 = apply_ttest_along_properties(separated[variants[1]][0], separated[variants[1]][1])
 
     return {variants[0]: variant1, variants[1]: variant2}
-
-
 
 
 def gather_sml(df: pd.DataFrame) -> pd.Series:

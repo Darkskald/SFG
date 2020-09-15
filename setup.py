@@ -1,9 +1,9 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='SFG',
     version='0.6.3.8',
-    packages=['SFG', 'SFG.orm', 'SFG.legacy', 'SFG.spectrum', 'SFG.natural_samples'],
+    packages=find_packages(),
     url='https://github.com/Darkskald/SFG',
     license='MIT',
     author='Darkskald',
