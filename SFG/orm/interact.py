@@ -24,35 +24,6 @@ class DbInteractor(DatabaseWizard):
         q = {key: list(value)[0].dppc_integral for key, value in ito.groupby(temp, key=lambda x: x.date)}
         return q
 
-    """
-    def get_dppc_references(self) -> Dict[datetime.date, float]:
-        A function querying the sfg table for DPPC reference spectra, generating the corresponding objects,
-        calculating the CH integral making use of the SfgAverager class and returning a dictionary of date objects
-        with the corresponding intensities.
-        dates = {}
-
-        q_dppc = self.session.query(self.sfg). \
-            filter(self.sfg.name.op('GLOB')('*DPPC_*.*')). \
-            filter(self.sfg.measured_time.between('2018-01-01', '2018-12-31')) \
-            .filter(~self.sfg.name.contains('ppp'))
-
-        for item in q_dppc:
-            s = DbInteractor.construct_sfg(item)
-            _date = s.meta["time"].date()
-            if _date not in dates:
-                dates[_date] = [s]
-            else:
-                dates[_date].append(s)
-
-        for item in dates:
-            dates[item] = SfgAverager(dates[item]).integral
-
-        # get rid of days where no DPPC spectra were recorded
-        dates = {k: v for k, v in dates.items() if not np.isnan(v)}
-
-        return dates
-        """
-
     # auxiliary functions
 
     def fetch_by_specid(self, specid, sfg=True) -> BaseSpectrum:

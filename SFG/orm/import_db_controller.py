@@ -89,18 +89,12 @@ class DatabaseWizard:
             return np.nan
 
     @staticmethod
-    def construct_sfg(or_object, time_correction=False) -> SfgSpectrum:
+    def construct_sfg(or_object) -> SfgSpectrum:
         """A function constructing the SFG object from the orm declarative class."""
         meta = {"name": or_object.name, "time": or_object.measured_time}
         args = ("wavenumbers", "sfg", "vis", "ir")
         args = [ImportDatabaseWizard.to_array(getattr(or_object, i)) for i in args]
-        s = SfgSpectrum(*args, meta)
-
-        # as some spectra are recorded after midnight, it is necessary to date it back to get the correct DPPC reference
-        if time_correction:
-            if 0 <= s.meta["time"].hour < 8:
-                s.meta["time"] -= timedelta(days=1)
-        return s
+        return SfgSpectrum(*args, meta)
 
 
 class ImportDatabaseWizard(DatabaseWizard):
@@ -380,12 +374,8 @@ class ImportDatabaseWizard(DatabaseWizard):
 
     def map_measurement_days_to_spectra(self) -> None:
         """
-        days = self.session.query(self.measurement_days).all()
-        for day in days:
-            spectra = self.session.query(self.sfg).filter(func.DATE(self.sfg.measured_time) == day.date).all()
-            for spectrum in spectra:
-                spectrum.measurement_day_id = day.id
-            self.session.commit()
+        Maps the SFG spectra to their corresponding reference spectra. This function handles also of spectra were
+        measured after midnight: they are dated back to they day before to ensure correct mapping.
         """
         temp = self.session.query(self.sfg).all()
         for s in temp:

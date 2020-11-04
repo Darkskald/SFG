@@ -1,26 +1,20 @@
+import logging
 from datetime import date
-
-from matplotlib.dates import MonthLocator, DateFormatter
-from matplotlib.lines import Line2D
-from specsnake.plotting import Plotter
-from specsnake.sfg_spectrum import SfgSpectrum, SfgAverager
-from sqlalchemy import extract
 from typing import Dict, List, Set, Any
 
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
-from matplotlib import rcParams
-import pandas as pd
 import numpy as np
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
-import plotly.express as px
+import pandas as pd
+from matplotlib import rcParams
+from matplotlib.dates import MonthLocator, DateFormatter
+from matplotlib.ticker import MaxNLocator
+from pandas import DatetimeIndex
+from specsnake.sfg_spectrum import SfgSpectrum, SfgAverager
+from sqlalchemy import extract
 
 from SFG.orm.base_dtos import MeasurementDay
 from SFG.orm.boknis_dtos import BoknisEckSamplingDay, BoknisEck
 from SFG.orm.interact import DbInteractor
-
-import logging
 
 
 class NoMeasurementDayError(Exception):
@@ -28,6 +22,8 @@ class NoMeasurementDayError(Exception):
 
 
 class StatisticSampleAnalyzer:
+    years = (2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017, 2018)
+    qmap = {1: "Jan-Mar", 2: "Apr-Jun", 3: "Jul-Sep", 4: "Oct-Dec"}
 
     def __init__(self, itc: DbInteractor):
         self.itc = itc
@@ -37,9 +33,9 @@ class StatisticSampleAnalyzer:
         self.data = pd.DataFrame(
             [{key: i.get_coverage_by_category_or_date(key) for key in keys} for i in
              self.sampling_day_analyzers]).replace(
-            np.inf, np.nan)
+            np.inf, np.nan).sort_values(by=['date'])
 
-    def plot_scatter_matrix(self):
+    def plot_scatter_matrix(self, path):
         rcParams['figure.figsize'] = (10.7, 8.2)
         rcParams['lines.markersize'] = 4
         rcParams['lines.markeredgewidth'] = 0.3
@@ -119,8 +115,8 @@ class StatisticSampleAnalyzer:
         pearson = self.data["one"].corr(self.data["greater_one"])
         t = f'R={pearson:.3f}'
         f4_3.text(0.16, 0.75, t, color='red')
-
-        plt.show()
+        plt.savefig(f'{path}scatter_matrix.png')
+        # plt.show()
 
     def plot_by_time(self):
         """BE time series plotting with rectangular stripes to help with orientation in the plot"""
@@ -131,6 +127,11 @@ class StatisticSampleAnalyzer:
         monthsFmt = DateFormatter("%b '%y")
 
         ax.scatter(self.data["date"], self.data["sml"], color="red")
+
+        ts = pd.Series(self.data['sml'].rolling(window=2).mean().values, index=DatetimeIndex(self.data['date']))
+        ax.plot(ts.interpolate(method='spline', order=3), color='red')
+        # ax.plot(roll, test, color='red')
+
         ax.scatter(self.data["date"], self.data["bulk"], color="blue")
         # ax2.scatter(df["sampling_date"], df["chlorophyll"], color="green", marker="+")
 
@@ -194,17 +195,27 @@ class StatisticSampleAnalyzer:
                 if len(sml.spectra) > 0:
                     for s in sml.spectra:
                         ax1.plot(s.x, s.y, label=sda.name_transformer(s.name), alpha=0.6)
-                        label = f'average c:{sml.coverage:.3f}, i:{sml.average_spectrum.calculate_ch_integral():.4f}, ' \
-                                f't:{sml.total:.4f}'
-                    ax1.plot(sml.average_spectrum.x, sml.average_spectrum.y, label=label, color='red')
+                        label = f'average sc:{sml.coverage:.3f}, int:{sml.average_spectrum.calculate_ch_integral():.4f}'
+                    ax1.plot(sml.average_spectrum.x, sml.average_spectrum.y, label=label, color='red', marker='o')
+                    boundaries = sml.average_spectrum.slice_by_borders(2750, 3000)
+                    ax1.fill_between(sml.average_spectrum.x[boundaries[0]:boundaries[1] + 1],
+                                     sml.average_spectrum.y[boundaries[0]:boundaries[1] + 1], color='red', alpha=1,
+                                     zorder=9)
+                    ax1.axvline(2750, linestyle='--', color='red')
+                    ax1.axvline(3000, linestyle='--', color='red')
 
                 ## Bulk
                 if len(bulk.spectra) > 0:
                     for s in bulk.spectra:
                         ax2.plot(s.x, s.y, label=sda.name_transformer(s.name), alpha=0.6)
-                        label = f'average c:{bulk.coverage:.3f}, i:{bulk.average_spectrum.calculate_ch_integral():.4f}, ' \
-                                f't:{bulk.total:.4f}'
-                    ax2.plot(bulk.average_spectrum.x, bulk.average_spectrum.y, label=label, color='blue')
+                        label = f'average sc:{bulk.coverage:.3f}, int:{bulk.average_spectrum.calculate_ch_integral():.4f}'
+                    ax2.plot(bulk.average_spectrum.x, bulk.average_spectrum.y, label=label, color='blue', marker='^')
+                    boundaries = bulk.average_spectrum.slice_by_borders(2750, 3000)
+                    ax2.fill_between(bulk.average_spectrum.x[boundaries[0]:boundaries[1] + 1],
+                                     bulk.average_spectrum.y[boundaries[0]:boundaries[1] + 1], color='blue', alpha=1,
+                                     zorder=9)
+                    ax2.axvline(2750, linestyle='--', color='blue')
+                    ax2.axvline(3000, linestyle='--', color='blue')
 
                 for s in dppc:
                     integral = s.calculate_ch_integral()
@@ -215,11 +226,73 @@ class StatisticSampleAnalyzer:
                     ax.legend(fontsize=8)
 
                 fig.tight_layout()
-                fig.suptitle(f'BE {sda.sampling_day.sampling_date}')
+                fig.suptitle(f'Boknis Eck sampling day {sda.sampling_day.sampling_date}')
                 fig.savefig(f'/home/flo/Schreibtisch/Boknis/{sda.sampling_day.sampling_date}.png')
                 plt.close(fig)
             except NoMeasurementDayError:
                 pass
+
+    # filter functions
+    def maximum_of_year(self, year: int, key: str) -> float:
+        """Return the maximum value of a property (key) of a certain year."""
+        return self.data[self.data['date'].map(lambda x: x.year == year)][key].max()
+
+    def normalize_to_maximum(self):
+        temp = []
+        for y in self.years:
+            year_df = self.data[self.data['date'].map(lambda x: x.year == y)]
+            for key in ('sml', 'bulk', 'one', 'greater_one'):
+                new_col = f'avg_{key}'
+                year_df[new_col] = year_df[key].map(lambda x: x / self.maximum_of_year(y, key))
+            temp.append(year_df)
+        return pd.concat(temp)
+
+    def get_chlorophyll_data(self) -> pd.DataFrame:
+        """Generate a dataframe of the chlorophyll values and their corresponding dates"""
+        temp = []
+        chlorophyll = pd.DataFrame([{"date": i.Time.date(), "chlorophyll": float(i.chlorophyll_a)} for i in
+                                    self.itc.session.query(self.itc.be_chlorophyll).all()])
+        for y in self.years:
+            year_df = chlorophyll[chlorophyll['date'].map(lambda x: x.year == y)]
+            new_col = f'avg_chlorophyll'
+            max = year_df['chlorophyll'].max()
+            year_df[new_col] = year_df['chlorophyll'].map(lambda x: x / max)
+            temp.append(year_df)
+        return pd.concat(temp)
+
+    def plot_trimester(self):
+        sml_samples = self.itc.session.query(self.itc.boknis_eck).join(self.itc.be_water_samples).filter(
+            self.itc.be_water_samples.sampler_no.in_((1, 2))).all()
+        sml_samples = [i for i in sml_samples if i.sfg.measurement_day is not None]
+
+        trimester_map = {
+            quartal: [self.map_and_normalize_to_reference(i) for i in sml_samples if self.map_to_quartal(i) == quartal]
+            for quartal in (1, 2, 3, 4)}
+
+        for key in trimester_map:
+            average_spectrum = SfgAverager(trimester_map[key], enforce_scale=True, baseline=True).average_spectrum
+            plt.plot(average_spectrum.x, average_spectrum.y, label=f'{self.qmap[key]} ({len(trimester_map[key])} spectra)')
+        plt.legend()
+        plt.xlabel(average_spectrum.x_unit)
+        plt.ylabel(average_spectrum.y_unit)
+        plt.savefig('/home/flo/Dropbox/PhdTex/latexthesistemplate/plots/boknis/quartal.png')
+
+    @staticmethod
+    def map_to_quartal(spectrum: BoknisEck):
+        if spectrum.sampling_date.month in (1, 2, 3):
+            return 1
+        elif spectrum.sampling_date.month in (4, 5, 6):
+            return 2
+        elif spectrum.sampling_date.month in (7, 8, 9):
+            return 3
+        elif spectrum.sampling_date.month in (10, 11, 12):
+            return 4
+
+    def map_and_normalize_to_reference(self, spectrum: BoknisEck):
+        reference = spectrum.sfg.measurement_day.dppc_integral
+        sfg_spectrum = self.itc.construct_sfg(spectrum.sfg)
+        sfg_spectrum.y = sfg_spectrum.normalize(external=reference)
+        return sfg_spectrum
 
 
 class YearAnalyzer:
@@ -276,7 +349,7 @@ class SamplingDayAnalyzer:
         measurement_day_spectra = [i.references for i in measurement_days]
         return [self.itc.construct_sfg(y.sfg) for x in measurement_day_spectra for y in x]
 
-    def get_coverage_by_category_or_date(self, category: str, threshold:float =1) -> Any:
+    def get_coverage_by_category_or_date(self, category: str, threshold: float = 1) -> Any:
         """Calculates the coverage for a given type of samples via an SfgAverager or returns the sampling date."""
         if category == 'date':
             return self.sampling_day.sampling_date
@@ -299,27 +372,38 @@ class SamplingDayAnalyzer:
 # testcode section
 
 logging.basicConfig(level=logging.DEBUG, filename='/home/flo/Schreibtisch/flotest.log')
-#plt.style.use('../mpl_config/origin.mpltstyle')
-#rcParams['legend.fontsize'] = 'xx-small'
+
+plt.style.use('../mpl_config/origin.mpltstyle')
+
+
+# rcParams['legend.fontsize'] = 'xx-small'
+
+def map_to_quartal(month: int):
+    quartmap = {
+        1: (1, 2, 3),
+        2: (4, 5, 6),
+        3: (7, 8, 9),
+        4: (10, 11, 12)}
+    for key in quartmap:
+        if month in quartmap[key]:
+            return key
 
 
 itc = DbInteractor()
 test = itc.session.query(itc.be_sampling_day).all()
 q = StatisticSampleAnalyzer(itc)
-blubb = q.data.drop(columns='date')
-fig = go.Figure()
-for i in ('sml', 'bulk', 'one', 'greater_one'):
-    fig.add_trace(go.Box(y=blubb[i], name=i, boxmean=True))
+# test = q.normalize_to_maximum()
+# df = test #[test['date'] < date(2013, 1, 1)]
+# df['month'] = df['date'].map(lambda x: x.month)
+# df['quartal'] = df['date'].map(lambda x: map_to_quartal(x.month))
 
-fig.show()
-import plotly
-#q.data.to_csv('/home/flo/Schreibtisch/test.csv')
-"""
-sml_l = []
-bulk_l = []
-for sampling_day in test:
+# fig = go.Figure()
+# fig.add_trace(go.Box(x=df['quartal'], y=df['  sml'], boxmean=True))
+# fig.add_trace(go.Box(x=df['date']+0.5, y=df['avg_bulk']))
 
-    temp = SamplingDayAnalyzer(sampling_day, itc)
-    #sampling_day_plot(temp)
-    print(temp.type_map['one'])
-"""
+# fig.show()
+# q.data.to_csv('/home/flo/Schreibtisch/test.csv')
+plotpath = "/home/flo/Dropbox/PhdTex/latexthesistemplate/plots/boknis/"
+# q.normalize_to_maximum().to_csv("/home/flo/Dropbox/all_be_data.csv")
+# q.get_chlorophyll_data().to_csv("/home/flo/Dropbox/chlorophyll_data.csv")
+print(q.plot_trimester())
