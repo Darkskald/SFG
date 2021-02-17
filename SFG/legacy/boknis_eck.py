@@ -293,7 +293,7 @@ class BoknisEckExtension:
         # todo: this is the right place for intense debugging and plotting
 
         for date in sml_dates:
-            be_data_orm = self.wz.be_data()
+            be_data_orm = self.wz.be_sampling_day()
             be_data_orm.sampling_date = date
 
             # sml
@@ -331,7 +331,7 @@ class BoknisEckExtension:
 
     def provide_dataframe(self):
         """A convenience function providing the compiled Boknis Eck data SQL table as Pandas dataframe"""
-        query = self.wz.session.query(self.wz.be_data)
+        query = self.wz.session.query(self.wz.be_sampling_day)
         df = pd.read_sql(query.statement, query.session.bind)
         return df
 
@@ -375,8 +375,8 @@ class BoknisEckExtension:
         average_spectra = self.calculate_gasex_average()
 
         # setup new sampling dates for database
-        june = self.wz.be_data()
-        september = self.wz.be_data()
+        june = self.wz.be_sampling_day()
+        september = self.wz.be_sampling_day()
         june.sampling_date = datetime.date(2018, 6, 21)
         september.sampling_date = datetime.date(2018, 9, 20)
 
