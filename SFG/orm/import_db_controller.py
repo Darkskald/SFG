@@ -33,11 +33,15 @@ import numpy as np
 class DatabaseWizard:
     """The basic class for interaction with databases via sqlalchemy."""
 
-    def __init__(self):
+    def __init__(self, engine=None):
 
         # SQL init
         # todo: this path is not reliable
-        self.engine = create_engine(f'sqlite:///{os.getcwd()}/orm.db', echo=False)
+        if engine is None:
+            self.engine = create_engine(f'sqlite:///{os.getcwd()}/orm.db', echo=False)
+        else:
+            self.engine = engine
+
         self.Base = Base
 
         # new stuff
@@ -105,8 +109,8 @@ class ImportDatabaseWizard(DatabaseWizard):
     relational mapping is called "persist_x", but in case of complex import operations there may be
     two cooperatig functions write_x and persist_x."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, engine=None):
+        super().__init__(engine)
         # initial import from raw data
         self.importer = Importer()
         self.persist_substances()

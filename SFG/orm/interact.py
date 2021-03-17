@@ -13,8 +13,8 @@ from SFG.orm.import_db_controller import DatabaseWizard, SFG
 
 class DbInteractor(DatabaseWizard):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, engine=None):
+        super().__init__(engine)
         self.session.commit()
         self.references = self.get_reference_integrals()
 
@@ -22,6 +22,12 @@ class DbInteractor(DatabaseWizard):
         """Get a map of the dates of measurement dates to the respective DPPC integrals"""
         temp = self.session.query(self.measurement_days).all()
         q = {key: list(value)[0].dppc_integral for key, value in ito.groupby(temp, key=lambda x: x.date)}
+        return q
+
+    def get_root_reference_integrals(self) -> Dict[datetime.date, float]:
+        """Get a map of the dates of measurement dates to the respective DPPC integrals"""
+        temp = self.session.query(self.measurement_days).all()
+        q = {key: list(value)[0].dppc_int_root for key, value in ito.groupby(temp, key=lambda x: x.date)}
         return q
 
     # auxiliary functions
@@ -49,11 +55,13 @@ class DbInteractor(DatabaseWizard):
             out.append(self.get_spectrum_by_name(item.name))
         return out
 
+    # todo not required anymore
     def convert_regular_to_lt(self, reg_lt) -> LtIsotherm:
         """Converts a RegularLt object directly into the Lt object of the spectrum module."""
         lt = self.session.query(self.lt).filter(self.lt.id == reg_lt.ltid).one()
         return DbInteractor.construct_lt(lt)
 
+    # todo: not required anymore
     def convert_regular_to_sfg(self, reg_sfg) -> SfgSpectrum:
         """Converts a RegularSfg object directly into the Sfg object of the spectrum module.
         It remains the former regular_sfg object as part of the new spectrum's meta attribute
@@ -106,6 +114,7 @@ class DbInteractor(DatabaseWizard):
                 outfile.write(str(t) + '\n')
 
     # essential
+    # todo die hab ich glatt vergessen
     def get_coverage(self, spectrum: SFG) -> float:
         """Calculate the surface coverage of a given SFG spectrum object by dividing its CH integral by the CH integral
         obtained during the corresponding day of measurement and taking the square root."""

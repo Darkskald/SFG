@@ -147,6 +147,7 @@ class MeasurementDay(Base):
     date = Column(Date, unique=True)
     dppc_integral = Column(Float)
     dppc_no = Column(Integer)
+    dppc_int_root = Column(Float)
 
     references = relationship('ReferenceSpectrum', back_populates="measurement_day")
     spectra = relationship('SFG', back_populates='measurement_day')
