@@ -1,3 +1,6 @@
+import numpy as np
+from specsnake.sfg_spectrum import SfgAverager
+
 from sqlalchemy import Column, Integer, Text, ForeignKey, UniqueConstraint, TIMESTAMP, Date, Float
 
 from sqlalchemy.ext.declarative import declarative_base
