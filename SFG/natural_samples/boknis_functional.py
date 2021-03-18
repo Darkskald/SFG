@@ -35,14 +35,19 @@ from SFG.orm.base_dtos import SFG
 
 class SamplingDayAnalyzer:
 
-    def __init__(self, bes: BoknisEckSamplingDay, svc: SfgValueCalculator):
+    def __init__(self, bes: List[BoknisEckSamplingDay], svc: SfgValueCalculator):
         self.sampling_day = bes
         self.value_calculator = svc
-        self.sampling_date = self.sampling_day.sampling_date
 
-    def apply_svc(self):
-        data = self.value_calculator([i.sfg for i in self.sampling_day.spectra if i.sfg.measurement_day is not None])
-        return {f'{self.value_calculator.property_name}': data, 'date': self.sampling_date}
+    def __call__(self):
+        temp = pd.concat([self.apply_svc(i) for i in self.sampling_day])
+        temp.date = pd.to_datetime(temp.date)
+        return temp
+
+    def apply_svc(self, sampling_day):
+        sampling_date = sampling_day.sampling_date
+        data = self.value_calculator([i.sfg for i in sampling_day.spectra if i.sfg.measurement_day is not None])
+        return pd.DataFrame({f'{self.value_calculator.property_name}': data, 'date': sampling_date})
 
 
 class SfgValueCalculator:
@@ -82,7 +87,7 @@ class SfgValueCalculator:
 
             # spectrum
             spectrum_value = self.value_getter(DbInteractor.construct_sfg(s))
-            print(spectrum_value, ref_value)
+            # print(spectrum_value, ref_value)
             return self.reference_relator(spectrum_value, ref_value)
 
         return calculator
@@ -138,4 +143,4 @@ svc = SfgValueCalculator('test',
                          reference_calculator=get_average_spectrum,
                          value_getter=ch_integral)
 
-master = pd.DataFrame([SamplingDayAnalyzer(day, svc).apply_svc() for day in bes])
+master = SamplingDayAnalyzer(bes, svc)()
